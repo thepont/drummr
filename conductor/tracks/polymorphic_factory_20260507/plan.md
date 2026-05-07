@@ -17,10 +17,10 @@ Establish the polymorphic foundation that allows for diverse sound engines.
 ## Phase 2: Synthesis Engine Factory
 Implement the specialized synthesis engines defined in the spec.
 
-- [ ] Task: Enhanced FM Engine
-    - [ ] Write unit tests for expanded FM modulation paths.
-    - [ ] Implement `FmEngine` with updated parameters.
-- [ ] Task: Physical Modeling Engine
+- [x] Task: Enhanced FM Engine (28205b1)
+    - [x] Write unit tests for expanded FM modulation paths.
+    - [x] Implement `FmEngine` with updated parameters.
+- [~] Task: Physical Modeling Engine
     - [ ] Write unit tests for Karplus-Strong / Resonance modeling.
     - [ ] Implement `PhysicalModelingEngine`.
 - [ ] Task: Granular Synthesis Engine
