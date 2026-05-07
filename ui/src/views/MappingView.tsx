@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, List, Target, CheckCircle, WarningCircle } from "@phosphor-icons/react"
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Plus, List, Target, CheckCircle, WarningCircle, MagnifyingGlass, Trash } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -65,8 +65,9 @@ function Pad({ name, isActive, midiNote, isLearning, onClick }: PadProps) {
 export default function MappingView({ ws }: { ws: WebSocket | null }) {
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
   const [learningRoleId, setLearningRoleId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
-  // Example drum roles (In Phase 2.4 we'll load these from the backend)
+  // Example drum roles
   const [roles, setRoles] = useState([
     { id: 'kick', name: 'Kick', note: 36 },
     { id: 'snare', name: 'Snare', note: 38 },
@@ -82,10 +83,24 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
     { id: 'perc_1', name: 'Perc 1', note: 54 },
   ]);
 
+  const filteredRoles = useMemo(() => {
+    return roles.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [roles, searchQuery]);
+
   const updateRoleNote = useCallback((id: string, newNote: number) => {
     setRoles(prev => prev.map(r => r.id === id ? { ...r, note: newNote } : r));
     setLearningRoleId(null);
   }, []);
+
+  const deleteRole = (id: string) => {
+    setRoles(prev => prev.filter(r => r.id !== id));
+  };
+
+  const addRole = () => {
+    const id = `new_role_${Date.now()}`;
+    setRoles(prev => [...prev, { id, name: 'New Role', note: 0 }]);
+    setLearningRoleId(id);
+  };
 
   useEffect(() => {
     if (!ws) return;
@@ -98,7 +113,6 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
         const velocity = parseInt(parts[1]);
 
         if (velocity > 0) {
-          // Trigger visual feedback
           setActiveNotes(prev => new Set(prev).add(note));
           setTimeout(() => {
             setActiveNotes(prev => {
@@ -108,7 +122,6 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
             });
           }, 100);
 
-          // Handle MIDI Learn
           if (learningRoleId) {
             updateRoleNote(learningRoleId, note);
           }
@@ -137,7 +150,10 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
               Cancel Learning
             </button>
           )}
-          <button className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-muted transition-colors text-sm font-medium">
+          <button 
+            onClick={addRole}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-muted transition-colors text-sm font-medium"
+          >
             <Plus size={18} />
             Add Role
           </button>
@@ -172,36 +188,74 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
 
       {/* Manual List Section */}
       <div className="mt-12 border border-border rounded-2xl bg-card/30 overflow-hidden">
-        <div className="p-6 border-b border-border flex items-center justify-between">
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <List size={20} className="text-muted-foreground" />
-            <h4 className="font-semibold">Role List</h4>
+            <h4 className="font-semibold whitespace-nowrap">Role List</h4>
+          </div>
+          
+          <div className="relative flex-1 max-w-md">
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search roles..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-muted/50 border border-border rounded-lg py-2 pl-10 pr-4 text-sm outline-none focus:border-primary/50 transition-colors"
+            />
           </div>
         </div>
+        
         <div className="divide-y divide-border">
-          {roles.map(role => (
+          {filteredRoles.map(role => (
             <div key={role.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">{role.name}</span>
+                <input 
+                  type="text"
+                  value={role.name}
+                  onChange={(e) => setRoles(prev => prev.map(r => r.id === role.id ? { ...r, name: e.target.value } : r))}
+                  className="bg-transparent border-none outline-none text-sm font-medium w-32 focus:text-primary"
+                />
                 {role.note === undefined && <WarningCircle className="text-destructive" size={16} />}
               </div>
+              
               <div className="flex items-center gap-4">
-                <span className={cn(
-                  "text-[10px] font-mono px-2 py-1 rounded transition-colors",
-                  role.note !== undefined ? "bg-muted text-muted-foreground" : "bg-destructive/10 text-destructive"
-                )}>
-                  {role.note !== undefined ? `NOTE ${role.note}` : "UNMAPPED"}
-                </span>
-                <button 
-                  onClick={() => setLearningRoleId(role.id)}
-                  className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity hover:underline flex items-center gap-1"
-                >
-                  <Target size={14} />
-                  Learn
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Note</span>
+                  <input 
+                    type="number" 
+                    min="0"
+                    max="127"
+                    value={role.note}
+                    onChange={(e) => updateRoleNote(role.id, parseInt(e.target.value))}
+                    className="w-16 bg-muted px-2 py-1 rounded text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => setLearningRoleId(role.id)}
+                    className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                    title="MIDI Learn"
+                  >
+                    <Target size={18} />
+                  </button>
+                  <button 
+                    onClick={() => deleteRole(role.id)}
+                    className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                    title="Delete Role"
+                  >
+                    <Trash size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
+          {filteredRoles.length === 0 && (
+            <div className="p-12 text-center text-muted-foreground text-sm italic">
+              No roles found matching "{searchQuery}"
+            </div>
+          )}
         </div>
       </div>
     </div>
