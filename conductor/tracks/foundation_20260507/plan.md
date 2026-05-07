@@ -27,6 +27,6 @@
 ## Phase 3: UI Foundation & Integration
 - [x] Task: Build React UI for MIDI Visualization & Research Dashboard. (1ee00c0)
     - [ ] Implement a real-time "trigger" indicator and a display for active synthesis parameters.
-- [ ] Task: Integrate UI with Rust WebSocket server.
+- [x] Task: Integrate UI with Rust WebSocket server. (e14e50e)
     - [ ] Verify low-latency visual feedback for MIDI events.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI Foundation & Integration' (Protocol in workflow.md)
