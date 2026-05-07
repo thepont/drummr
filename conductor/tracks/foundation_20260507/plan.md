@@ -20,7 +20,7 @@
 ## Phase 2: Communication Bridge & Data Structures
 - [x] Task: Implement WebSocket server using `tokio-tungstenite`. (5f49d69)
     - [ ] Create a bridge that broadcasts MIDI events and research-derived state to the UI.
-- [ ] Task: Define Drum Kit TOML structure.
+- [x] Task: Define Drum Kit TOML structure. (039bb15)
     - [ ] Implement `serde` models for kits and mappings based on research.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Communication Bridge & Data Structures' (Protocol in workflow.md)
 
