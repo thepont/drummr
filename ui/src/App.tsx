@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive } from "@phosphor-icons/react"
+import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, CircuitBoard } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -18,16 +18,30 @@ export default function App() {
   const [status, setStatus] = useState<'Connecting' | 'Connected' | 'Disconnected'>('Connecting');
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [midiPort, setMidiPort] = useState<string>('None');
+  const [audioDevice, setAudioDevice] = useState<string>('None');
+  
+  const [availableMidi, setAvailableMidi] = useState<string[]>([]);
+  const [availableAudio, setAvailableAudio] = useState<string[]>([]);
 
   useEffect(() => {
     const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
     
-    socket.onopen = () => setStatus('Connected');
+    socket.onopen = () => {
+      setStatus('Connected');
+      socket.send('LIST_MIDI');
+      socket.send('LIST_AUDIO');
+    };
     socket.onclose = () => setStatus('Disconnected');
     socket.onmessage = (event) => {
       const data = event.data as string;
       if (data.startsWith('PORT: ')) {
         setMidiPort(data.replace('PORT: ', ''));
+      } else if (data.startsWith('AUDIO_DEVICE: ')) {
+        setAudioDevice(data.replace('AUDIO_DEVICE: ', ''));
+      } else if (data.startsWith('LIST_MIDI: ')) {
+        setAvailableMidi(data.replace('LIST_MIDI: ', '').split(',').filter(Boolean));
+      } else if (data.startsWith('LIST_AUDIO: ')) {
+        setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
       }
     };
 
@@ -70,14 +84,23 @@ export default function App() {
         {/* Status Area */}
         <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center justify-between text-xs px-2">
-            <span className="text-muted-foreground flex items-center gap-2">
-              {status === 'Connected' ? <WifiHigh className="text-emerald-500" /> : <WifiSlash className="text-destructive" />}
+            <span className={cn(
+              "flex items-center gap-2 font-medium transition-colors",
+              status === 'Connected' ? "text-emerald-500" : "text-destructive"
+            )}>
+              {status === 'Connected' ? <WifiHigh weight="bold" /> : <WifiSlash weight="bold" />}
               {status}
             </span>
-            <span className="text-muted-foreground flex items-center gap-2">
-              <HardDrive />
-              {midiPort}
-            </span>
+          </div>
+          <div className="space-y-1">
+             <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-2">
+                <CircuitBoard size={12} />
+                <span className="truncate">{midiPort}</span>
+             </div>
+             <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-2">
+                <SpeakerHigh size={12} />
+                <span className="truncate">{audioDevice}</span>
+             </div>
           </div>
         </div>
       </nav>
@@ -91,7 +114,15 @@ export default function App() {
         </header>
 
         <div className="p-8 max-w-7xl mx-auto">
-          {view === 'dashboard' && <DashboardView ws={ws} midiPort={midiPort} />}
+          {view === 'dashboard' && (
+            <DashboardView 
+              ws={ws} 
+              midiPort={midiPort} 
+              audioDevice={audioDevice}
+              availableMidi={availableMidi}
+              availableAudio={availableAudio}
+            />
+          )}
           {view === 'mapping' && <MappingView ws={ws} />}
           {view === 'editor' && <KitEditorView ws={ws} />}
         </div>
@@ -117,39 +148,104 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, labe
   )
 }
 
-function DashboardView({ ws, midiPort }: { ws: WebSocket | null, midiPort: string }) {
+function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudio }: { 
+  ws: WebSocket | null, 
+  midiPort: string, 
+  audioDevice: string,
+  availableMidi: string[],
+  availableAudio: string[]
+}) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <Card title="MIDI Device" value={midiPort} />
-      <Card title="System Load" value="2.4%" />
-      <Card title="Audio Buffer" value="128 Samples" />
-      
-      <div className="col-span-full mt-10 p-12 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <Faders size={32} className="text-muted-foreground" />
-        </div>
-        <div>
-          <h3 className="text-xl font-semibold">Welcome to Drummr</h3>
-          <p className="text-muted-foreground max-w-md mt-2">
-            Your low-latency MIDI drum engine is ready. Use the sidebar to map your pads or edit your kit sounds.
-          </p>
-        </div>
-        <button 
-          onClick={() => (ws?.send('LIST_MIDI'))}
-          className="bg-primary text-primary-foreground px-6 py-2 rounded-full font-medium hover:scale-105 active:scale-95 transition-all"
-        >
-          Refresh MIDI List
-        </button>
+    <div className="space-y-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card title="MIDI Device" value={midiPort} icon={<CircuitBoard size={20} />} />
+        <Card title="Audio Output" value={audioDevice} icon={<SpeakerHigh size={20} />} />
+        <Card title="System" value="OK" icon={<WifiHigh size={20} />} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* MIDI Selection */}
+        <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
+          <header className="p-6 border-b border-border flex items-center justify-between">
+            <h3 className="font-bold flex items-center gap-2">
+              <CircuitBoard size={20} className="text-muted-foreground" />
+              MIDI Inputs
+            </h3>
+            <button 
+              onClick={() => ws?.send('LIST_MIDI')}
+              className="text-xs text-primary hover:underline"
+            >
+              Refresh
+            </button>
+          </header>
+          <div className="divide-y divide-border">
+            {availableMidi.map((name, i) => (
+              <button
+                key={i}
+                onClick={() => ws?.send(`SELECT_MIDI:${i}`)}
+                className={cn(
+                  "w-full text-left p-4 text-sm transition-colors flex items-center justify-between group",
+                  midiPort === name ? "bg-primary/5 text-primary" : "hover:bg-muted"
+                )}
+              >
+                <span>{name}</span>
+                {midiPort === name && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </button>
+            ))}
+            {availableMidi.length === 0 && (
+              <p className="p-8 text-center text-sm text-muted-foreground italic">No MIDI devices detected</p>
+            )}
+          </div>
+        </section>
+
+        {/* Audio Selection */}
+        <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
+          <header className="p-6 border-b border-border flex items-center justify-between">
+            <h3 className="font-bold flex items-center gap-2">
+              <SpeakerHigh size={20} className="text-muted-foreground" />
+              Audio Outputs
+            </h3>
+            <button 
+              onClick={() => ws?.send('LIST_AUDIO')}
+              className="text-xs text-primary hover:underline"
+            >
+              Refresh
+            </button>
+          </header>
+          <div className="divide-y divide-border">
+            {availableAudio.map((name, i) => (
+              <button
+                key={i}
+                onClick={() => ws?.send(`SELECT_AUDIO:${i}`)}
+                className={cn(
+                  "w-full text-left p-4 text-sm transition-colors flex items-center justify-between group",
+                  audioDevice === name ? "bg-primary/5 text-primary" : "hover:bg-muted"
+                )}
+              >
+                <span>{name}</span>
+                {audioDevice === name && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </button>
+            ))}
+            {availableAudio.length === 0 && (
+              <p className="p-8 text-center text-sm text-muted-foreground italic">No audio devices detected</p>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   )
 }
 
-function Card({ title, value }: { title: string, value: string }) {
+function Card({ title, value, icon }: { title: string, value: string, icon: React.ReactNode }) {
   return (
-    <div className="bg-card border border-border p-6 rounded-2xl space-y-1">
-      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
-      <p className="text-2xl font-bold">{value}</p>
+    <div className="bg-card border border-border p-6 rounded-2xl flex items-start gap-4">
+      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
+        {icon}
+      </div>
+      <div className="space-y-1">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
+        <p className="text-lg font-bold truncate max-w-[180px]">{value}</p>
+      </div>
     </div>
   )
 }

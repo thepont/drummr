@@ -198,6 +198,25 @@ async fn main() -> Result<()> {
                         }
                     }
                 }
+            } else if text.starts_with("SELECT_MIDI:") {
+                let index = text.replace("SELECT_MIDI:", "").parse().unwrap_or(0);
+                let _ = start_midi(midi.clone(), comm.clone(), midi_tx.clone(), midi_producer.clone(), index).await;
+            } else if text.starts_with("SELECT_AUDIO:") {
+                let index = text.replace("SELECT_AUDIO:", "").parse().unwrap_or(0);
+                let host = cpal::default_host();
+                if let Ok(devices) = host.output_devices() {
+                    let devices_vec: Vec<_> = devices.collect();
+                    if let Some(device) = devices_vec.get(index) {
+                        if let Ok(stream) = start_audio(device, event_consumer.clone()) {
+                            let name = device.name().unwrap_or_default();
+                            println!("Active audio device: {}", name);
+                            comm.broadcast(format!("AUDIO_DEVICE: {}", name)).await;
+                            let mut settings = Settings::load();
+                            settings.last_audio_device = Some(name);
+                            let _ = settings.save();
+                        }
+                    }
+                }
             }
             let _ = midi; 
         }
