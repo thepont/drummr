@@ -20,11 +20,23 @@ async fn start_midi(
 ) -> Result<()> {
     let mut midi = midi_engine.lock().await;
     match midi.start(index, move |msg| {
-        if let MidiMessage::NoteOn(_chan, note, vel) = msg {
-            if let Ok(mut p) = raw_midi_producer.lock() {
-                let _ = p.push([0x90, note.into(), vel.into()]);
-            }
-            let _ = midi_tx.send(format!("MIDI: {},{}", u8::from(note), u8::from(vel)));
+        match msg {
+            MidiMessage::NoteOn(_chan, note, vel) => {
+                let n_u8: u8 = note.into();
+                let v_u8: u8 = vel.into();
+                if let Ok(mut p) = raw_midi_producer.lock() {
+                    let _ = p.push([0x90, n_u8, v_u8]);
+                }
+                let _ = midi_tx.send(format!("MIDI: {},{}", n_u8, v_u8));
+            },
+            MidiMessage::NoteOff(_chan, note, _vel) => {
+                let n_u8: u8 = note.into();
+                if let Ok(mut p) = raw_midi_producer.lock() {
+                    let _ = p.push([0x80, n_u8, 0]);
+                }
+                let _ = midi_tx.send(format!("MIDI: {},0", n_u8));
+            },
+            _ => {}
         }
     }) {
         Ok(port_name) => {

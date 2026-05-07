@@ -119,23 +119,29 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
     const handleMessage = (event: MessageEvent) => {
       const data = event.data as string;
       if (data.startsWith('MIDI: ')) {
+        console.log('MappingView MIDI:', data);
         const parts = data.replace('MIDI: ', '').split(',');
         const note = parseInt(parts[0]);
         const velocity = parseInt(parts[1]);
 
+        if (isNaN(note) || isNaN(velocity)) {
+          console.error('Invalid MIDI data received:', data);
+          return;
+        }
+
         if (velocity > 0) {
           setActiveNotes(prev => new Set(prev).add(note));
-          setTimeout(() => {
-            setActiveNotes(prev => {
-              const next = new Set(prev);
-              next.delete(note);
-              return next;
-            });
-          }, 100);
-
+          
           if (learningRoleId) {
+            console.log('LEARNED note', note, 'for role', learningRoleId);
             updateRoleNote(learningRoleId, note);
           }
+        } else {
+          setActiveNotes(prev => {
+            const next = new Set(prev);
+            next.delete(note);
+            return next;
+          });
         }
       } else if (data.startsWith('MAPPING: ')) {
         try {

@@ -48,7 +48,12 @@ export default function App() {
         setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
       } else if (data.startsWith('MIDI: ')) {
         const parts = data.replace('MIDI: ', '').split(',');
-        setLastMidi({ note: parseInt(parts[0]), vel: parseInt(parts[1]) });
+        const note = parseInt(parts[0]);
+        const vel = parseInt(parts[1]);
+        
+        if (isNaN(note) || isNaN(vel)) return;
+
+        setLastMidi({ note, vel });
         setIsMidiFlashing(true);
         setTimeout(() => setIsMidiFlashing(false), 80);
       }
