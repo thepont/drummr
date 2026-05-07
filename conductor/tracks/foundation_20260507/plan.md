@@ -1,16 +1,11 @@
 # Implementation Plan: Project Foundation & Research
 
-## Phase 0: Research & Discovery
-- [ ] Task: Conduct State-of-the-Art Review.
-    - [ ] Research low-latency Rust audio libraries (`cpal`, `jack`, `asiodrv`).
-    - [ ] Investigate existing open-source drum synthesizers (Hydrogen, Surge XT) for synthesis logic.
-    - [ ] Document findings in `docs/research/sota_review.md`.
-- [ ] Task: Research Percussive Synthesis Techniques.
-    - [ ] Analyze physical modeling and FM synthesis for kick, snare, and hi-hats.
-    - [ ] Document synthesis strategies in `docs/research/synthesis_strategies.md`.
-- [ ] Task: Hardware & Performance Benchmarking.
-    - [ ] Research baseline performance for Rust audio on Linux/ARM environments.
-- [ ] Task: Conductor - User Manual Verification 'Phase 0: Research & Discovery' (Protocol in workflow.md)
+## Phase 0: Research & Discovery [checkpoint: b39107b]
+- [x] Task: Conduct State-of-the-Art Review. (46d1b0e)
+- [x] Task: Research Percussive Synthesis Techniques. (46d1b0e)
+- [x] Task: Hardware & Performance Benchmarking. (46d1b0e)
+- [x] Task: Research Hybrid Drum Strategies. (46d1b0e)
+- [x] Task: Conductor - User Manual Verification 'Phase 0: Research & Discovery' (Protocol in workflow.md) (b39107b)
 
 ## Phase 1: Project Scaffolding & Core Engine
 - [ ] Task: Initialize Rust project and React frontend.
