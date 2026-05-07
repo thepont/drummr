@@ -1,0 +1,8 @@
+{
+  "track_id": "ui_overhaul_20260507",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-05-07T18:00:00Z",
+  "updated_at": "2026-05-07T18:00:00Z",
+  "description": "we want a way to edit kits within the ui, we also want to update the ui so its less of a strange green on black but more a modern dark ui type look... the interface must work well on tablet and on phone but also great on pc, users must have a screen that allows them to do their drum maping it should be easy ti see what pads are pressed and map them to things... it must save the settings for later.. this should allow you to A. say yea that thing map that as a bass drum and then other screen for saying this is my bass drum sound for this kit.. so one maps midi notes to say what they are and another maps kits if that makes sense"
+}
