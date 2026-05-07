@@ -1,27 +1,41 @@
 name = "Mega Kit"
-description = "A diverse kit with 30 sounds ranging from standard to strange."
+description = "A standard drum kit."
 
-[sounds.36]
-name = "Deep Kick"
-synthesis_type = "fm"
-parameters = { frequency = 50.0, mod_ratio = 1.0, mod_index = 0.5, attack_ms = 1.0, decay_ms = 300.0, p_decay_ms = 50.0, pitch_bend = 150.0 }
+[[sounds]]
+name = "Kick"
+engine_type = "fm"
+freq = 39.0
+mod_ratio = 0.9700000286102295
+mod_index = 10.800000190734863
+noise_level = 0.07999999821186066
+attack = 2.0
+decay = 250.0
 
-[sounds.38]
-name = "Standard Snare"
-synthesis_type = "fm"
-parameters = { frequency = 200.0, mod_ratio = 1.5, mod_index = 3.0, attack_ms = 1.0, decay_ms = 150.0 }
+[[sounds]]
+name = "Snare"
+engine_type = "phys"
+freq = 180.0
+brightness = 0.5
+dampening = 0.5
+attack = 1.0
+decay = 200.0
 
-[sounds.42]
+[[sounds]]
 name = "Closed Hat"
-synthesis_type = "noise"
-parameters = { attack_ms = 0.1, decay_ms = 20.0 }
+freq = 1200.0
+mod_ratio = 0.7799999713897705
+mod_index = 8.300000190734863
+attack = 0.5
+decay = 40.0
 
-[sounds.55]
-name = "DDTi Snare"
-synthesis_type = "fm"
-parameters = { frequency = 220.0, mod_ratio = 1.6, mod_index = 2.5, attack_ms = 1.0, decay_ms = 150.0 }
+[[mapping]]
+note = 55
+sound = "Closed Hat"
 
-[sounds.53]
-name = "Space Bird"
-synthesis_type = "fm"
-parameters = { frequency = 500.0, mod_ratio = 0.5, mod_index = 20.0, attack_ms = 1.0, decay_ms = 500.0 }
+[[mapping]]
+note = 38
+sound = "Snare"
+
+[[mapping]]
+note = 53
+sound = "Kick"

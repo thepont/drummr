@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, Cpu, List as ListIcon, X, Pulse } from "@phosphor-icons/react"
+import { House, ListDashes, Faders, WifiHigh, WifiSlash, SpeakerHigh, Cpu, List as ListIcon, X, Pulse } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -28,39 +28,82 @@ export default function App() {
   const [isMidiFlashing, setIsMidiFlashing] = useState(false);
 
   useEffect(() => {
-    const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
-    
-    socket.onopen = () => {
-      setStatus('Connected');
-      socket.send('LIST_MIDI');
-      socket.send('LIST_AUDIO');
-    };
-    socket.onclose = () => setStatus('Disconnected');
-    socket.onmessage = (event) => {
-      const data = event.data as string;
-      if (data.startsWith('PORT: ')) {
-        setMidiPort(data.replace('PORT: ', ''));
-      } else if (data.startsWith('AUDIO_DEVICE: ')) {
-        setAudioDevice(data.replace('AUDIO_DEVICE: ', ''));
-      } else if (data.startsWith('LIST_MIDI: ')) {
-        setAvailableMidi(data.replace('LIST_MIDI: ', '').split(',').filter(Boolean));
-      } else if (data.startsWith('LIST_AUDIO: ')) {
-        setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
-      } else if (data.startsWith('MIDI: ')) {
-        const parts = data.replace('MIDI: ', '').split(',');
-        const note = parseInt(parts[0]);
-        const vel = parseInt(parts[1]);
-        
-        if (isNaN(note) || isNaN(vel)) return;
+    let reconnectTimeout: number;
 
-        setLastMidi({ note, vel });
-        setIsMidiFlashing(true);
-        setTimeout(() => setIsMidiFlashing(false), 80);
-      }
+    const connect = () => {
+      setStatus('Connecting');
+      const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
+      let isCurrent = true;
+      
+      socket.onopen = () => {
+        if (!isCurrent) return;
+        console.log('WS Connected');
+        setStatus('Connected');
+        socket.send('LIST_MIDI');
+        socket.send('LIST_AUDIO');
+        setWs(socket);
+      };
+
+      socket.onclose = () => {
+        if (!isCurrent) return;
+        console.log('WS Closed');
+        setStatus('Disconnected');
+        setWs(null);
+        reconnectTimeout = window.setTimeout(connect, 2000);
+      };
+
+      socket.onerror = (err) => {
+        if (!isCurrent) return;
+        console.error('WS Error:', err);
+        socket.close();
+      };
+
+      socket.onmessage = (event) => {
+        if (!isCurrent) return;
+        const data = event.data as string;
+        if (data.startsWith('PORT: ')) {
+          setMidiPort(data.replace('PORT: ', ''));
+        } else if (data.startsWith('AUDIO_DEVICE: ')) {
+          setAudioDevice(data.replace('AUDIO_DEVICE: ', ''));
+        } else if (data.startsWith('LIST_MIDI: ')) {
+          setAvailableMidi(data.replace('LIST_MIDI: ', '').split(',').filter(Boolean));
+        } else if (data.startsWith('LIST_AUDIO: ')) {
+          setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
+        } else if (data.startsWith('MIDI: ')) {
+          const rawValues = data.replace('MIDI: ', '');
+          const parts = rawValues.split(',');
+          const note = parseInt(parts[0]);
+          const vel = parseInt(parts[1]);
+
+          console.log(`[MIDI DEBUG] Raw: "${data}" -> Parsed: Note=${note}, Vel=${vel}`);
+
+          if (isNaN(note) || isNaN(vel)) return;
+
+          if (vel > 0) {
+            console.log(`[MIDI HIT] Updating lastMidi with Vel ${vel}`);
+            setLastMidi({ note, vel });
+            setIsMidiFlashing(true);
+            setTimeout(() => setIsMidiFlashing(false), 80);
+          } else {
+            console.log(`[MIDI OFF] Flash only, skipping lastMidi update`);
+            setIsMidiFlashing(true);
+            setTimeout(() => setIsMidiFlashing(false), 40);
+          }
+        }
+
+      };
+
+      return () => {
+        isCurrent = false;
+        socket.close();
+      };
     };
 
-    setWs(socket);
-    return () => socket.close();
+    const cleanup = connect();
+    return () => {
+      cleanup();
+      clearTimeout(reconnectTimeout);
+    };
   }, []);
 
   const closeMenu = () => setIsMobileMenuOpen(false);
@@ -116,7 +159,6 @@ export default function App() {
             </h2>
           </div>
           
-          {/* Global MIDI indicator in header */}
           <div className="flex items-center gap-3">
              <div className={cn(
                "w-2 h-2 rounded-full transition-all duration-75",
@@ -181,7 +223,7 @@ function SidebarContent({ view, setView, status, midiPort, audioDevice, isMidiAc
         <div className="flex items-center justify-between text-xs px-2">
           <span className={cn(
             "flex items-center gap-2 font-medium transition-colors",
-            status === 'Connected' ? "text-emerald-500" : "text-destructive"
+            status === 'Connected' ? "text-emerald-500" : (status === 'Connecting' ? "text-amber-500" : "text-destructive")
           )}>
             {status === 'Connected' ? <WifiHigh weight="bold" /> : <WifiSlash weight="bold" />}
             {status}
@@ -238,7 +280,6 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* MIDI Selection */}
         <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
           <header className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2">
@@ -248,7 +289,7 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
             <button onClick={() => ws?.send('LIST_MIDI')} className="text-xs text-primary hover:underline">Refresh</button>
           </header>
           <div className="divide-y divide-border">
-            {availableMidi.map((name, i) => (
+            {availableMidi.map((name: string, i: number) => (
               <button
                 key={i}
                 onClick={() => ws?.send(`SELECT_MIDI:${i}`)}
@@ -265,7 +306,6 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
           </div>
         </section>
 
-        {/* Audio Selection */}
         <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
           <header className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2">
@@ -275,7 +315,7 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
             <button onClick={() => ws?.send('LIST_AUDIO')} className="text-xs text-primary hover:underline">Refresh</button>
           </header>
           <div className="divide-y divide-border">
-            {availableAudio.map((name, i) => (
+            {availableAudio.map((name: string, i: number) => (
               <button
                 key={i}
                 onClick={() => ws?.send(`SELECT_AUDIO:${i}`)}

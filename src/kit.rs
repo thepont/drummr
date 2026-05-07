@@ -84,9 +84,13 @@ pub struct DrumMapping {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumSound {
     pub name: String,
+    pub engine_type: Option<String>, // "fm", "phys", etc. Defaults to "fm"
     pub freq: f32,
-    pub mod_ratio: f32,
-    pub mod_index: f32,
+    pub mod_ratio: Option<f32>,
+    pub mod_index: Option<f32>,
+    pub noise_level: Option<f32>,
+    pub brightness: Option<f32>,
+    pub dampening: Option<f32>,
     pub attack: f32,
     pub decay: f32,
 }
@@ -109,18 +113,34 @@ impl KitEngine {
     pub fn from_config(config: DrumKit, sample_rate: f32) -> Self {
         let mut engine = Self::new(sample_rate);
         let mut sound_mappings: HashMap<String, Vec<u8>> = HashMap::new();
-        
-        for mapping in config.mapping {
+        for mapping in &config.mapping {
             if let Some(sound) = config.sounds.iter().find(|s| s.name == mapping.sound) {
-                let mut v = FmVoice::new(sample_rate);
-                v.frequency = sound.freq;
-                v.mod_ratio = sound.mod_ratio;
-                v.mod_index = sound.mod_index;
-                v.pitch_bend = 150.0; // Standard default for drum snap
-                v.amp_env.set_params(sound.attack / 1000.0, sound.decay / 1000.0);
-                v.pitch_env.set_params(0.001, 0.05); // Standard pitch drop (1ms attack, 50ms decay)
-                engine.voices.insert(mapping.note, Box::new(v));
-                
+                let engine_type = sound.engine_type.as_deref().unwrap_or("fm");
+
+                let voice: Box<dyn SoundEngine> = match engine_type {
+                    "phys" => {
+                        let mut v = crate::dsp::phys::PhysEngine::new(sample_rate);
+                        v.frequency = sound.freq;
+                        v.brightness = sound.brightness.unwrap_or(0.5);
+                        v.dampening = sound.dampening.unwrap_or(0.5);
+                        v.attack = sound.attack;
+                        v.decay = sound.decay;
+                        Box::new(v)
+                    }
+                    _ => {
+                        let mut v = FmVoice::new(sample_rate);
+                        v.frequency = sound.freq;
+                        v.mod_ratio = sound.mod_ratio.unwrap_or(1.0);
+                        v.mod_index = sound.mod_index.unwrap_or(1.0);
+                        v.noise_level = sound.noise_level.unwrap_or(0.0);
+                        v.pitch_bend = 150.0;
+                        v.amp_env.set_params(sound.attack / 1000.0, sound.decay / 1000.0);
+                        v.pitch_env.set_params(0.001, 0.05);
+                        Box::new(v)
+                    }
+                };
+
+                engine.voices.insert(mapping.note, voice);
                 sound_mappings.entry(mapping.sound.clone()).or_default().push(mapping.note);
             }
         }

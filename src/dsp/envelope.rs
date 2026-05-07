@@ -11,6 +11,8 @@ pub struct AdEnvelope {
     attack_inc: f32,
     decay_inc: f32,
     sample_rate: f32,
+    pub attack_sec: f32,
+    pub decay_sec: f32,
 }
 
 impl AdEnvelope {
@@ -21,12 +23,17 @@ impl AdEnvelope {
             attack_inc: 0.0,
             decay_inc: 0.0,
             sample_rate,
+            attack_sec: 0.001,
+            decay_sec: 0.1,
         }
     }
 
-    pub fn set_params(&mut self, attack_ms: f32, decay_ms: f32) {
-        let attack_samples = (attack_ms / 1000.0) * self.sample_rate;
-        let decay_samples = (decay_ms / 1000.0) * self.sample_rate;
+    pub fn set_params(&mut self, attack_sec: f32, decay_sec: f32) {
+        self.attack_sec = attack_sec;
+        self.decay_sec = decay_sec;
+
+        let attack_samples = attack_sec * self.sample_rate;
+        let decay_samples = decay_sec * self.sample_rate;
 
         self.attack_inc = if attack_samples > 0.0 { 1.0 / attack_samples } else { 1.0 };
         self.decay_inc = if decay_samples > 0.0 { 1.0 / decay_samples } else { 1.0 };

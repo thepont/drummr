@@ -11,3 +11,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [~] **Track: UI Overhaul & Kit Editor**
 *Link: [./tracks/ui_overhaul_20260507/](./tracks/ui_overhaul_20260507/)*
+
+---
+
+- [ ] **Track: polymorphic sound engine factory and advanced kit editor with tiered presets**
+*Link: [./tracks/polymorphic_factory_20260507/](./tracks/polymorphic_factory_20260507/)*
