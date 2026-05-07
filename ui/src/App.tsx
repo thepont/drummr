@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, CircuitBoard, List as ListIcon, X } from "@phosphor-icons/react"
+import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, CircuitBoard, List as ListIcon, X, Activity } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -9,6 +9,7 @@ function cn(...inputs: ClassValue[]) {
 
 import MappingView from './views/MappingView'
 import KitEditorView from './views/KitEditorView'
+import { Card } from './components/ui'
 
 type View = 'dashboard' | 'mapping' | 'editor';
 
@@ -22,6 +23,9 @@ export default function App() {
   
   const [availableMidi, setAvailableMidi] = useState<string[]>([]);
   const [availableAudio, setAvailableAudio] = useState<string[]>([]);
+  
+  const [lastMidi, setLastMidi] = useState<{note: number, vel: number} | null>(null);
+  const [isMidiFlashing, setIsMidiFlashing] = useState(false);
 
   useEffect(() => {
     const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
@@ -42,6 +46,11 @@ export default function App() {
         setAvailableMidi(data.replace('LIST_MIDI: ', '').split(',').filter(Boolean));
       } else if (data.startsWith('LIST_AUDIO: ')) {
         setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
+      } else if (data.startsWith('MIDI: ')) {
+        const parts = data.replace('MIDI: ', '').split(',');
+        setLastMidi({ note: parseInt(parts[0]), vel: parseInt(parts[1]) });
+        setIsMidiFlashing(true);
+        setTimeout(() => setIsMidiFlashing(false), 80);
       }
     };
 
@@ -61,6 +70,7 @@ export default function App() {
           status={status} 
           midiPort={midiPort} 
           audioDevice={audioDevice} 
+          isMidiActive={isMidiFlashing}
         />
       </nav>
 
@@ -76,10 +86,11 @@ export default function App() {
             </div>
             <SidebarContent 
               view={view} 
-              setView={(v) => { setView(v); closeMenu(); }} 
+              setView={(v: View) => { setView(v); closeMenu(); }} 
               status={status} 
               midiPort={midiPort} 
               audioDevice={audioDevice} 
+              isMidiActive={isMidiFlashing}
             />
           </nav>
         </div>
@@ -99,6 +110,15 @@ export default function App() {
               {view.replace('_', ' ')}
             </h2>
           </div>
+          
+          {/* Global MIDI indicator in header */}
+          <div className="flex items-center gap-3">
+             <div className={cn(
+               "w-2 h-2 rounded-full transition-all duration-75",
+               isMidiFlashing ? "bg-emerald-400 shadow-[0_0_10px_#34d399] scale-125" : "bg-zinc-800"
+             )} />
+             <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">MIDI In</span>
+          </div>
         </header>
 
         <div className="p-4 lg:p-8 max-w-7xl mx-auto">
@@ -109,6 +129,8 @@ export default function App() {
               audioDevice={audioDevice}
               availableMidi={availableMidi}
               availableAudio={availableAudio}
+              lastMidi={lastMidi}
+              isMidiActive={isMidiFlashing}
             />
           )}
           {view === 'mapping' && <MappingView ws={ws} />}
@@ -119,7 +141,7 @@ export default function App() {
   )
 }
 
-function SidebarContent({ view, setView, status, midiPort, audioDevice }: any) {
+function SidebarContent({ view, setView, status, midiPort, audioDevice, isMidiActive }: any) {
   return (
     <>
       <div className="p-6 flex items-center gap-3">
@@ -159,6 +181,7 @@ function SidebarContent({ view, setView, status, midiPort, audioDevice }: any) {
             {status === 'Connected' ? <WifiHigh weight="bold" /> : <WifiSlash weight="bold" />}
             {status}
           </span>
+          {isMidiActive && <Activity size={14} className="text-emerald-400 animate-pulse" />}
         </div>
         <div className="space-y-1">
            <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-2">
@@ -192,16 +215,25 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, labe
   )
 }
 
-function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudio }: any) {
+function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudio, lastMidi, isMidiActive }: any) {
   return (
     <div className="space-y-10">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card title="MIDI Device" value={midiPort} icon={<CircuitBoard size={20} />} />
+        <Card 
+          title="MIDI Input" 
+          value={midiPort} 
+          icon={<CircuitBoard size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} 
+        />
         <Card title="Audio Output" value={audioDevice} icon={<SpeakerHigh size={20} />} />
-        <Card title="System" value="OK" icon={<WifiHigh size={20} />} />
+        <Card 
+          title="Last Note" 
+          value={lastMidi ? `Note ${lastMidi.note} (Vel ${lastMidi.vel})` : "No Input"} 
+          icon={<Activity size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* MIDI Selection */}
         <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
           <header className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2">
@@ -228,6 +260,7 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
           </div>
         </section>
 
+        {/* Audio Selection */}
         <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
           <header className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2">
@@ -253,20 +286,6 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
             {availableAudio.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground italic">No audio devices detected</p>}
           </div>
         </section>
-      </div>
-    </div>
-  )
-}
-
-function Card({ title, value, icon }: any) {
-  return (
-    <div className="bg-card border border-border p-6 rounded-2xl flex items-start gap-4">
-      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
-        {icon}
-      </div>
-      <div className="space-y-1">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
-        <p className="text-lg font-bold truncate max-w-[180px]">{value}</p>
       </div>
     </div>
   )

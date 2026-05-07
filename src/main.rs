@@ -24,9 +24,8 @@ async fn start_midi(
             if let Ok(mut p) = raw_midi_producer.lock() {
                 let _ = p.push([0x90, note.into(), vel.into()]);
             }
+            let _ = midi_tx.send(format!("MIDI: {},{}", u8::from(note), u8::from(vel)));
         }
-        let msg_str = format!("MIDI: {:?}", msg);
-        let _ = midi_tx.send(msg_str);
     }) {
         Ok(port_name) => {
             println!("MIDI started: {}", port_name);
