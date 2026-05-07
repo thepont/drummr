@@ -11,7 +11,7 @@
 - [x] Task: Initialize Rust project and React frontend. (3feff8d)
     - [ ] Run `cargo init` for the backend.
     - [ ] Set up React/TypeScript frontend using Vite.
-- [ ] Task: Implement basic Audio Output with `cpal`.
+- [x] Task: Implement basic Audio Output with `cpal`. (b9711cd)
     - [ ] Create an audio stream and output a simple sine wave to verify low-latency playback.
 - [ ] Task: Implement MIDI Input with `wmidi`.
     - [ ] Set up MIDI device discovery and message parsing.
