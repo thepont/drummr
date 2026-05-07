@@ -25,12 +25,22 @@ pub trait SoundEngine: Send {
 // Temporary shim to make FmVoice and NoiseVoice compatible with SoundEngine
 impl SoundEngine for FmVoice {
     fn name(&self) -> &str { "FM" }
-    fn schema(&self) -> Vec<ParamSchema> { vec![] } // We'll fill these in Phase 2
+    fn schema(&self) -> Vec<ParamSchema> {
+        vec![
+            ParamSchema { name: "freq".to_string(), min: 20.0, max: 2000.0, default: 440.0, unit: "Hz".to_string() },
+            ParamSchema { name: "mod_ratio".to_string(), min: 0.0, max: 10.0, default: 1.0, unit: "ratio".to_string() },
+            ParamSchema { name: "mod_index".to_string(), min: 0.0, max: 20.0, default: 1.0, unit: "index".to_string() },
+            ParamSchema { name: "noise_level".to_string(), min: 0.0, max: 1.0, default: 0.0, unit: "level".to_string() },
+            ParamSchema { name: "attack".to_string(), min: 0.001, max: 1.0, default: 0.001, unit: "s".to_string() },
+            ParamSchema { name: "decay".to_string(), min: 0.001, max: 2.0, default: 0.2, unit: "s".to_string() },
+        ]
+    }
     fn set_param(&mut self, param: &str, value: f32) {
         match param {
             "freq" => self.frequency = value,
             "mod_ratio" => self.mod_ratio = value,
             "mod_index" => self.mod_index = value,
+            "noise_level" => self.noise_level = value,
             "attack" => self.amp_env.set_params(value, self.amp_env.decay_sec),
             "decay" => self.amp_env.set_params(self.amp_env.attack_sec, value),
             _ => {}

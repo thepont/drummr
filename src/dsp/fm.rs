@@ -10,6 +10,7 @@ pub struct FmVoice {
     pub frequency: f32,
     pub mod_ratio: f32,
     pub mod_index: f32,
+    pub noise_level: f32,
     
     // Envelopes
     pub amp_env: AdEnvelope,
@@ -18,6 +19,7 @@ pub struct FmVoice {
     
     // Runtime state
     velocity: f32,
+    rng_state: u32,
 }
 
 impl FmVoice {
@@ -34,11 +36,21 @@ impl FmVoice {
             frequency: 440.0,
             mod_ratio: 1.0,
             mod_index: 1.0,
+            noise_level: 0.0,
             amp_env,
             pitch_env,
             pitch_bend: 0.0,
             velocity: 0.0,
+            rng_state: 12345,
         }
+    }
+
+    fn next_noise(&mut self) -> f32 {
+        // simple Xorshift
+        self.rng_state ^= self.rng_state << 13;
+        self.rng_state ^= self.rng_state >> 17;
+        self.rng_state ^= self.rng_state << 5;
+        (self.rng_state as f32 / u32::MAX as f32) * 2.0 - 1.0
     }
 
     pub fn trigger(&mut self, velocity: f32) {
@@ -71,8 +83,11 @@ impl FmVoice {
         self.carrier_phase += (2.0 * PI * current_freq) / self.sample_rate;
         self.carrier_phase %= 2.0 * PI;
 
+        let carrier_out = (self.carrier_phase + modulator_out).sin();
+        let noise_out = self.next_noise() * self.noise_level;
+
         // Multiply by velocity for volume
-        (self.carrier_phase + modulator_out).sin() * amp * self.velocity
+        (carrier_out + noise_out) * amp * self.velocity
     }
 
     pub fn is_active(&self) -> bool {
