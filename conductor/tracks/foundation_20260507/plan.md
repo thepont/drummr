@@ -7,7 +7,7 @@
 - [x] Task: Research Hybrid Drum Strategies. (46d1b0e)
 - [x] Task: Conductor - User Manual Verification 'Phase 0: Research & Discovery' (Protocol in workflow.md) (b39107b)
 
-## Phase 1: Project Scaffolding & Core Engine
+## Phase 1: Project Scaffolding & Core Engine [checkpoint: b9c243a]
 - [x] Task: Initialize Rust project and React frontend. (3feff8d)
     - [ ] Run `cargo init` for the backend.
     - [ ] Set up React/TypeScript frontend using Vite.
@@ -15,7 +15,7 @@
     - [ ] Create an audio stream and output a simple sine wave to verify low-latency playback.
 - [x] Task: Implement MIDI Input with `wmidi`. (5d42f7c)
     - [ ] Set up MIDI device discovery and message parsing.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Project Scaffolding & Core Engine' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Project Scaffolding & Core Engine' (Protocol in workflow.md) (b9c243a)
 
 ## Phase 2: Communication Bridge & Data Structures
 - [ ] Task: Implement WebSocket server using `tokio-tungstenite`.
