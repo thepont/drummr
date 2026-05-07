@@ -13,7 +13,7 @@
     - [ ] Set up React/TypeScript frontend using Vite.
 - [x] Task: Implement basic Audio Output with `cpal`. (b9711cd)
     - [ ] Create an audio stream and output a simple sine wave to verify low-latency playback.
-- [ ] Task: Implement MIDI Input with `wmidi`.
+- [x] Task: Implement MIDI Input with `wmidi`. (5d42f7c)
     - [ ] Set up MIDI device discovery and message parsing.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Project Scaffolding & Core Engine' (Protocol in workflow.md)
 
