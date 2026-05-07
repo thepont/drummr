@@ -1,6 +1,6 @@
 # Implementation Plan: Polymorphic Factory & Advanced Kit Editor
 
-## Phase 1: Research & Core Trait Architecture
+## Phase 1: Research & Core Trait Architecture [checkpoint: e85502e]
 Establish the polymorphic foundation that allows for diverse sound engines.
 
 - [x] Task: Research SOTA Hybrid Synthesis & Architectural Patterns (7fd6bea)
@@ -9,10 +9,10 @@ Establish the polymorphic foundation that allows for diverse sound engines.
 - [x] Task: Define the `SoundEngine` Trait and Schema Models (dd1f693)
     - [x] Write tests for trait object dispatch and parameter serialization.
     - [x] Implement `SoundEngine` trait and `ParamSchema` structs in `src/kit.rs`.
-- [~] Task: Refactor `KitEngine` for Polymorphism
-    - [ ] Write tests for a `KitEngine` managing mixed engine types.
-    - [ ] Update `KitEngine` to hold `Box<dyn SoundEngine>` instead of hardcoded `Voice`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Research & Core Trait Architecture' (Protocol in workflow.md)
+- [x] Task: Refactor `KitEngine` for Polymorphism (04544f6)
+    - [x] Write tests for a `KitEngine` managing mixed engine types.
+    - [x] Update `KitEngine` to hold `Box<dyn SoundEngine>` instead of hardcoded `Voice`.
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Research & Core Trait Architecture' (Protocol in workflow.md)
 
 ## Phase 2: Synthesis Engine Factory
 Implement the specialized synthesis engines defined in the spec.
