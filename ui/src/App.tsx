@@ -1,143 +1,152 @@
-import { useState, useEffect, useRef } from 'react'
-import './App.css'
+import { useState, useEffect } from 'react'
+import { House, ListDashes, Knobs, WifiHigh, WifiSlash, HardDrive } from "@phosphor-icons/react"
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
-function App() {
-  const [lastMessage, setLastMessage] = useState<string>('Wait...')
-  const [midiPort, setMidiPort] = useState<string>('Unknown')
-  const [audioDevice, setAudioDevice] = useState<string>('Default')
-  const [availablePorts, setAvailablePorts] = useState<string[]>([])
-  const [availableAudioDevices, setAvailableAudioDevices] = useState<string[]>([])
-  const [isTriggered, setIsTriggered] = useState(false)
-  const [wsStatus, setWsStatus] = useState<'Connecting' | 'Connected' | 'Disconnected'>('Disconnected')
-  const socketRef = useRef<WebSocket | null>(null)
-  const triggerTimeout = useRef<number | null>(null)
+// Utility for tailwind classes
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
-  const connect = () => {
-    if (socketRef.current) socketRef.current.close()
-    
-    setWsStatus('Connecting')
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const hostname = window.location.hostname || '127.0.0.1'
-    const port = '8080' // Explicitly use backend port
-    const socket = new WebSocket(`${protocol}//${hostname}:${port}`)
-    socketRef.current = socket
+type View = 'dashboard' | 'mapping' | 'editor';
 
-    socket.onopen = () => {
-      setWsStatus('Connected')
-      setLastMessage('Ready')
-      socket.send('LIST_MIDI')
-      socket.send('LIST_AUDIO')
-    }
-
-    socket.onmessage = (event) => {
-      const data = event.data as string
-      console.log('WS Received:', data)
-      
-      if (data.startsWith('PORT: ')) {
-        setMidiPort(data.replace('PORT: ', ''))
-      } else if (data.startsWith('LIST_MIDI: ')) {
-        const ports = data.replace('LIST_MIDI: ', '').split(',')
-        setAvailablePorts(ports)
-      } else if (data.startsWith('AUDIO_DEVICE: ')) {
-        setAudioDevice(data.replace('AUDIO_DEVICE: ', ''))
-      } else if (data.startsWith('LIST_AUDIO: ')) {
-        const devices = data.replace('LIST_AUDIO: ', '').split(',')
-        setAvailableAudioDevices(devices)
-      } else if (data.startsWith('MIDI: ')) {
-        setLastMessage(data.replace('MIDI: ', ''))
-        setIsTriggered(true)
-        if (triggerTimeout.current) window.clearTimeout(triggerTimeout.current)
-        triggerTimeout.current = window.setTimeout(() => setIsTriggered(false), 100)
-      } else {
-        setLastMessage(data)
-      }
-    }
-
-    socket.onclose = () => {
-      setWsStatus('Disconnected')
-      setLastMessage('Engine offline')
-    }
-
-    socket.onerror = (err) => {
-      console.error('WS Error:', err)
-      setWsStatus('Disconnected')
-    }
-  }
+export default function App() {
+  const [view, setView] = useState<View>('dashboard');
+  const [status, setStatus] = useState<'Connecting' | 'Connected' | 'Disconnected'>('Connecting');
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [midiPort, setMidiPort] = useState<string>('None');
 
   useEffect(() => {
-    connect()
-    return () => socketRef.current?.close()
-  }, [])
+    const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
+    
+    socket.onopen = () => setStatus('Connected');
+    socket.onclose = () => setStatus('Disconnected');
+    socket.onmessage = (event) => {
+      const data = event.data as string;
+      if (data.startsWith('PORT: ')) {
+        setMidiPort(data.replace('PORT: ', ''));
+      }
+    };
 
-  const handleMidiChange = (index: number) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(`SET_MIDI:${index}`)
-    }
-  }
-
-  const handleAudioChange = (index: number) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(`SET_AUDIO:${index}`)
-    }
-  }
+    setWs(socket);
+    return () => socket.close();
+  }, []);
 
   return (
-    <div className="app-container">
-      <header>
-        <div className="header-top">
-          <h1>drummr <span className="status-badge">POC</span></h1>
-          <div className={`ws-indicator ${wsStatus.toLowerCase()}`}>
-            {wsStatus} {wsStatus === 'Disconnected' && <button onClick={connect}>Retry</button>}
+    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground select-none">
+      {/* Sidebar */}
+      <nav className="flex flex-col w-64 border-r border-border bg-card/50 backdrop-blur-xl">
+        <div className="p-6 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <Knobs className="text-primary-foreground" size={20} weight="bold" />
           </div>
-        </div>
-        
-        <div className="settings-bar">
-          <div className="selector">
-            <label htmlFor="midi-select">MIDI: </label>
-            <select 
-              id="midi-select"
-              value={availablePorts.indexOf(midiPort)}
-              onChange={(e) => handleMidiChange(parseInt(e.target.value))}
-            >
-              {availablePorts.map((name, index) => (
-                <option key={index} value={index}>{name}</option>
-              ))}
-              {availablePorts.length === 0 && <option>No MIDI devices</option>}
-            </select>
-          </div>
-
-          <div className="selector">
-            <label htmlFor="audio-select">Audio: </label>
-            <select 
-              id="audio-select"
-              value={availableAudioDevices.indexOf(audioDevice)}
-              onChange={(e) => handleAudioChange(parseInt(e.target.value))}
-            >
-              {availableAudioDevices.map((name, index) => (
-                <option key={index} value={index}>{name}</option>
-              ))}
-              {availableAudioDevices.length === 0 && <option>No audio devices</option>}
-            </select>
-          </div>
-        </div>
-      </header>
-      
-      <main>
-        <div className={`trigger-pad ${isTriggered ? 'active' : ''}`}>
-          <div className="pad-label">MIDI TRIGGER</div>
+          <h1 className="font-bold text-xl tracking-tight">drummr</h1>
         </div>
 
-        <div className="info-panel">
-          <h3>Last Event</h3>
-          <div className="message-display">{lastMessage}</div>
+        <div className="flex-1 px-3 space-y-1">
+          <NavItem 
+            icon={<House size={20} />} 
+            label="Dashboard" 
+            active={view === 'dashboard'} 
+            onClick={() => setView('dashboard')} 
+          />
+          <NavItem 
+            icon={<ListDashes size={20} />} 
+            label="MIDI Mapping" 
+            active={view === 'mapping'} 
+            onClick={() => setView('mapping')} 
+          />
+          <NavItem 
+            icon={<Knobs size={20} />} 
+            label="Kit Editor" 
+            active={view === 'editor'} 
+            onClick={() => setView('editor')} 
+          />
+        </div>
+
+        {/* Status Area */}
+        <div className="p-4 border-t border-border space-y-3">
+          <div className="flex items-center justify-between text-xs px-2">
+            <span className="text-muted-foreground flex items-center gap-2">
+              {status === 'Connected' ? <WifiHigh className="text-emerald-500" /> : <WifiSlash className="text-destructive" />}
+              {status}
+            </span>
+            <span className="text-muted-foreground flex items-center gap-2">
+              <HardDrive />
+              {midiPort}
+            </span>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto relative">
+        <header className="h-16 border-b border-border flex items-center px-8 bg-background/50 backdrop-blur-md sticky top-0 z-10">
+          <h2 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
+            {view.replace('_', ' ')}
+          </h2>
+        </header>
+
+        <div className="p-8 max-w-7xl mx-auto">
+          {view === 'dashboard' && <DashboardView ws={ws} midiPort={midiPort} />}
+          {view === 'mapping' && <div className="text-center py-20 text-muted-foreground italic">MIDI Mapping View Coming Soon</div>}
+          {view === 'editor' && <div className="text-center py-20 text-muted-foreground italic">Kit Editor View Coming Soon</div>}
         </div>
       </main>
-
-      <footer>
-        <p>Research & Discovery Dashboard | Phase 3</p>
-      </footer>
     </div>
   )
 }
 
-export default App
+function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 outline-none",
+        active 
+          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10" 
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
+function DashboardView({ ws, midiPort }: { ws: WebSocket | null, midiPort: string }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <Card title="MIDI Device" value={midiPort} />
+      <Card title="System Load" value="2.4%" />
+      <Card title="Audio Buffer" value="128 Samples" />
+      
+      <div className="col-span-full mt-10 p-12 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+          <Knobs size={32} className="text-muted-foreground" />
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold">Welcome to Drummr</h3>
+          <p className="text-muted-foreground max-w-md mt-2">
+            Your low-latency MIDI drum engine is ready. Use the sidebar to map your pads or edit your kit sounds.
+          </p>
+        </div>
+        <button 
+          onClick={() => (ws?.send('LIST_MIDI'))}
+          className="bg-primary text-primary-foreground px-6 py-2 rounded-full font-medium hover:scale-105 active:scale-95 transition-all"
+        >
+          Refresh MIDI List
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Card({ title, value }: { title: string, value: string }) {
+  return (
+    <div className="bg-card border border-border p-6 rounded-2xl space-y-1">
+      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
+      <p className="text-2xl font-bold">{value}</p>
+    </div>
+  )
+}
