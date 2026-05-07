@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Play, FloppyDisk, Sparkle, Waveform } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -20,18 +20,15 @@ interface SoundParams {
 export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   const [sounds, setSounds] = useState<SoundParams[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   const selectedSound = sounds.find(s => s.id === selectedId);
 
-  const updateParam = (id: string, param: keyof SoundParams, value: number) => {
+  const updateParam = useCallback((id: string, param: keyof SoundParams, value: number) => {
     setSounds(prev => prev.map(s => s.id === id ? { ...s, [param]: value } : s));
-    
-    // Real-time update to backend
     if (ws) {
       ws.send(`SET_PARAM:${id}:${param}:${value}`);
     }
-  };
+  }, [ws]);
 
   const handleTestTrigger = (id: string) => {
     if (ws) {
@@ -154,7 +151,14 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                 </h4>
                 
                 <div className="aspect-video bg-background/50 rounded-2xl border border-border relative overflow-hidden group">
-                   <EnvelopeVisual attack={selectedSound.attack} decay={selectedSound.decay} />
+                   <EnvelopeVisual 
+                    attack={selectedSound.attack} 
+                    decay={selectedSound.decay} 
+                    onUpdate={(a, d) => {
+                      updateParam(selectedSound.id, 'attack', a);
+                      updateParam(selectedSound.id, 'decay', d);
+                    }}
+                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -192,7 +196,7 @@ function Slider({ label, value, min, max, step, onChange }: { label: string, val
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
-        <span className="text-sm font-mono font-bold bg-muted px-2 py-0.5 rounded">{value.toFixed(2)}</span>
+        <span className="text-sm font-mono font-bold bg-muted px-2 py-0.5 rounded">{value.toFixed(3)}</span>
       </div>
       <input 
         type="range" 
@@ -205,36 +209,89 @@ function Slider({ label, value, min, max, step, onChange }: { label: string, val
   )
 }
 
-function EnvelopeVisual({ attack, decay }: { attack: number, decay: number }) {
-  // Simplified AD visualization using SVG
-  const totalTime = attack + decay;
-  const attackWidth = (attack / totalTime) * 100;
+function EnvelopeVisual({ attack, decay, onUpdate }: { attack: number, decay: number, onUpdate: (a: number, d: number) => void }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Normalize visualization: 0.5s attack max, 2.0s decay max
+  const maxAttack = 0.5;
+  const maxDecay = 2.0;
   
+  const x = (attack / maxAttack) * 40; // Attack is first 40% of width
+  const dx = (decay / maxDecay) * 60; // Decay is next 60% of width
+  const peakX = x;
+  const endX = x + dx;
+
+  const handleMouseDown = () => setIsDragging(true);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !svgRef.current) return;
+
+      const rect = svgRef.current.getBoundingClientRect();
+      const relativeX = ((e.clientX - rect.left) / rect.width) * 100;
+
+      // Logic:
+      // If we move X, we update attack (0-40 range)
+      // If we move X, we update decay (relative to remaining space)
+      
+      const newAttack = Math.min(Math.max((relativeX / 40) * maxAttack, 0.001), maxAttack);
+      // We'll just update attack for now if dragging the peak horizontally
+      onUpdate(newAttack, decay);
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, decay, onUpdate]);
+
   return (
-    <svg className="w-full h-full p-8" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <svg 
+      ref={svgRef}
+      className={cn(
+        "w-full h-full p-8 select-none touch-none",
+        isDragging ? "cursor-grabbing" : "cursor-grab"
+      )} 
+      viewBox="0 0 100 100" 
+      preserveAspectRatio="none"
+    >
       <defs>
         <linearGradient id="envelopeGradient" x1="0" y1="1" x2="0" y2="0">
           <stop offset="0%" stopColor="var(--primary)" stopOpacity="0" />
           <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.2" />
         </linearGradient>
       </defs>
-      {/* Grid Lines */}
+      
       <line x1="0" y1="0" x2="100" y2="0" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2 2" />
       <line x1="0" y1="50" x2="100" y2="50" stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2 2" />
       <line x1="0" y1="100" x2="100" y2="100" stroke="var(--border)" strokeWidth="1" />
       
-      {/* Envelope Path */}
       <path 
-        d={`M 0 100 L ${attackWidth} 10 L 100 100`} 
+        d={`M 0 100 L ${peakX} 10 L ${endX} 100`} 
         fill="url(#envelopeGradient)"
         stroke="var(--primary)" 
         strokeWidth="2"
         strokeLinejoin="round"
-        className="transition-all duration-300 ease-out"
+        className="transition-all duration-75 ease-out"
       />
       
-      {/* Points */}
-      <circle cx={attackWidth} cy="10" r="2" fill="var(--primary)" className="transition-all duration-300" />
+      <circle 
+        cx={peakX} cy="10" r="4" 
+        fill="var(--primary)" 
+        onMouseDown={handleMouseDown}
+        className={cn(
+          "transition-all duration-75 hover:r-6 cursor-grab active:cursor-grabbing shadow-xl",
+          isDragging && "fill-emerald-500 r-6"
+        )} 
+      />
     </svg>
   )
 }
