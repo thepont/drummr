@@ -8,6 +8,8 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+import MappingView from './views/MappingView'
+
 type View = 'dashboard' | 'mapping' | 'editor';
 
 export default function App() {
@@ -89,7 +91,7 @@ export default function App() {
 
         <div className="p-8 max-w-7xl mx-auto">
           {view === 'dashboard' && <DashboardView ws={ws} midiPort={midiPort} />}
-          {view === 'mapping' && <div className="text-center py-20 text-muted-foreground italic">MIDI Mapping View Coming Soon</div>}
+          {view === 'mapping' && <MappingView ws={ws} />}
           {view === 'editor' && <div className="text-center py-20 text-muted-foreground italic">Kit Editor View Coming Soon</div>}
         </div>
       </main>
