@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { House, ListDashes, Knobs, WifiHigh, WifiSlash, HardDrive } from "@phosphor-icons/react"
+import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -38,7 +38,7 @@ export default function App() {
       <nav className="flex flex-col w-64 border-r border-border bg-card/50 backdrop-blur-xl">
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Knobs className="text-primary-foreground" size={20} weight="bold" />
+            <Faders className="text-primary-foreground" size={20} weight="bold" />
           </div>
           <h1 className="font-bold text-xl tracking-tight">drummr</h1>
         </div>
@@ -57,7 +57,7 @@ export default function App() {
             onClick={() => setView('mapping')} 
           />
           <NavItem 
-            icon={<Knobs size={20} />} 
+            icon={<Faders size={20} />} 
             label="Kit Editor" 
             active={view === 'editor'} 
             onClick={() => setView('editor')} 
@@ -123,7 +123,7 @@ function DashboardView({ ws, midiPort }: { ws: WebSocket | null, midiPort: strin
       
       <div className="col-span-full mt-10 p-12 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <Knobs size={32} className="text-muted-foreground" />
+          <Faders size={32} className="text-muted-foreground" />
         </div>
         <div>
           <h3 className="text-xl font-semibold">Welcome to Drummr</h3>
