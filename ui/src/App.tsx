@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, CircuitBoard, List as ListIcon, X, Pulse } from "@phosphor-icons/react"
+import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, Cpu, List as ListIcon, X, Pulse } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -185,7 +185,7 @@ function SidebarContent({ view, setView, status, midiPort, audioDevice, isMidiAc
         </div>
         <div className="space-y-1">
            <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-2">
-              <CircuitBoard size={12} />
+              <Cpu size={12} />
               <span className="truncate">{midiPort}</span>
            </div>
            <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-2">
@@ -222,7 +222,7 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
         <Card 
           title="MIDI Input" 
           value={midiPort} 
-          icon={<CircuitBoard size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} 
+          icon={<Cpu size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} 
         />
         <Card title="Audio Output" value={audioDevice} icon={<SpeakerHigh size={20} />} />
         <Card 
@@ -237,7 +237,7 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
         <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
           <header className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2">
-              <CircuitBoard size={20} className="text-muted-foreground" />
+              <Cpu size={20} className="text-muted-foreground" />
               MIDI Inputs
             </h3>
             <button onClick={() => ws?.send('LIST_MIDI')} className="text-xs text-primary hover:underline">Refresh</button>
