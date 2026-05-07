@@ -9,6 +9,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 import MappingView from './views/MappingView'
+import KitEditorView from './views/KitEditorView'
 
 type View = 'dashboard' | 'mapping' | 'editor';
 
@@ -92,7 +93,7 @@ export default function App() {
         <div className="p-8 max-w-7xl mx-auto">
           {view === 'dashboard' && <DashboardView ws={ws} midiPort={midiPort} />}
           {view === 'mapping' && <MappingView ws={ws} />}
-          {view === 'editor' && <div className="text-center py-20 text-muted-foreground italic">Kit Editor View Coming Soon</div>}
+          {view === 'editor' && <KitEditorView ws={ws} />}
         </div>
       </main>
     </div>
