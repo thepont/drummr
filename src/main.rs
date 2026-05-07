@@ -1,8 +1,20 @@
+mod midi;
+
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use anyhow::Result;
+use midi::MidiEngine;
 
 fn main() -> Result<()> {
     println!("Starting drummr audio engine...");
+
+    // Initialize MIDI
+    let mut midi_engine = MidiEngine::new();
+    match midi_engine.start(|msg| {
+        println!("Received MIDI message: {:?}", msg);
+    }) {
+        Ok(_) => println!("MIDI engine started."),
+        Err(e) => eprintln!("Failed to start MIDI engine: {}", e),
+    }
 
     let host = cpal::default_host();
     let device = host
