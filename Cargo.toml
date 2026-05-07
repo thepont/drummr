@@ -1,0 +1,16 @@
+[package]
+name = "drummr"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cpal = "0.15"
+wmidi = "4.0"
+tokio = { version = "1.0", features = ["full"] }
+tokio-tungstenite = "0.26"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+anyhow = "1.0"
+rtrb = "0.3"
+futures-util = "0.3"
+
