@@ -22,6 +22,40 @@ pub trait SoundEngine: Send {
     fn is_active(&self) -> bool;
 }
 
+// Temporary shim to make FmVoice and NoiseVoice compatible with SoundEngine
+impl SoundEngine for FmVoice {
+    fn name(&self) -> &str { "FM" }
+    fn schema(&self) -> Vec<ParamSchema> { vec![] } // We'll fill these in Phase 2
+    fn set_param(&mut self, param: &str, value: f32) {
+        match param {
+            "freq" => self.frequency = value,
+            "mod_ratio" => self.mod_ratio = value,
+            "mod_index" => self.mod_index = value,
+            "attack" => self.amp_env.set_params(value, self.amp_env.decay_sec),
+            "decay" => self.amp_env.set_params(self.amp_env.attack_sec, value),
+            _ => {}
+        }
+    }
+    fn trigger(&mut self, velocity: f32) { self.trigger(velocity); }
+    fn tick(&mut self) -> f32 { self.tick() }
+    fn is_active(&self) -> bool { self.is_active() }
+}
+
+impl SoundEngine for NoiseVoice {
+    fn name(&self) -> &str { "Noise" }
+    fn schema(&self) -> Vec<ParamSchema> { vec![] }
+    fn set_param(&mut self, param: &str, value: f32) {
+        match param {
+            "attack" => self.amp_env.set_params(value, self.amp_env.decay_sec),
+            "decay" => self.amp_env.set_params(self.amp_env.attack_sec, value),
+            _ => {}
+        }
+    }
+    fn trigger(&mut self, velocity: f32) { self.trigger(velocity); }
+    fn tick(&mut self) -> f32 { self.tick() }
+    fn is_active(&self) -> bool { self.is_active() }
+}
+
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumKit {
@@ -47,36 +81,8 @@ pub struct DrumSound {
     pub decay: f32,
 }
 
-pub enum Voice {
-    Fm(FmVoice),
-    Noise(NoiseVoice),
-}
-
-impl Voice {
-    pub fn trigger(&mut self, velocity: f32) {
-        match self {
-            Voice::Fm(v) => v.trigger(velocity),
-            Voice::Noise(v) => v.trigger(velocity),
-        }
-    }
-
-    pub fn tick(&mut self) -> f32 {
-        match self {
-            Voice::Fm(v) => v.tick(),
-            Voice::Noise(v) => v.tick(),
-        }
-    }
-
-    pub fn is_active(&self) -> bool {
-        match self {
-            Voice::Fm(v) => v.is_active(),
-            Voice::Noise(v) => v.is_active(),
-        }
-    }
-}
-
 pub struct KitEngine {
-    pub voices: HashMap<u8, Voice>,
+    pub voices: HashMap<u8, Box<dyn SoundEngine>>,
     pub sample_rate: f32,
     pub sound_mappings: HashMap<String, Vec<u8>>,
 }
@@ -103,7 +109,7 @@ impl KitEngine {
                 v.pitch_bend = 150.0; // Standard default for drum snap
                 v.amp_env.set_params(sound.attack / 1000.0, sound.decay / 1000.0);
                 v.pitch_env.set_params(0.001, 0.05); // Standard pitch drop (1ms attack, 50ms decay)
-                engine.voices.insert(mapping.note, Voice::Fm(v));
+                engine.voices.insert(mapping.note, Box::new(v));
                 
                 sound_mappings.entry(mapping.sound.clone()).or_default().push(mapping.note);
             }
@@ -116,37 +122,15 @@ impl KitEngine {
         if let Some(notes) = self.sound_mappings.get(sound_id) {
             for note in notes {
                 if let Some(voice) = self.voices.get_mut(note) {
-                    match voice {
-                        Voice::Fm(v) => {
-                            match param {
-                                "freq" => v.frequency = value,
-                                "mod_ratio" => v.mod_ratio = value,
-                                "mod_index" => v.mod_index = value,
-                                "attack" => v.amp_env.set_params(value, v.amp_env.decay_sec),
-                                "decay" => v.amp_env.set_params(v.amp_env.attack_sec, value),
-                                _ => {}
-                            }
-                        }
-                        Voice::Noise(v) => {
-                            match param {
-                                "attack" => v.amp_env.set_params(value, v.amp_env.decay_sec),
-                                "decay" => v.amp_env.set_params(v.amp_env.attack_sec, value),
-                                _ => {}
-                            }
-                        }
-                    }
+                    voice.set_param(param, value);
                 }
             }
         }
     }
 
     pub fn trigger(&mut self, note: u8, velocity: f32) {
-        println!("Triggering note: {} with velocity: {}", note, velocity);
         if let Some(voice) = self.voices.get_mut(&note) {
-            println!("Found voice for note: {}", note);
             voice.trigger(velocity);
-        } else {
-            println!("No voice found for note: {}", note);
         }
     }
 

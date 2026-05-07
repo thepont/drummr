@@ -54,3 +54,17 @@ fn test_param_schema_serialization() {
     let json = serde_json::to_string(&schema).unwrap();
     assert!(json.contains("\"name\":\"test\""));
 }
+
+#[test]
+fn test_kit_engine_polymorphism() {
+    use drummr::kit::KitEngine;
+    let mut engine = KitEngine::new(44100.0);
+    
+    // Add two different engines (using MockEngine for both now, but as Trait Objects)
+    engine.voices.insert(36, Box::new(MockEngine { frequency: 50.0 }));
+    engine.voices.insert(38, Box::new(MockEngine { frequency: 200.0 }));
+    
+    assert_eq!(engine.voices.len(), 2);
+    engine.trigger(36, 1.0);
+    let _sample = engine.tick();
+}
