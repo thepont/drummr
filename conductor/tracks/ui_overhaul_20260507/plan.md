@@ -20,8 +20,8 @@
 - [x] Task: Implement the "Test Trigger" button. 54a3ad3
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Kit Editor - Parameters & Envelopes' (Protocol in workflow.md)
 
-## Phase 4: Persistence & Polishing
-- [~] Task: Implement the global "Save Kit" manual persistence logic.
-- [ ] Task: Final responsive audit (PC, Tablet, Phone) and Phosphor Icon integration.
-- [ ] Task: Clean up and refactor UI components for performance.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Persistence & Polishing' (Protocol in workflow.md)
+## Phase 4: Persistence & Polishing [checkpoint: 4e51ee8]
+- [x] Task: Implement the global "Save Kit" manual persistence logic. f3c8e68
+- [x] Task: Final responsive audit (PC, Tablet, Phone) and Phosphor Icon integration. b42f16f
+- [x] Task: Clean up and refactor UI components for performance. 8bbe4e3
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Persistence & Polishing' (Protocol in workflow.md)
