@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, CircuitBoard, List as ListIcon, X, Activity } from "@phosphor-icons/react"
+import { House, ListDashes, Faders, WifiHigh, WifiSlash, HardDrive, SpeakerHigh, CircuitBoard, List as ListIcon, X, Pulse } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -181,7 +181,7 @@ function SidebarContent({ view, setView, status, midiPort, audioDevice, isMidiAc
             {status === 'Connected' ? <WifiHigh weight="bold" /> : <WifiSlash weight="bold" />}
             {status}
           </span>
-          {isMidiActive && <Activity size={14} className="text-emerald-400 animate-pulse" />}
+          {isMidiActive && <Pulse size={14} className="text-emerald-400 animate-pulse" />}
         </div>
         <div className="space-y-1">
            <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-2">
@@ -228,7 +228,7 @@ function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudi
         <Card 
           title="Last Note" 
           value={lastMidi ? `Note ${lastMidi.note} (Vel ${lastMidi.vel})` : "No Input"} 
-          icon={<Activity size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} 
+          icon={<Pulse size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} 
         />
       </div>
 
