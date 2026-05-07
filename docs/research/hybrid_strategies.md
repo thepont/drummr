@@ -1,54 +1,53 @@
-# Hybrid Drum Strategies: Blending Acoustic & Electronic
+# Research: Hybrid Drum Synthesis Strategies
 
-## Contexts of Use
+This document synthesizes research on state-of-the-art (SOTA) hybrid drum synthesis techniques and architectural patterns, providing a technical blueprint for the "drummr" polymorphic sound engine factory.
 
-### 1. Reinforcement (The "Pro Studio" Approach)
-- **Goal:** Enhance the existing acoustic sound for consistency and power.
-- **Technique:** Layer a high-quality sample or synthesis model with the acoustic drum.
-- **Key Focus:** Adding "Attack" (the click) and "Weight" (sub-bass).
+## 1. Architectural Patterns
 
-### 2. Replacement / Gating
-- **Goal:** Replace the acoustic sound entirely with a digital one.
-- **Technique:** Use a high-threshold trigger to ignore bleed and play only the electronic sound.
-- **Key Focus:** Clean, isolated sounds in noisy environments.
+### 1.1 Transient/Sustain Splitting
+The most common and effective hybrid architecture. It treats the percussive sound as two distinct functional components:
+- **Transient (The "Click"):** A short, high-energy burst (often sample-based or noise) that provides the initial attack.
+- **Sustain (The "Body"):** The resonating part of the sound (often FM, Physical Modeling, or a pitch-swept oscillator) that provides the tone and weight.
+- **Implementation Note:** Each `SoundEngine` should ideally support an "Attack" vs "Body" internal structure, even if both use the same synthesis method.
 
-### 3. Augmentation (Sound Design)
-- **Goal:** Add non-drum textures or creative effects.
-- **Technique:** Triggering claps, shakers, or melodic elements from acoustic hits.
-- **Key Focus:** Expressivity and creative soundscapes.
+### 1.2 Component-Based Synthesis
+Building sounds from modular functional blocks:
+- **Resonators:** Physical models or high-Q filters that simulate vibrating materials.
+- **Exciters:** Impulses, noise, or samples that "strike" the resonators.
+- **Re-Synthesis:** Decomposing a sample into tonal and noise parts to allow independent manipulation of pitch and texture.
 
----
+## 2. Core Synthesis Engines
 
-## Technical Approaches for Hybrid Sets
+### 2.1 Enhanced FM Engine
+- **Strategy:** Classic Operator-Modulator pairs but with dynamic modulation depth (mod_index) tied to velocity.
+- **Innovation:** Using a separate noise carrier for high-frequency "sizzle" on snares and hats.
 
-### Audio-Driven Synthesis (Envelope Following)
-If the acoustic drum is recorded/mic'd, we can use its signal to drive the engine:
-- **Envelope Follower:** Track the amplitude of the acoustic hit and use it to modulate the electronic sound's volume or filter cutoff.
-- **Transient Detection:** Use fast peak detection to trigger high-frequency "clicks" or "snaps" that align with the acoustic stick impact.
+### 2.2 Physical Modeling (Karplus-Strong Drum Variant)
+- **Algorithm:** A filtered delay line with a probabilistic blend factor ($b$).
+- **Logic:** 
+    - $y[n] = 0.5 \times (y[n-L] + y[n-L-1])$ with probability $b$.
+    - $y[n] = -0.5 \times (y[n-L] + y[n-L-1])$ with probability $(1-b)$.
+- **Percussive Tuning:** $b=0.5$ for noisy drum-like decay; $b=1.0$ for tonal string-like decay.
+- **Excitation:** A filtered white noise burst or a single-cycle sine wave "impulse."
 
-### MIDI-Triggered Synthesis (The "Blind" Approach)
-If the system receives ONLY a MIDI signal (piezo trigger) while the acoustic drum is played:
-- **Velocity Mapping:** Use MIDI Velocity to modulate synthesis timbre (pitch decay, brightness, resonance). This ensures the electronic sound "breathes" with the drummer's dynamics.
-- **Fixed Calibration:** Since we can't see the acoustic signal, we must minimize MIDI jitter and allow for a fixed "offset" calibration to align the synthesis transient with the acoustic one.
+### 2.3 Granular Synthesis for Percussion
+- **Technique:** Layering many tiny grains (5–50ms) with high density.
+- **Drum Texture:** 
+    - High-density grains for the transient "crack."
+    - Temporal jitter and grain-size modulation for evolving shakers or "coral harmony" textures.
+- **Playhead Modulation:** Moving the grain window through a sample to find sweet spots for different "hit" intensities.
 
-### Phase & Timing Management
-- **Alignment:** The electronic trigger must be phase-aligned with the acoustic signal. A delay of even 1-2ms can cause "comb filtering" where the low-end disappears.
-- **Latency:** In a hybrid setup, latency is MORE critical. If the electronic sound is late, the "flamming" effect between acoustic and electronic sounds is immediately noticeable.
+### 2.4 Noise/Additive Hybrid
+- **Goal:** Specialized for metallic percussion (Cymbals, Cowbells).
+- **Technique:** Summing several non-harmonic oscillators (Additive) passed through a dense noise-modulated filter.
+- **Dynamics:** Using a shared AD envelope to keep the "thwack" and "wash" synchronized.
 
----
+## 3. UI & Control Considerations
 
-## Kit Design for Hybrid vs. Full Sets
+### 3.1 Schema-Driven Parameters
+To support these diverse engines, the UI must render controls dynamically based on a schema provided by each engine:
+- **Standard Params:** Level, Pan, Pitch.
+- **Engine-Specific:** Mod Ratio (FM), Dampening (KS), Density (Granular).
 
-### The "Full" Kit
-- **Frequency Spectrum:** 20Hz - 20kHz. Provides the fundamental, the body, and the top-end.
-- **Synthesis Focus:** Complete physical modeling or multi-operator FM.
-
-### The "Hybrid Reinforcement" Kit (The "Spectral Layer")
-- **Frequency Spectrum:** Focused on "Holes" in the acoustic sound.
-    - **Sub-Layer:** 30Hz - 80Hz (Pure sine or sub-kick).
-    - **Transient Layer:** 3kHz - 10kHz (Short, high-frequency "tick").
-- **Sound Profile:** Surgical and thin alone, massive when blended.
-
-### The "Hybrid Transformation" Kit
-- **Sound Profile:** Non-percussive or "processed" sounds (bit-crushed, ambient, melodic).
-- **Control:** Real-time blend control between "Electronic" and "Acoustic" layers.
+### 3.2 Macro-Morphing
+A unified "Timbre" or "Morph" control that maps to multiple engine-specific parameters simultaneously, allowing for expressive performance without deep-diving into individual sliders.
