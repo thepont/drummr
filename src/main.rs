@@ -1,16 +1,28 @@
-mod midi;
-
+use drummr::midi::MidiEngine;
+use drummr::comm::CommEngine;
+use std::sync::Arc;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use anyhow::Result;
-use midi::MidiEngine;
 
-fn main() -> Result<()> {
-    println!("Starting drummr audio engine...");
+#[tokio::main]
+async fn main() -> Result<()> {
+    println!("Starting drummr engine...");
+
+    // Initialize Comm Engine (WebSockets)
+    let comm_engine = Arc::new(CommEngine::new());
+    comm_engine.start("127.0.0.1:8080").await?;
 
     // Initialize MIDI
     let mut midi_engine = MidiEngine::new();
-    match midi_engine.start(|msg| {
+    let comm_for_midi = comm_engine.clone();
+    
+    match midi_engine.start(move |msg| {
         println!("Received MIDI message: {:?}", msg);
+        let msg_str = format!("{:?}", msg);
+        let comm = comm_for_midi.clone();
+        tokio::spawn(async move {
+            comm.broadcast(msg_str).await;
+        });
     }) {
         Ok(_) => println!("MIDI engine started."),
         Err(e) => eprintln!("Failed to start MIDI engine: {}", e),
@@ -43,8 +55,8 @@ fn main() -> Result<()> {
 
     stream.play()?;
 
-    println!("Playing sine wave for 2 seconds...");
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    println!("Playing sine wave for 10 seconds...");
+    std::thread::sleep(std::time::Duration::from_secs(10));
 
     Ok(())
 }
