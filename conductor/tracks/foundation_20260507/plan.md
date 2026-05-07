@@ -18,7 +18,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Project Scaffolding & Core Engine' (Protocol in workflow.md) (b9c243a)
 
 ## Phase 2: Communication Bridge & Data Structures
-- [ ] Task: Implement WebSocket server using `tokio-tungstenite`.
+- [x] Task: Implement WebSocket server using `tokio-tungstenite`. (5f49d69)
     - [ ] Create a bridge that broadcasts MIDI events and research-derived state to the UI.
 - [ ] Task: Define Drum Kit TOML structure.
     - [ ] Implement `serde` models for kits and mappings based on research.
