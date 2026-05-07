@@ -1,10 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, List, Target, CheckCircle, WarningCircle, MagnifyingGlass, Trash } from "@phosphor-icons/react"
+import { Plus, List, Target, CheckCircle, WarningCircle, MagnifyingGlass, Trash, FloppyDisk } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+interface Role {
+  id: string;
+  name: string;
+  note: number;
 }
 
 interface PadProps {
@@ -66,22 +72,9 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
   const [learningRoleId, setLearningRoleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Example drum roles
-  const [roles, setRoles] = useState([
-    { id: 'kick', name: 'Kick', note: 36 },
-    { id: 'snare', name: 'Snare', note: 38 },
-    { id: 'hat_closed', name: 'Closed Hat', note: 42 },
-    { id: 'hat_open', name: 'Open Hat', note: 46 },
-    { id: 'tom_low', name: 'Low Tom', note: 41 },
-    { id: 'tom_mid', name: 'Mid Tom', note: 43 },
-    { id: 'tom_high', name: 'High Tom', note: 45 },
-    { id: 'crash', name: 'Crash', note: 49 },
-    { id: 'ride', name: 'Ride', note: 51 },
-    { id: 'rim', name: 'Rimshot', note: 37 },
-    { id: 'clap', name: 'Clap', note: 39 },
-    { id: 'perc_1', name: 'Perc 1', note: 54 },
-  ]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const filteredRoles = useMemo(() => {
     return roles.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -90,20 +83,38 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
   const updateRoleNote = useCallback((id: string, newNote: number) => {
     setRoles(prev => prev.map(r => r.id === id ? { ...r, note: newNote } : r));
     setLearningRoleId(null);
+    setHasChanges(true);
   }, []);
 
   const deleteRole = (id: string) => {
     setRoles(prev => prev.filter(r => r.id !== id));
+    setHasChanges(true);
   };
 
   const addRole = () => {
-    const id = `new_role_${Date.now()}`;
+    const id = `role_${Date.now()}`;
     setRoles(prev => [...prev, { id, name: 'New Role', note: 0 }]);
     setLearningRoleId(id);
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    if (!ws) return;
+    setIsSaving(true);
+    // Send mapping as JSON
+    ws.send(`SAVE_MAPPING:${JSON.stringify(roles)}`);
+    // Simulated delay for UI feedback
+    setTimeout(() => {
+      setIsSaving(false);
+      setHasChanges(false);
+    }, 500);
   };
 
   useEffect(() => {
     if (!ws) return;
+
+    // Request current mapping on load
+    ws.send('GET_MAPPING');
 
     const handleMessage = (event: MessageEvent) => {
       const data = event.data as string;
@@ -126,6 +137,13 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
             updateRoleNote(learningRoleId, note);
           }
         }
+      } else if (data.startsWith('MAPPING: ')) {
+        try {
+          const mapping = JSON.parse(data.replace('MAPPING: ', '')) as Role[];
+          setRoles(mapping);
+        } catch (e) {
+          console.error('Failed to parse mapping:', e);
+        }
       }
     };
 
@@ -142,6 +160,21 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
         </div>
         
         <div className="flex gap-2">
+          {hasChanges && (
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-medium",
+                isSaving 
+                  ? "bg-muted text-muted-foreground animate-pulse" 
+                  : "bg-primary text-primary-foreground hover:scale-105 active:scale-95"
+              )}
+            >
+              <FloppyDisk size={18} />
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
           {learningRoleId && (
             <button 
               onClick={() => setLearningRoleId(null)}
@@ -213,7 +246,10 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
                 <input 
                   type="text"
                   value={role.name}
-                  onChange={(e) => setRoles(prev => prev.map(r => r.id === role.id ? { ...r, name: e.target.value } : r))}
+                  onChange={(e) => {
+                    setRoles(prev => prev.map(r => r.id === role.id ? { ...r, name: e.target.value } : r));
+                    setHasChanges(true);
+                  }}
                   className="bg-transparent border-none outline-none text-sm font-medium w-32 focus:text-primary"
                 />
                 {role.note === undefined && <WarningCircle className="text-destructive" size={16} />}
