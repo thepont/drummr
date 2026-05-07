@@ -6,10 +6,10 @@ Establish the polymorphic foundation that allows for diverse sound engines.
 - [x] Task: Research SOTA Hybrid Synthesis & Architectural Patterns (7fd6bea)
     - [x] Perform competitive analysis of existing hybrid drum systems.
     - [x] Document research findings in `docs/research/hybrid_strategies.md`.
-- [ ] Task: Define the `SoundEngine` Trait and Schema Models
-    - [ ] Write tests for trait object dispatch and parameter serialization.
-    - [ ] Implement `SoundEngine` trait and `ParamSchema` structs in `src/kit.rs`.
-- [ ] Task: Refactor `KitEngine` for Polymorphism
+- [x] Task: Define the `SoundEngine` Trait and Schema Models (dd1f693)
+    - [x] Write tests for trait object dispatch and parameter serialization.
+    - [x] Implement `SoundEngine` trait and `ParamSchema` structs in `src/kit.rs`.
+- [~] Task: Refactor `KitEngine` for Polymorphism
     - [ ] Write tests for a `KitEngine` managing mixed engine types.
     - [ ] Update `KitEngine` to hold `Box<dyn SoundEngine>` instead of hardcoded `Voice`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Research & Core Trait Architecture' (Protocol in workflow.md)
