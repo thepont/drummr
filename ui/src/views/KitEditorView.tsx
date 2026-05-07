@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Play, FloppyDisk, Sparkle, Waveform } from "@phosphor-icons/react"
+import { Play, FloppyDisk, Sparkle, Waveform, SquaresFour, X } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -17,18 +17,38 @@ interface SoundParams {
   decay: number;
 }
 
+const PRESETS: Partial<SoundParams>[] = [
+  { name: 'Deep 808 Kick', freq: 45, mod_ratio: 0.5, mod_index: 2.0, attack: 0.005, decay: 0.8 },
+  { name: 'Snappy Snare', freq: 180, mod_ratio: 1.5, mod_index: 15.0, attack: 0.001, decay: 0.2 },
+  { name: 'Laser Tom', freq: 120, mod_ratio: 0.8, mod_index: 25.0, attack: 0.01, decay: 0.4 },
+  { name: 'Space Hat', freq: 600, mod_ratio: 4.2, mod_index: 40.0, attack: 0.001, decay: 0.05 },
+  { name: 'Industrial Clang', freq: 80, mod_ratio: 2.7, mod_index: 45.0, attack: 0.002, decay: 0.6 },
+  { name: 'Soft Pulse', freq: 60, mod_ratio: 1.0, mod_index: 0.0, attack: 0.05, decay: 1.2 },
+];
+
 export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   const [sounds, setSounds] = useState<SoundParams[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showGallery, setShowGallery] = useState(false);
 
   const selectedSound = sounds.find(s => s.id === selectedId);
 
-  const updateParam = useCallback((id: string, param: keyof SoundParams, value: number) => {
+  const updateParam = useCallback((id: string, param: keyof SoundParams, value: any) => {
     setSounds(prev => prev.map(s => s.id === id ? { ...s, [param]: value } : s));
     if (ws) {
       ws.send(`SET_PARAM:${id}:${param}:${value}`);
     }
   }, [ws]);
+
+  const applyPreset = (preset: Partial<SoundParams>) => {
+    if (!selectedId) return;
+    Object.entries(preset).forEach(([key, value]) => {
+      if (key !== 'id') {
+        updateParam(selectedId, key as keyof SoundParams, value);
+      }
+    });
+    setShowGallery(false);
+  };
 
   const handleTestTrigger = (id: string) => {
     if (ws) {
@@ -61,7 +81,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   }, [ws, selectedId]);
 
   return (
-    <div className="flex gap-8 h-[calc(100vh-12rem)] animate-in fade-in slide-in-from-right-4 duration-500">
+    <div className="flex gap-8 h-[calc(100vh-12rem)] animate-in fade-in slide-in-from-right-4 duration-500 relative">
       {/* Sound List */}
       <div className="w-64 flex flex-col gap-2 overflow-y-auto pr-2">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 px-4">Sounds</h3>
@@ -104,13 +124,23 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                   <p className="text-sm text-muted-foreground">FM Synthesis & Envelope</p>
                 </div>
               </div>
-              <button 
-                className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-full font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
-                onClick={() => ws?.send(`SAVE_KIT:${JSON.stringify(sounds)}`)}
-              >
-                <FloppyDisk size={20} />
-                Save Kit
-              </button>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowGallery(true)}
+                  className="flex items-center gap-2 px-6 py-2 bg-secondary text-secondary-foreground rounded-full font-bold hover:bg-muted transition-all"
+                >
+                  <SquaresFour size={20} />
+                  Presets
+                </button>
+                <button 
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-full font-bold hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                  onClick={() => ws?.send(`SAVE_KIT:${JSON.stringify(sounds)}`)}
+                >
+                  <FloppyDisk size={20} />
+                  Save Kit
+                </button>
+              </div>
             </header>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
@@ -187,6 +217,39 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
           </div>
         )}
       </div>
+
+      {/* Preset Gallery Overlay */}
+      {showGallery && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-8 bg-background/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-card border border-border w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-full animate-in zoom-in-95 duration-300">
+            <header className="p-6 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-3 text-primary">
+                <SquaresFour size={24} weight="bold" />
+                <h3 className="text-xl font-bold">Sound Gallery</h3>
+              </div>
+              <button 
+                onClick={() => setShowGallery(false)}
+                className="p-2 hover:bg-muted rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </header>
+            
+            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {PRESETS.map((preset, i) => (
+                <button
+                  key={i}
+                  onClick={() => applyPreset(preset)}
+                  className="flex flex-col gap-1 p-4 rounded-2xl border border-border bg-background/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+                >
+                  <span className="font-bold group-hover:text-primary">{preset.name}</span>
+                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground">FM Preset</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -213,12 +276,11 @@ function EnvelopeVisual({ attack, decay, onUpdate }: { attack: number, decay: nu
   const svgRef = useRef<SVGSVGElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Normalize visualization: 0.5s attack max, 2.0s decay max
   const maxAttack = 0.5;
   const maxDecay = 2.0;
   
-  const x = (attack / maxAttack) * 40; // Attack is first 40% of width
-  const dx = (decay / maxDecay) * 60; // Decay is next 60% of width
+  const x = (attack / maxAttack) * 40; 
+  const dx = (decay / maxDecay) * 60; 
   const peakX = x;
   const endX = x + dx;
 
@@ -227,16 +289,9 @@ function EnvelopeVisual({ attack, decay, onUpdate }: { attack: number, decay: nu
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging || !svgRef.current) return;
-
       const rect = svgRef.current.getBoundingClientRect();
       const relativeX = ((e.clientX - rect.left) / rect.width) * 100;
-
-      // Logic:
-      // If we move X, we update attack (0-40 range)
-      // If we move X, we update decay (relative to remaining space)
-      
       const newAttack = Math.min(Math.max((relativeX / 40) * maxAttack, 0.001), maxAttack);
-      // We'll just update attack for now if dragging the peak horizontally
       onUpdate(newAttack, decay);
     };
 
