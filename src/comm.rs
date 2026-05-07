@@ -3,34 +3,62 @@ use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
 use futures_util::{StreamExt, SinkExt};
 use anyhow::Result;
+use tokio::sync::mpsc;
 
-type Clients = Arc<Mutex<Vec<futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>, tokio_tungstenite::tungstenite::Message>>>>;
+type Sender = tokio::sync::mpsc::UnboundedSender<String>;
 
 pub struct CommEngine {
-    clients: Clients,
+    senders: Arc<Mutex<Vec<Sender>>>,
 }
 
 impl CommEngine {
     pub fn new() -> Self {
         Self {
-            clients: Arc::new(Mutex::new(Vec::new())),
+            senders: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
-    pub async fn start(&self, addr: &str) -> Result<()> {
+    pub async fn start<F, Fut>(&self, addr: &str, on_message: F) -> Result<()> 
+    where
+        F: Fn(String) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = ()> + Send + 'static,
+    {
         let listener = TcpListener::bind(addr).await?;
         println!("WebSocket server listening on: {}", addr);
 
-        let clients = self.clients.clone();
+        let senders = self.senders.clone();
+        let on_message = Arc::new(on_message);
 
         tokio::spawn(async move {
             while let Ok((stream, _)) = listener.accept().await {
-                let clients = clients.clone();
+                let senders = senders.clone();
+                let on_message = on_message.clone();
+                
                 tokio::spawn(async move {
                     if let Ok(ws_stream) = accept_async(stream).await {
-                        let (write, _read) = ws_stream.split();
-                        clients.lock().unwrap().push(write);
                         println!("New WebSocket client connected.");
+                        let (mut write, mut read) = ws_stream.split();
+                        
+                        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+                        senders.lock().unwrap().push(tx);
+                        
+                        let write_task = tokio::spawn(async move {
+                            while let Some(msg) = rx.recv().await {
+                                if let Err(e) = write.send(tokio_tungstenite::tungstenite::Message::Text(msg.into())).await {
+                                    eprintln!("WS Write Error: {}", e);
+                                    break;
+                                }
+                            }
+                        });
+
+                        while let Some(Ok(msg)) = read.next().await {
+                            if let Ok(text) = msg.into_text() {
+                                on_message(text.to_string()).await;
+                            }
+                        }
+                        
+                        write_task.abort();
+                        println!("WebSocket client disconnected.");
                     }
                 });
             }
@@ -40,19 +68,14 @@ impl CommEngine {
     }
 
     pub async fn broadcast(&self, message: String) {
-        let mut sinks = {
-            let mut clients = self.clients.lock().unwrap();
-            clients.drain(..).collect::<Vec<_>>()
-        };
-
-        let mut active_sinks = Vec::new();
-        for mut sink in sinks {
-            if let Ok(_) = sink.send(tokio_tungstenite::tungstenite::Message::Text(message.clone().into())).await {
-                active_sinks.push(sink);
-            }
+        let mut senders = self.senders.lock().unwrap();
+        let count_before = senders.len();
+        senders.retain(|tx| {
+            tx.send(message.clone()).is_ok()
+        });
+        let count_after = senders.len();
+        if count_after < count_before {
+            println!("Cleaned up {} disconnected WS clients", count_before - count_after);
         }
-
-        let mut clients = self.clients.lock().unwrap();
-        clients.extend(active_sinks);
     }
 }
