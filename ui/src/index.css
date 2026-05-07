@@ -3,11 +3,28 @@
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  
   --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  
   --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -15,24 +32,20 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+  
+  --animate-spin-slow: spin 3s linear infinite;
 }
 
 @layer base {
   :root {
-    --background: #09090b; /* zinc-950 */
-    --foreground: #fafafa; /* zinc-50 */
-    
-    --muted: #27272a; /* zinc-800 */
-    --muted-foreground: #a1a1aa; /* zinc-400 */
-    
-    --popover: #09090b;
-    --popover-foreground: #fafafa;
+    --background: #09090b;
+    --foreground: #fafafa;
     
     --card: #09090b;
     --card-foreground: #fafafa;
     
-    --border: #27272a;
-    --input: #27272a;
+    --popover: #09090b;
+    --popover-foreground: #fafafa;
     
     --primary: #fafafa;
     --primary-foreground: #18181b;
@@ -40,12 +53,17 @@
     --secondary: #27272a;
     --secondary-foreground: #fafafa;
     
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa;
+    
     --accent: #27272a;
     --accent-foreground: #fafafa;
     
     --destructive: #7f1d1d;
     --destructive-foreground: #fafafa;
     
+    --border: #27272a;
+    --input: #27272a;
     --ring: #d4d4d8;
     
     --radius: 0.5rem;
@@ -66,7 +84,6 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
