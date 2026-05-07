@@ -144,6 +144,60 @@ async fn main() -> Result<()> {
                         }
                     }
                 }
+            } else if text == "GET_KIT" {
+                if let Ok(content) = std::fs::read_to_string("kit.toml") {
+                    if let Ok(config) = toml::from_str::<DrumKit>(&content) {
+                        let kit_data: Vec<_> = config.sounds.iter().map(|s| {
+                            serde_json::json!({
+                                "id": s.name,
+                                "name": s.name,
+                                "freq": s.freq,
+                                "mod_ratio": s.mod_ratio,
+                                "mod_index": s.mod_index,
+                                "attack": s.attack,
+                                "decay": s.decay
+                            })
+                        }).collect();
+                        comm.broadcast(format!("KIT: {}", serde_json::to_string(&kit_data).unwrap_or_default())).await;
+                    }
+                }
+            } else if text.starts_with("SET_PARAM:") {
+                // Format: SET_PARAM:sound_id:param_name:value
+                let parts: Vec<&str> = text.split(':').collect();
+                if parts.len() == 4 {
+                    let _sound_id = parts[1];
+                    let _param = parts[2];
+                    let _value = parts[3];
+                    if let Ok(content) = std::fs::read_to_string("kit.toml") {
+                        if let Ok(mut config) = toml::from_str::<DrumKit>(&content) {
+                            if let Some(s) = config.sounds.iter_mut().find(|s| s.name == _sound_id) {
+                                let val: f32 = _value.parse().unwrap_or(0.0);
+                                match _param {
+                                    "freq" => s.freq = val,
+                                    "mod_ratio" => s.mod_ratio = val,
+                                    "mod_index" => s.mod_index = val,
+                                    "attack" => s.attack = val,
+                                    "decay" => s.decay = val,
+                                    _ => {}
+                                }
+                                if let Ok(toml_str) = toml::to_string(&config) {
+                                    let _ = std::fs::write("kit.toml", toml_str);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if text.starts_with("TEST_TRIGGER:") {
+                let sound_id = text.replace("TEST_TRIGGER:", "");
+                if let Ok(content) = std::fs::read_to_string("kit.toml") {
+                    if let Ok(config) = toml::from_str::<DrumKit>(&content) {
+                        if let Some(mapping) = config.mapping.iter().find(|m| m.sound == sound_id) {
+                            if let Ok(mut p) = midi_producer.lock() {
+                                let _ = p.push([0x90, mapping.note, 100]); // Trigger with velocity 100
+                            }
+                        }
+                    }
+                }
             }
             let _ = midi; 
         }
