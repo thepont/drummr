@@ -17,12 +17,12 @@
     - [ ] Set up MIDI device discovery and message parsing.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Project Scaffolding & Core Engine' (Protocol in workflow.md) (b9c243a)
 
-## Phase 2: Communication Bridge & Data Structures
+## Phase 2: Communication Bridge & Data Structures [checkpoint: 5c86f5a]
 - [x] Task: Implement WebSocket server using `tokio-tungstenite`. (5f49d69)
     - [ ] Create a bridge that broadcasts MIDI events and research-derived state to the UI.
 - [x] Task: Define Drum Kit TOML structure. (039bb15)
     - [ ] Implement `serde` models for kits and mappings based on research.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Communication Bridge & Data Structures' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Communication Bridge & Data Structures' (Protocol in workflow.md) (5c86f5a)
 
 ## Phase 3: UI Foundation & Integration
 - [ ] Task: Build React UI for MIDI Visualization & Research Dashboard.
