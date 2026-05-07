@@ -25,7 +25,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Communication Bridge & Data Structures' (Protocol in workflow.md) (5c86f5a)
 
 ## Phase 3: UI Foundation & Integration
-- [ ] Task: Build React UI for MIDI Visualization & Research Dashboard.
+- [x] Task: Build React UI for MIDI Visualization & Research Dashboard. (1ee00c0)
     - [ ] Implement a real-time "trigger" indicator and a display for active synthesis parameters.
 - [ ] Task: Integrate UI with Rust WebSocket server.
     - [ ] Verify low-latency visual feedback for MIDI events.
