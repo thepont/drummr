@@ -140,28 +140,28 @@ impl KitEngine {
             let voice: Box<dyn SoundEngine> = match engine_type {
                 "phys" => {
                     let mut v = crate::dsp::phys::PhysEngine::new(sample_rate);
-                    v.frequency = sound.freq;
-                    v.brightness = sound.brightness.unwrap_or(0.5);
-                    v.dampening = sound.dampening.unwrap_or(0.5);
+                    v.frequency.base_value = sound.freq;
+                    v.brightness.base_value = sound.brightness.unwrap_or(0.5);
+                    v.dampening.base_value = sound.dampening.unwrap_or(0.5);
                     v.attack = sound.attack;
                     v.decay = sound.decay;
                     Box::new(v)
                 }
                 "granular" => {
                     let mut v = crate::dsp::granular::GranularEngine::new(sample_rate);
-                    v.frequency = sound.freq;
-                    v.density = sound.density.unwrap_or(0.5);
-                    v.grain_size = sound.grain_size.unwrap_or(50.0);
-                    v.jitter = sound.jitter.unwrap_or(0.2);
+                    v.frequency.base_value = sound.freq;
+                    v.density.base_value = sound.density.unwrap_or(0.5);
+                    v.grain_size.base_value = sound.grain_size.unwrap_or(50.0);
+                    v.jitter.base_value = sound.jitter.unwrap_or(0.2);
                     v.attack = sound.attack;
                     v.decay = sound.decay;
                     Box::new(v)
                 }
                 "hybrid" => {
                     let mut v = crate::dsp::hybrid::HybridEngine::new(sample_rate);
-                    v.frequency = sound.freq;
-                    v.noise_color = sound.noise_color.unwrap_or(0.5);
-                    v.metallic = sound.metallic.unwrap_or(0.5);
+                    v.frequency.base_value = sound.freq;
+                    v.noise_color.base_value = sound.noise_color.unwrap_or(0.5);
+                    v.metallic.base_value = sound.metallic.unwrap_or(0.5);
                     v.attack = sound.attack;
                     v.decay = sound.decay;
                     Box::new(v)

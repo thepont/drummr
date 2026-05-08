@@ -1,5 +1,7 @@
 use crate::kit::SoundEngine;
 use crate::dsp::envelope::AdEnvelope;
+use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
+use crate::dsp::modulation_engine::ModulationEngine;
 
 pub struct PhysEngine {
     sample_rate: f32,
@@ -7,9 +9,9 @@ pub struct PhysEngine {
     write_pos: usize,
     
     // Parameters
-    pub frequency: f32,
-    pub brightness: f32, // Probabilistic blend factor 'b' (0.5 to 1.0)
-    pub dampening: f32,   // Low-pass filter coefficient in the feedback loop
+    pub frequency: ModulatableParam,
+    pub brightness: ModulatableParam, // Probabilistic blend factor 'b' (0.5 to 1.0)
+    pub dampening: ModulatableParam,   // Low-pass filter coefficient in the feedback loop
     
     pub attack: f32,
     pub decay: f32,
@@ -18,6 +20,8 @@ pub struct PhysEngine {
     amp_env: AdEnvelope,
     last_y: f32,
     rng_state: u32,
+
+    pub mod_engine: ModulationEngine,
 }
 
 impl PhysEngine {
@@ -27,9 +31,9 @@ impl PhysEngine {
             delay_line: vec![0.0; 4096], // Max ~10ms at 48k, enough for drum body
             write_pos: 0,
             
-            frequency: 100.0,
-            brightness: 0.5,
-            dampening: 0.5,
+            frequency: ModulatableParam::new(100.0),
+            brightness: ModulatableParam::new(0.5),
+            dampening: ModulatableParam::new(0.5),
             
             attack: 1.0,
             decay: 200.0,
@@ -37,6 +41,7 @@ impl PhysEngine {
             amp_env: AdEnvelope::new(sample_rate),
             last_y: 0.0,
             rng_state: 0xACE1,
+            mod_engine: ModulationEngine::new(sample_rate),
         }
     }
 
@@ -100,10 +105,12 @@ impl SoundEngine for PhysEngine {
     fn trigger(&mut self, velocity: f32) {
         self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
         self.amp_env.trigger();
+        self.mod_engine.velocity = velocity;
         
         // Increase excitation energy
         let excitation_amp = velocity * 2.0;
-        let l = (self.sample_rate / self.frequency).round() as usize;
+        let current_freq = self.mod_engine.calculate_mod(&self.frequency);
+        let l = (self.sample_rate / current_freq).round() as usize;
         let l = l.clamp(2, self.delay_line.len() - 1);
         
         // Clear buffer
@@ -120,9 +127,16 @@ impl SoundEngine for PhysEngine {
 
     fn tick(&mut self) -> f32 {
         let env = self.amp_env.tick();
+        self.mod_engine.env_value = env;
+        self.mod_engine.tick();
+
         if env <= 0.0 && !self.amp_env.is_active() { return 0.0; }
 
-        let l = (self.sample_rate / self.frequency).round() as usize;
+        let current_freq = self.mod_engine.calculate_mod(&self.frequency);
+        let brightness = self.mod_engine.calculate_mod(&self.brightness).clamp(0.0, 1.0);
+        let dampening = self.mod_engine.calculate_mod(&self.dampening).clamp(0.0, 1.0);
+
+        let l = (self.sample_rate / current_freq).round() as usize;
         let l = l.clamp(2, self.delay_line.len() - 1);
 
         // Read from the delay line
@@ -136,14 +150,14 @@ impl SoundEngine for PhysEngine {
         let avg = 0.5 * (x_l + x_l_prev);
         
         let prob = self.next_random();
-        let mut y = if prob < self.brightness {
+        let mut y = if prob < brightness {
             avg
         } else {
             -avg
         };
 
         // Dampening (One-pole LP filter in loop)
-        y = self.last_y + self.dampening * (y - self.last_y);
+        y = self.last_y + dampening * (y - self.last_y);
         self.last_y = y;
 
         // Write back to delay line
@@ -156,12 +170,27 @@ impl SoundEngine for PhysEngine {
 
     fn set_param(&mut self, param: &str, value: f32) {
         match param {
-            "freq" => self.frequency = value,
-            "brightness" => self.brightness = value.clamp(0.0, 1.0),
-            "dampening" => self.dampening = value.clamp(0.0, 1.0),
+            "freq" => self.frequency.base_value = value,
+            "brightness" => self.brightness.base_value = value.clamp(0.0, 1.0),
+            "dampening" => self.dampening.base_value = value.clamp(0.0, 1.0),
             "attack" => self.attack = value,
             "decay" => self.decay = value,
             _ => {}
+        }
+    }
+
+    fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
+        let slots = match param {
+            "freq" => &mut self.frequency.mod_slots,
+            "brightness" => &mut self.brightness.mod_slots,
+            "dampening" => &mut self.dampening.mod_slots,
+            _ => return,
+        };
+
+        if let Some(slot) = slots.iter_mut().find(|s| s.source == source) {
+            slot.depth = depth;
+        } else {
+            slots.push(ModAmount { source, depth });
         }
     }
 

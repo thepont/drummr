@@ -43,11 +43,12 @@ fn test_plasma_snare_silence() {
     let mut voice = FmVoice::new(sample_rate);
     
     // Plasma Snare params from TOML
-    voice.frequency = 210.0;
-    voice.mod_ratio = 2.4;
-    voice.mod_index = 20.0;
-    voice.noise_level = 0.3;
-    voice.amp_env.set_params(1.5 / 1000.0, 180.0 / 1000.0);
+    voice.frequency.base_value = 210.0;
+    voice.mod_ratio.base_value = 2.4;
+    voice.mod_index.base_value = 20.0;
+    voice.noise_level.base_value = 0.3;
+    voice.attack = 1.5;
+    voice.decay = 180.0;
     
     voice.trigger(1.0);
     
