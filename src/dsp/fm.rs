@@ -11,6 +11,8 @@ pub struct FmVoice {
     pub mod_ratio: f32,
     pub mod_index: f32,
     pub noise_level: f32,
+    pub attack: f32,
+    pub decay: f32,
     
     // Envelopes
     pub amp_env: AdEnvelope,
@@ -24,10 +26,9 @@ pub struct FmVoice {
 
 impl FmVoice {
     pub fn new(sample_rate: f32) -> Self {
-        let mut amp_env = AdEnvelope::new(sample_rate);
-        amp_env.set_params(1.0, 100.0);
+        let amp_env = AdEnvelope::new(sample_rate);
         let mut pitch_env = AdEnvelope::new(sample_rate);
-        pitch_env.set_params(1.0, 20.0);
+        pitch_env.set_params(0.001, 0.05);
 
         Self {
             sample_rate,
@@ -37,6 +38,8 @@ impl FmVoice {
             mod_ratio: 1.0,
             mod_index: 1.0,
             noise_level: 0.0,
+            attack: 1.0,
+            decay: 100.0,
             amp_env,
             pitch_env,
             pitch_bend: 0.0,
@@ -57,6 +60,7 @@ impl FmVoice {
         self.carrier_phase = 0.0;
         self.mod_phase = 0.0;
         self.velocity = velocity;
+        self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
         self.amp_env.trigger();
         self.pitch_env.trigger();
     }

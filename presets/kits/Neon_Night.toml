@@ -15,9 +15,9 @@ decay = 400.0
 name = "Plasma Snare"
 engine_type = "fm"
 freq = 220.0
-mod_ratio = 2.450000047683716
+mod_ratio = 2.45
 mod_index = 15.0
-noise_level = 0.4000000059604645
+noise_level = 0.4
 attack = 1.5
 decay = 220.0
 
@@ -25,9 +25,9 @@ decay = 220.0
 name = "Neon Hat"
 engine_type = "fm"
 freq = 1800.0
-mod_ratio = 0.23000000417232513
+mod_ratio = 0.23
 mod_index = 10.0
-noise_level = 0.20000000298023224
+noise_level = 0.2
 attack = 0.5
 decay = 60.0
 
@@ -35,7 +35,7 @@ decay = 60.0
 name = "Grid Tom 1"
 engine_type = "fm"
 freq = 150.0
-mod_ratio = 0.550000011920929
+mod_ratio = 0.55
 mod_index = 4.0
 noise_level = 0.0
 attack = 2.0
@@ -45,8 +45,8 @@ decay = 450.0
 name = "Grid Tom 2"
 engine_type = "phys"
 freq = 110.0
-brightness = 0.6000000238418579
-dampening = 0.30000001192092896
+brightness = 0.6
+dampening = 0.3
 attack = 2.0
 decay = 550.0
 
@@ -64,18 +64,18 @@ decay = 650.0
 name = "Pulse Clap"
 engine_type = "granular"
 freq = 1250.0
-density = 0.949999988079071
+density = 0.95
 grain_size = 30.0
-jitter = 0.30000001192092896
-attack = 0.10000000149011612
+jitter = 0.3
+attack = 0.1
 decay = 350.0
 
 [[sounds]]
 name = "Chrome Crash"
 engine_type = "hybrid"
 freq = 3200.0
-noise_color = 0.7799999713897705
-metallic = 0.6399999856948853
+noise_color = 0.7
+metallic = 0.85
 attack = 1.0
 decay = 1800.0
 
@@ -83,37 +83,37 @@ decay = 1800.0
 name = "Data Ride"
 engine_type = "hybrid"
 freq = 4200.0
-noise_color = 0.949999988079071
-metallic = 0.47999998927116394
+noise_color = 0.95
+metallic = 0.45
 attack = 1.0
-decay = 1122.0
+decay = 900.0
 
 [[sounds]]
 name = "Bit Click"
 engine_type = "granular"
 freq = 3800.0
-density = 0.15000000596046448
+density = 0.15
 grain_size = 4.0
-jitter = 0.10000000149011612
-attack = 0.10000000149011612
+jitter = 0.1
+attack = 0.1
 decay = 25.0
 
 [[sounds]]
 name = "Synth Cowbell"
 engine_type = "hybrid"
-freq = 25.0
-noise_color = 0.36000001430511475
+freq = 600.0
+noise_color = 0.15
 metallic = 1.0
 attack = 1.0
-decay = 426.0
+decay = 450.0
 
 [[sounds]]
 name = "Glow Shaker"
 engine_type = "granular"
 freq = 2800.0
-density = 0.8500000238418579
+density = 0.85
 grain_size = 12.0
-jitter = 0.6000000238418579
+jitter = 0.6
 attack = 10.0
 decay = 180.0
 
@@ -121,8 +121,8 @@ decay = 180.0
 name = "Vector Rim"
 engine_type = "phys"
 freq = 1300.0
-brightness = 0.15000000596046448
-dampening = 0.30000001192092896
+brightness = 0.15
+dampening = 0.3
 attack = 1.0
 decay = 70.0
 
@@ -133,15 +133,15 @@ freq = 85.0
 mod_ratio = 8.0
 mod_index = 25.0
 noise_level = 0.0
-attack = 0.10000000149011612
+attack = 0.1
 decay = 250.0
 
 [[sounds]]
 name = "Phase Conga 1"
 engine_type = "phys"
 freq = 280.0
-brightness = 0.3499999940395355
-dampening = 0.44999998807907104
+brightness = 0.35
+dampening = 0.45
 attack = 2.0
 decay = 320.0
 
@@ -149,7 +149,7 @@ decay = 320.0
 name = "Phase Conga 2"
 engine_type = "phys"
 freq = 190.0
-brightness = 0.3499999940395355
-dampening = 0.44999998807907104
+brightness = 0.35
+dampening = 0.45
 attack = 2.0
 decay = 380.0

@@ -2,31 +2,44 @@ import { useState, useEffect, useMemo } from 'react'
 import { Play, FloppyDisk, Sparkle, Waves, Sliders as SlidersIcon, Clock } from "@phosphor-icons/react"
 import { cn, Slider, Button, Card } from '../components/ui'
 
+interface ParamSchema {
+  name: string;
+  min: number;
+  max: number;
+  default: number;
+  unit: string;
+}
+
 interface Sound {
   id: string;
   name: string;
   engine_type: string;
-  freq: number;
-  mod_ratio: number;
-  mod_index: number;
-  noise_level: number;
-  brightness: number;
-  dampening: number;
-  attack: number;
-  decay: number;
+  [key: string]: any; // Allow dynamic parameters
 }
 
 export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   const [sounds, setSounds] = useState<Sound[]>([]);
   const [selectedSoundId, setSelectedSoundId] = useState<string | null>(null);
+  const [schemas, setSchemas] = useState<Record<string, ParamSchema[]>>({});
+  const [soundPresets, setSoundPresets] = useState<string[]>([]);
+  const [newPresetName, setNewPresetName] = useState("");
+  const [kitList, setKitList] = useState<string[]>([]);
+  const [newKitName, setNewKitName] = useState("");
 
   const selectedSound = useMemo(() => 
     sounds.find(s => s.id === selectedSoundId), 
   [sounds, selectedSoundId]);
 
   useEffect(() => {
+    if (!selectedSoundId || !ws) return;
+    ws.send(`GET_SCHEMA:${selectedSoundId}`);
+  }, [selectedSoundId, ws, selectedSound?.engine_type]);
+
+  useEffect(() => {
     if (!ws) return;
     ws.send('GET_KIT');
+    ws.send('LIST_SOUND_PRESETS');
+    ws.send('LIST_KITS');
 
     const handleMessage = (event: MessageEvent) => {
       const data = event.data as string;
@@ -39,6 +52,23 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
           }
         } catch (e) {
           console.error('Failed to parse kit:', e);
+        }
+      } else if (data.startsWith('SOUND_PRESETS:')) {
+        const list = data.replace('SOUND_PRESETS:', '');
+        setSoundPresets(list ? list.split(',') : []);
+      } else if (data.startsWith('KIT_LIST:')) {
+        const list = data.replace('KIT_LIST:', '');
+        setKitList(list ? list.split(',') : []);
+      } else if (data.startsWith('SCHEMA:')) {
+        const parts = data.split(':');
+        const soundId = parts[1];
+        // The JSON starts at the first '[' which is after the soundId
+        const jsonStr = data.substring(data.indexOf('[', data.indexOf(soundId)));
+        try {
+          const schema = JSON.parse(jsonStr) as ParamSchema[];
+          setSchemas(prev => ({ ...prev, [soundId]: schema }));
+        } catch (e) {
+          console.error('Failed to parse schema:', e);
         }
       }
     };
@@ -84,27 +114,119 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Sound List */}
-        <aside className="lg:col-span-3 space-y-2">
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2">Sounds</div>
-          {sounds.map(sound => (
-            <button
-              key={sound.id}
-              onClick={() => setSelectedSoundId(sound.id)}
-              className={cn(
-                "w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group",
-                selectedSoundId === sound.id 
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                  : "bg-card/30 border border-border hover:border-primary/50"
-              )}
-            >
-              <span className="font-medium text-sm">{sound.name}</span>
-              <Sparkle 
-                size={14} 
-                weight={selectedSoundId === sound.id ? "fill" : "regular"}
-                className={selectedSoundId === sound.id ? "text-primary-foreground" : "text-muted-foreground opacity-0 group-hover:opacity-100"} 
+        <aside className="lg:col-span-3 space-y-6">
+          <div className="space-y-2">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2">Sounds</div>
+            {sounds.map(sound => (
+              <button
+                key={sound.id}
+                onClick={() => setSelectedSoundId(sound.id)}
+                className={cn(
+                  "w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group",
+                  selectedSoundId === sound.id 
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                    : "bg-card/30 border border-border hover:border-primary/50"
+                )}
+              >
+                <span className="font-medium text-sm">{sound.name}</span>
+                <Sparkle 
+                  size={14} 
+                  weight={selectedSoundId === sound.id ? "fill" : "regular"}
+                  className={selectedSoundId === sound.id ? "text-primary-foreground" : "text-muted-foreground opacity-0 group-hover:opacity-100"} 
+                />
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4 pt-4 border-t border-border/50">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Sound Library</div>
+            
+            <div className="px-2 space-y-2">
+               <input 
+                type="text" 
+                placeholder="Preset Name..." 
+                className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-xs"
+                value={newPresetName}
+                onChange={e => setNewPresetName(e.target.value)}
               />
-            </button>
-          ))}
+              <Button 
+                variant="secondary" 
+                className="w-full text-[10px] h-8"
+                onClick={() => {
+                  if (newPresetName && selectedSoundId && ws) {
+                    ws.send(`SAVE_SOUND_PRESET:${newPresetName}:${selectedSoundId}`);
+                    setNewPresetName("");
+                  }
+                }}
+              >
+                Save as Preset
+              </Button>
+            </div>
+
+            <div className="space-y-1">
+              {soundPresets.map(preset => (
+                <button
+                  key={preset}
+                  onClick={() => {
+                    if (selectedSoundId && ws) {
+                      ws.send(`LOAD_SOUND_PRESET:${preset}:${selectedSoundId}`);
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded-lg transition-colors"
+                >
+                  {preset}
+                </button>
+              ))}
+              {soundPresets.length === 0 && (
+                <div className="px-4 py-2 text-[10px] text-muted-foreground italic">No presets saved yet</div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t border-border/50">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Kit Library</div>
+            
+            <div className="px-2 space-y-2">
+               <input 
+                type="text" 
+                placeholder="New Kit Name..." 
+                className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-xs"
+                value={newKitName}
+                onChange={e => setNewKitName(e.target.value)}
+              />
+              <Button 
+                variant="secondary" 
+                className="w-full text-[10px] h-8"
+                onClick={() => {
+                  if (newKitName && ws) {
+                    ws.send(`SAVE_KIT_AS:${newKitName}`);
+                    setNewKitName("");
+                  }
+                }}
+              >
+                Save Kit As
+              </Button>
+            </div>
+
+            <div className="space-y-1">
+              {kitList.map(kit => (
+                <button
+                  key={kit}
+                  onClick={() => {
+                    if (ws) {
+                      ws.send(`LOAD_KIT:${kit}`);
+                    }
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded-lg transition-colors"
+                >
+                  {kit}
+                </button>
+              ))}
+              {kitList.length === 0 && (
+                <div className="px-4 py-2 text-[10px] text-muted-foreground italic">No kits saved yet</div>
+              )}
+            </div>
+          </div>
         </aside>
 
         {/* Editor Area */}
@@ -142,7 +264,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                 <div className="flex items-center gap-4 mb-4">
                   <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Engine Type</div>
                   <div className="flex bg-background/50 p-1 rounded-xl border border-border/50">
-                    {['fm', 'phys'].map(type => (
+                    {['fm', 'phys', 'granular', 'hybrid'].map(type => (
                       <button
                         key={type}
                         onClick={() => updateParam('engine_type' as any, type as any)}
@@ -160,62 +282,27 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                  <div className="space-y-8">
-                    <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Core Settings</div>
-                    <Slider 
-                      label="Base Frequency" 
-                      value={selectedSound.freq} 
-                      min={20} max={2000} step={1}
-                      format={v => `${v.toFixed(0)} Hz`}
-                      onChange={v => updateParam('freq', v)} 
-                    />
-                  </div>
-                  
-                  <div className="space-y-8">
-                    {selectedSound.engine_type === 'phys' ? (
-                      <>
-                        <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Physical Model</div>
+                  {/* Schema-Driven Dynamic Sliders */}
+                  {schemas[selectedSound.id]?.map((param, idx) => {
+                    // Split parameters into two columns roughly
+                    const isLeftColumn = idx < Math.ceil(schemas[selectedSound.id].length / 2);
+                    return (
+                      <div key={param.name} className="space-y-8">
+                        <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+                          {param.name.replace('_', ' ')}
+                        </div>
                         <Slider 
-                          label="Brightness (b)" 
-                          value={selectedSound.brightness} 
-                          min={0} max={1.0} step={0.01}
-                          format={v => `${(v * 100).toFixed(0)}%`}
-                          onChange={v => updateParam('brightness', v)} 
+                          label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')} 
+                          value={selectedSound[param.name] ?? param.default} 
+                          min={param.min} 
+                          max={param.max} 
+                          step={param.max - param.min > 10 ? 1 : 0.01}
+                          format={v => param.unit ? `${v.toFixed(param.unit === 'Hz' ? 0 : 2)} ${param.unit}` : v.toFixed(2)}
+                          onChange={v => updateParam(param.name as any, v)} 
                         />
-                        <Slider 
-                          label="Dampening" 
-                          value={selectedSound.dampening} 
-                          min={0} max={1.0} step={0.01}
-                          format={v => `${(v * 100).toFixed(0)}%`}
-                          onChange={v => updateParam('dampening', v)} 
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">FM Modulation</div>
-                        <Slider 
-                          label="Mod Ratio" 
-                          value={selectedSound.mod_ratio} 
-                          min={0.1} max={10.0} step={0.01}
-                          format={v => `x${v.toFixed(2)}`}
-                          onChange={v => updateParam('mod_ratio', v)} 
-                        />
-                        <Slider 
-                          label="Mod Index" 
-                          value={selectedSound.mod_index} 
-                          min={0} max={50} step={0.1}
-                          onChange={v => updateParam('mod_index', v)} 
-                        />
-                        <Slider 
-                          label="Sizzle (Noise)" 
-                          value={selectedSound.noise_level || 0} 
-                          min={0} max={1.0} step={0.01}
-                          format={v => `${(v * 100).toFixed(0)}%`}
-                          onChange={v => updateParam('noise_level', v)} 
-                        />
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             </>

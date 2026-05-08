@@ -1,0 +1,155 @@
+name = "Industrial Glitch"
+description = "A gritty, 16-sound experimental kit using all engines."
+
+[[sounds]]
+name = "Cyber Kick"
+engine_type = "fm"
+freq = 42.0
+mod_ratio = 0.5
+mod_index = 12.0
+noise_level = 0.05
+attack = 1.0
+decay = 450.0
+
+[[sounds]]
+name = "Rusty Snare"
+engine_type = "hybrid"
+freq = 195.0
+noise_color = 0.75
+metallic = 0.55
+attack = 1.0
+decay = 220.0
+
+[[sounds]]
+name = "Static Hat"
+engine_type = "granular"
+freq = 950.0
+density = 0.85
+grain_size = 12.0
+jitter = 0.7
+attack = 0.5
+decay = 45.0
+
+[[sounds]]
+name = "Metal Clang"
+engine_type = "hybrid"
+freq = 440.0
+noise_color = 0.3
+metallic = 0.9
+attack = 0.5
+decay = 600.0
+
+[[sounds]]
+name = "Void Tom"
+engine_type = "phys"
+freq = 80.0
+brightness = 0.6
+dampening = 0.2
+attack = 5.0
+decay = 800.0
+
+[[sounds]]
+name = "Neon Chirp"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 2.71
+mod_index = 8.0
+noise_level = 0.0
+attack = 1.0
+decay = 30.0
+
+[[sounds]]
+name = "Glitch Spark"
+engine_type = "granular"
+freq = 2000.0
+density = 0.95
+grain_size = 5.0
+jitter = 0.9
+attack = 0.1
+decay = 20.0
+
+[[sounds]]
+name = "Factory Bell"
+engine_type = "phys"
+freq = 880.0
+brightness = 0.9
+dampening = 0.1
+attack = 0.5
+decay = 1200.0
+
+[[sounds]]
+name = "Sub Drone"
+engine_type = "fm"
+freq = 30.0
+mod_ratio = 1.0
+mod_index = 2.0
+noise_level = 0.0
+attack = 50.0
+decay = 2000.0
+
+[[sounds]]
+name = "Steam Hiss"
+engine_type = "granular"
+freq = 500.0
+density = 0.4
+grain_size = 150.0
+jitter = 0.3
+attack = 100.0
+decay = 1500.0
+
+[[sounds]]
+name = "Anvil"
+engine_type = "hybrid"
+freq = 220.0
+noise_color = 0.1
+metallic = 1.0
+attack = 0.5
+decay = 400.0
+
+[[sounds]]
+name = "Broken Glass"
+engine_type = "granular"
+freq = 2500.0
+density = 0.7
+grain_size = 30.0
+jitter = 0.8
+attack = 0.5
+decay = 150.0
+
+[[sounds]]
+name = "Radio Noise"
+engine_type = "fm"
+freq = 100.0
+mod_ratio = 0.1
+mod_index = 50.0
+noise_level = 0.8
+attack = 10.0
+decay = 100.0
+
+[[sounds]]
+name = "Deep Tube"
+engine_type = "phys"
+freq = 65.0
+brightness = 0.3
+dampening = 0.4
+attack = 10.0
+decay = 500.0
+
+[[sounds]]
+name = "Short Click"
+engine_type = "fm"
+freq = 3000.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 0.0
+attack = 0.1
+decay = 10.0
+
+[[sounds]]
+name = "Scrape"
+engine_type = "phys"
+freq = 400.0
+brightness = 0.1
+dampening = 0.8
+attack = 50.0
+decay = 300.0

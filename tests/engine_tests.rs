@@ -61,10 +61,28 @@ fn test_kit_engine_polymorphism() {
     let mut engine = KitEngine::new(44100.0);
     
     // Add two different engines (using MockEngine for both now, but as Trait Objects)
-    engine.voices.insert(36, Box::new(MockEngine { frequency: 50.0 }));
-    engine.voices.insert(38, Box::new(MockEngine { frequency: 200.0 }));
+    engine.voices.push(Some(Box::new(MockEngine { frequency: 50.0 })));
+    engine.voices.push(Some(Box::new(MockEngine { frequency: 200.0 })));
+    
+    // Map notes to slots
+    engine.midi_map.insert(36, 0);
+    engine.midi_map.insert(38, 1);
     
     assert_eq!(engine.voices.len(), 2);
     engine.trigger(36, 1.0);
     let _sample = engine.tick();
+}
+
+#[test]
+fn test_kit_engine_get_schema() {
+    use drummr::kit::KitEngine;
+    
+    let mut engine = KitEngine::new(44100.0);
+    
+    // Add voice to slot 0
+    engine.voices.push(Some(Box::new(MockEngine { frequency: 50.0 })));
+    
+    let schema = engine.get_schema(0).expect("Should find schema");
+    assert_eq!(schema.len(), 1);
+    assert_eq!(schema[0].name, "frequency");
 }

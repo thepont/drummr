@@ -8,22 +8,16 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const PRESET_ROLES = [
-  { id: "Kick", name: "Kick Drum" },
-  { id: "Snare", name: "Snare Drum" },
-  { id: "Closed Hat", name: "Hi-Hat Closed" },
-  { id: "Open Hat", name: "Hi-Hat Open" },
-  { id: "Floor Tom", name: "Floor Tom" },
-  { id: "Rack Tom", name: "Rack Tom" },
-  { id: "Crash", name: "Crash Cymbal" },
-  { id: "Ride", name: "Ride Cymbal" },
-  { id: "Cowbell", name: "Cowbell" },
-  { id: "Rimshot", name: "Rimshot" },
-  { id: "Clap", name: "Clap" },
-  { id: "Tambourine", name: "Tambourine" }
+  { id: 0, name: "Kick Drum" },
+  { id: 1, name: "Snare Drum" },
+  { id: 2, name: "Hi-Hat" },
+  { id: 3, name: "Tom 1" },
+  { id: 4, name: "Tom 2" },
+  { id: 5, name: "Cymbal" },
 ];
 
 interface Role {
-  id: string; // The sound name in kit.toml
+  slot: number; // The sound slot index
   name: string; // The display name
   note: number;
 }
@@ -37,7 +31,7 @@ interface PadProps {
   onClick: () => void;
 }
 
-function Pad({ name, isActive, midiNote, isLearning, onClick }: PadProps) {
+function Pad({ name, isActive, midiNote, isLearning, onClick, id }: PadProps) {
   return (
     <button
       onClick={onClick}
@@ -49,13 +43,16 @@ function Pad({ name, isActive, midiNote, isLearning, onClick }: PadProps) {
         isLearning && "border-amber-500 animate-pulse bg-amber-500/10"
       )}
     >
-      <span className={cn(
-        "text-xs font-bold uppercase tracking-wider text-center px-2",
-        isActive ? "text-primary-foreground" : "text-muted-foreground",
-        isLearning && "text-amber-500"
-      )}>
-        {name}
-      </span>
+      <div className="flex flex-col items-center">
+        <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-tighter mb-0.5">Slot {id}</span>
+        <span className={cn(
+          "text-xs font-bold uppercase tracking-wider text-center px-2 line-clamp-2",
+          isActive ? "text-primary-foreground" : "text-foreground",
+          isLearning && "text-amber-500"
+        )}>
+          {name}
+        </span>
+      </div>
       {midiNote !== undefined && (
         <span className={cn(
           "text-[10px] font-mono",
@@ -83,7 +80,7 @@ function Pad({ name, isActive, midiNote, isLearning, onClick }: PadProps) {
 
 export default function MappingView({ ws }: { ws: WebSocket | null }) {
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
-  const [learningRoleId, setLearningRoleId] = useState<string | null>(null);
+  const [learningSlot, setLearningSlot] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roles, setRoles] = useState<Role[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -94,25 +91,25 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
     return roles.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [roles, searchQuery]);
 
-  const updateRoleNote = useCallback((id: string, newNote: number) => {
-    setRoles(prev => prev.map(r => r.id === id ? { ...r, note: newNote } : r));
-    setLearningRoleId(null);
+  const updateRoleNote = useCallback((slot: number, newNote: number) => {
+    setRoles(prev => prev.map(r => r.slot === slot ? { ...r, note: newNote } : r));
+    setLearningSlot(null);
     setHasChanges(true);
     
     // Live update
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(`UPDATE_MAPPING:${id}:${newNote}`);
+      ws.send(`UPDATE_MAPPING:${slot}:${newNote}`);
     }
   }, [ws]);
 
-  const deleteRole = (id: string) => {
-    setRoles(prev => prev.filter(r => r.id !== id));
+  const deleteRole = (slot: number) => {
+    setRoles(prev => prev.filter(r => r.slot !== slot));
     setHasChanges(true);
   };
 
-  const addRole = (id: string, name: string) => {
-    setRoles(prev => [...prev, { id, name, note: 0 }]);
-    setLearningRoleId(id);
+  const addRole = (slot: number, name: string) => {
+    setRoles(prev => [...prev, { slot, name, note: 0 }]);
+    setLearningSlot(slot);
     setHasChanges(true);
   };
 
@@ -154,10 +151,13 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
             });
           }, 100);
 
-          if (learningRoleId) {
-            updateRoleNote(learningRoleId, note);
+          if (learningSlot !== null) {
+            updateRoleNote(learningSlot, note);
           }
         }
+      } else if (data.startsWith('KIT: ')) {
+        // When the kit changes, we need to refresh the mapping to get the new sound names
+        ws.send('GET_MAPPING');
       } else if (data.startsWith('MAPPING: ')) {
         if (!hasChanges) {
           try {
@@ -173,7 +173,7 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
 
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [ws, learningRoleId, updateRoleNote, hasChanges, isLoaded]);
+  }, [ws, learningSlot, updateRoleNote, hasChanges, isLoaded]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
@@ -220,27 +220,27 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
         </div>
       </div>
 
-      {learningRoleId && (
+      {learningSlot !== null && (
         <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-center gap-4 text-amber-500 animate-in zoom-in-95 duration-200">
           <Target size={24} className="animate-spin-slow" />
           <div className="flex-1">
             <p className="text-sm font-bold uppercase tracking-wider">Learning Mode Active</p>
-            <p className="text-sm opacity-80">Hit a physical pad to assign it to <span className="underline font-bold">{roles.find(r => r.id === learningRoleId)?.name}</span>.</p>
+            <p className="text-sm opacity-80">Hit a physical pad to assign it to <span className="underline font-bold">{roles.find(r => r.slot === learningSlot)?.name}</span>.</p>
           </div>
-          <button onClick={() => setLearningRoleId(null)} className="text-xs font-bold underline px-2">Cancel</button>
+          <button onClick={() => setLearningSlot(null)} className="text-xs font-bold underline px-2">Cancel</button>
         </div>
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {roles.map((role) => (
           <Pad 
-            key={role.id}
-            id={role.id}
+            key={role.slot}
+            id={role.slot.toString()}
             name={role.name}
             midiNote={role.note}
             isActive={activeNotes.has(role.note)}
-            isLearning={learningRoleId === role.id}
-            onClick={() => setLearningRoleId(role.id)}
+            isLearning={learningSlot === role.slot}
+            onClick={() => setLearningSlot(role.slot)}
           />
         ))}
       </div>
@@ -265,13 +265,13 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
         
         <div className="divide-y divide-border">
           {filteredRoles.map(role => (
-            <div key={role.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group">
+            <div key={role.slot} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group">
               <div className="flex items-center gap-3">
                 <input 
                   type="text"
                   value={role.name}
                   onChange={(e) => {
-                    setRoles(prev => prev.map(r => r.id === role.id ? { ...r, name: e.target.value } : r));
+                    setRoles(prev => prev.map(r => r.slot === role.slot ? { ...r, name: e.target.value } : r));
                     setHasChanges(true);
                   }}
                   className="bg-transparent border-none outline-none text-sm font-medium w-48 focus:text-primary"
@@ -286,14 +286,14 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
                     min="0"
                     max="127"
                     value={role.note}
-                    onChange={(e) => updateRoleNote(role.id, parseInt(e.target.value))}
+                    onChange={(e) => updateRoleNote(role.slot, parseInt(e.target.value))}
                     className="w-16 bg-muted px-2 py-1 rounded text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50"
                   />
                 </div>
                 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => setLearningRoleId(role.id)} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"><Target size={18} /></button>
-                  <button onClick={() => deleteRole(role.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"><Trash size={18} /></button>
+                  <button onClick={() => setLearningSlot(role.slot)} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"><Target size={18} /></button>
+                  <button onClick={() => deleteRole(role.slot)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"><Trash size={18} /></button>
                 </div>
               </div>
             </div>

@@ -98,24 +98,23 @@ impl SoundEngine for PhysEngine {
     }
 
     fn trigger(&mut self, velocity: f32) {
-        println!("PhysEngine triggered: vel={}", velocity);
         self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
         self.amp_env.trigger();
         
-        let excitation_amp = velocity;
+        // Increase excitation energy
+        let excitation_amp = velocity * 2.0;
         let l = (self.sample_rate / self.frequency).round() as usize;
         let l = l.clamp(2, self.delay_line.len() - 1);
-        println!("Delay line length L: {}, frequency: {}", l, self.frequency);
         
+        // Clear buffer
+        for x in self.delay_line.iter_mut() { *x = 0.0; }
+
+        // Fill the buffer from the START with noise
         for i in 0..l {
             self.delay_line[i] = (self.next_random() * 2.0 - 1.0) * excitation_amp;
         }
-        // Zero the rest
-        for i in l..self.delay_line.len() {
-            self.delay_line[i] = 0.0;
-        }
         
-        self.write_pos = 0;
+        self.write_pos = l % self.delay_line.len();
         self.last_y = 0.0;
     }
 
@@ -151,10 +150,7 @@ impl SoundEngine for PhysEngine {
         self.delay_line[self.write_pos] = y;
         self.write_pos = (self.write_pos + 1) % self.delay_line.len();
 
-        let out = y * env;
-        if out.abs() > 0.1 {
-            // println!("Phys out: {}, env: {}", out, env);
-        }
+        let out = y * env * 2.5; // Boosted output
         out
     }
 

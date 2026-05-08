@@ -1,0 +1,152 @@
+name = "Organic Thunder"
+description = "Earthy, 16-sound resonant collection focused on PhysEngine."
+
+[[sounds]]
+name = "Wooden Kick"
+engine_type = "phys"
+freq = 52.0
+brightness = 0.75
+dampening = 0.25
+attack = 2.0
+decay = 550.0
+
+[[sounds]]
+name = "Bamboo Snare"
+engine_type = "phys"
+freq = 210.0
+brightness = 0.45
+dampening = 0.45
+attack = 1.0
+decay = 220.0
+
+[[sounds]]
+name = "Clay Click"
+engine_type = "fm"
+freq = 1150.0
+mod_ratio = 4.2
+mod_index = 2.5
+noise_level = 0.08
+attack = 0.1
+decay = 25.0
+
+[[sounds]]
+name = "Cave Tom Low"
+engine_type = "phys"
+freq = 75.0
+brightness = 0.2
+dampening = 0.3
+attack = 8.0
+decay = 900.0
+
+[[sounds]]
+name = "Cave Tom Mid"
+engine_type = "phys"
+freq = 110.0
+brightness = 0.2
+dampening = 0.3
+attack = 6.0
+decay = 700.0
+
+[[sounds]]
+name = "Cave Tom High"
+engine_type = "phys"
+freq = 160.0
+brightness = 0.2
+dampening = 0.3
+attack = 4.0
+decay = 500.0
+
+[[sounds]]
+name = "Forest Snap"
+engine_type = "hybrid"
+freq = 800.0
+noise_color = 0.4
+metallic = 0.2
+attack = 0.5
+decay = 80.0
+
+[[sounds]]
+name = "Gravel Shake"
+engine_type = "granular"
+freq = 300.0
+density = 0.6
+grain_size = 40.0
+jitter = 0.9
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "Deep Log"
+engine_type = "phys"
+freq = 40.0
+brightness = 0.1
+dampening = 0.1
+attack = 15.0
+decay = 1200.0
+
+[[sounds]]
+name = "Stone Hit"
+engine_type = "hybrid"
+freq = 120.0
+noise_color = 0.2
+metallic = 0.1
+attack = 1.0
+decay = 150.0
+
+[[sounds]]
+name = "Rain Grain"
+engine_type = "granular"
+freq = 1500.0
+density = 0.3
+grain_size = 10.0
+jitter = 0.5
+attack = 5.0
+decay = 1000.0
+
+[[sounds]]
+name = "Hollow Bone"
+engine_type = "phys"
+freq = 600.0
+brightness = 0.6
+dampening = 0.7
+attack = 1.0
+decay = 300.0
+
+[[sounds]]
+name = "Dry Leaf"
+engine_type = "granular"
+freq = 2000.0
+density = 0.8
+grain_size = 8.0
+jitter = 0.6
+attack = 0.5
+decay = 60.0
+
+[[sounds]]
+name = "Mountain Echo"
+engine_type = "fm"
+freq = 880.0
+mod_ratio = 1.618
+mod_index = 4.0
+noise_level = 0.1
+attack = 20.0
+decay = 800.0
+
+[[sounds]]
+name = "Root Crack"
+engine_type = "hybrid"
+freq = 1500.0
+noise_color = 0.9
+metallic = 0.0
+attack = 0.5
+decay = 40.0
+
+[[sounds]]
+name = "Water Drop"
+engine_type = "fm"
+freq = 1000.0
+mod_ratio = 0.5
+mod_index = 20.0
+noise_level = 0.0
+attack = 0.1
+decay = 150.0
