@@ -1,4 +1,4 @@
-use crate::dsp::modulation::{ModSource, ModAmount};
+use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
 use std::f32::consts::PI;
 
 pub struct Lfo {
@@ -45,7 +45,7 @@ impl ModulationEngine {
         self.lfo2.tick();
     }
 
-    pub fn get_value(&self, source: ModSource) -> f32 {
+    pub fn get_source_value(&self, source: ModSource) -> f32 {
         match source {
             ModSource::None => 0.0,
             ModSource::Envelope => self.env_value,
@@ -53,6 +53,16 @@ impl ModulationEngine {
             ModSource::Lfo2 => self.lfo2.phase.sin(),
             ModSource::Velocity => self.velocity,
         }
+    }
+
+    /// Calculates the final value of a parameter after applying all modulation slots.
+    /// Range is usually clamped by the engine using the param, but we provide the offset here.
+    pub fn calculate_mod(&self, param: &ModulatableParam) -> f32 {
+        let mut total_mod = 0.0;
+        for slot in &param.mod_slots {
+            total_mod += self.get_source_value(slot.source) * slot.depth;
+        }
+        param.base_value + total_mod
     }
 }
 
@@ -79,8 +89,27 @@ mod tests {
         engine.env_value = 0.5;
         engine.velocity = 0.8;
         
-        assert_eq!(engine.get_value(ModSource::Envelope), 0.5);
-        assert_eq!(engine.get_value(ModSource::Velocity), 0.8);
-        assert_eq!(engine.get_value(ModSource::None), 0.0);
+        assert_eq!(engine.get_source_value(ModSource::Envelope), 0.5);
+        assert_eq!(engine.get_source_value(ModSource::Velocity), 0.8);
+        assert_eq!(engine.get_source_value(ModSource::None), 0.0);
+    }
+
+    #[test]
+    fn test_calculate_mod_summing() {
+        let mut engine = ModulationEngine::new(44100.0);
+        engine.env_value = 1.0;
+        engine.velocity = 0.5;
+
+        let mut param = ModulatableParam::new(100.0);
+        param.mod_slots.push(ModAmount { source: ModSource::Envelope, depth: 10.0 });
+        param.mod_slots.push(ModAmount { source: ModSource::Velocity, depth: -20.0 });
+
+        // Base (100) + Env(1.0 * 10.0) + Vel(0.5 * -20.0) = 100 + 10 - 10 = 100
+        let result = engine.calculate_mod(&param);
+        assert_eq!(result, 100.0);
+
+        engine.env_value = 0.0;
+        // 100 + (0.0 * 10.0) + (0.5 * -20.0) = 90.0
+        assert_eq!(engine.calculate_mod(&param), 90.0);
     }
 }

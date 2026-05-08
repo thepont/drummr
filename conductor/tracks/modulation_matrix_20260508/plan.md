@@ -5,8 +5,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Diagnostic & UI Fix' (Protocol in workflow.md)
 
 ## Phase 2: Backend Modulation Infrastructure
-- [~] Task: Implement Core Modulation Data Structures.
-- [ ] Task: Implement `ModulationEngine` logic.
+- [x] Task: Implement Core Modulation Data Structures. 4a5ca41
+- [~] Task: Implement `ModulationEngine` logic.
 - [ ] Task: Integrate Modulation into `SoundEngine` trait.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Backend Modulation Infrastructure' (Protocol in workflow.md)
 
