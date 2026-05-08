@@ -6,8 +6,8 @@
 
 ## Phase 2: Backend Modulation Infrastructure
 - [x] Task: Implement Core Modulation Data Structures. 4a5ca41
-- [~] Task: Implement `ModulationEngine` logic.
-- [ ] Task: Integrate Modulation into `SoundEngine` trait.
+- [x] Task: Implement `ModulationEngine` logic. 126beb9
+- [~] Task: Integrate Modulation into `SoundEngine` trait.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Backend Modulation Infrastructure' (Protocol in workflow.md)
 
 ## Phase 3: WebSocket & Persistence Expansion

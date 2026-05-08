@@ -13,10 +13,13 @@ pub struct ParamSchema {
     pub unit: String,
 }
 
+use crate::dsp::modulation::{ModSource, ModAmount};
+
 pub trait SoundEngine: Send {
     fn name(&self) -> &str;
     fn schema(&self) -> Vec<ParamSchema>;
     fn set_param(&mut self, name: &str, value: f32);
+    fn set_mod(&mut self, _param: &str, _source: ModSource, _depth: f32) {}
     fn trigger(&mut self, velocity: f32);
     fn tick(&mut self) -> f32;
     fn is_active(&self) -> bool;
@@ -37,13 +40,28 @@ impl SoundEngine for FmVoice {
     }
     fn set_param(&mut self, param: &str, value: f32) {
         match param {
-            "freq" => self.frequency = value,
-            "mod_ratio" => self.mod_ratio = value,
-            "mod_index" => self.mod_index = value,
-            "noise_level" => self.noise_level = value,
+            "freq" => self.frequency.base_value = value,
+            "mod_ratio" => self.mod_ratio.base_value = value,
+            "mod_index" => self.mod_index.base_value = value,
+            "noise_level" => self.noise_level.base_value = value,
             "attack" => self.attack = value,
             "decay" => self.decay = value,
             _ => {}
+        }
+    }
+    fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
+        let slots = match param {
+            "freq" => &mut self.frequency.mod_slots,
+            "mod_ratio" => &mut self.mod_ratio.mod_slots,
+            "mod_index" => &mut self.mod_index.mod_slots,
+            "noise_level" => &mut self.noise_level.mod_slots,
+            _ => return,
+        };
+
+        if let Some(slot) = slots.iter_mut().find(|s| s.source == source) {
+            slot.depth = depth;
+        } else {
+            slots.push(ModAmount { source, depth });
         }
     }
     fn trigger(&mut self, velocity: f32) { self.trigger(velocity); }
@@ -150,10 +168,10 @@ impl KitEngine {
                 }
                 _ => {
                     let mut v = FmVoice::new(sample_rate);
-                    v.frequency = sound.freq;
-                    v.mod_ratio = sound.mod_ratio.unwrap_or(1.0);
-                    v.mod_index = sound.mod_index.unwrap_or(1.0);
-                    v.noise_level = sound.noise_level.unwrap_or(0.0);
+                    v.frequency.base_value = sound.freq;
+                    v.mod_ratio.base_value = sound.mod_ratio.unwrap_or(1.0);
+                    v.mod_index.base_value = sound.mod_index.unwrap_or(1.0);
+                    v.noise_level.base_value = sound.noise_level.unwrap_or(0.0);
                     v.attack = sound.attack;
                     v.decay = sound.decay;
                     v.pitch_bend = 150.0;
