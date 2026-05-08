@@ -99,6 +99,13 @@ pub struct DrumMapping {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModEntry {
+    pub param: String,
+    pub source: ModSource,
+    pub depth: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumSound {
     pub name: String,
     pub engine_type: Option<String>, 
@@ -115,6 +122,7 @@ pub struct DrumSound {
     pub metallic: Option<f32>,
     pub attack: f32,
     pub decay: f32,
+    pub mods: Option<Vec<ModEntry>>,
 }
 
 pub struct KitEngine {
@@ -179,7 +187,15 @@ impl KitEngine {
                     Box::new(v)
                 }
             };
-            engine.voices.push(Some(voice));
+            let mut v_ptr = Some(voice);
+            if let Some(voice_ptr) = v_ptr.as_mut() {
+                if let Some(mods) = sound.mods {
+                    for m in mods {
+                        voice_ptr.set_mod(&m.param, m.source, m.depth);
+                    }
+                }
+            }
+            engine.voices.push(v_ptr);
         }
 
         for mapping in mappings {

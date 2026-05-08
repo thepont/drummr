@@ -19,6 +19,7 @@ type MidiEvent = [u8; 3];
 enum AudioCommand {
     ReloadKit,
     SetParam(usize, String, f32),
+    SetMod(usize, String, ModSource, f32),
 }
 
 async fn start_midi(
@@ -128,6 +129,13 @@ fn start_audio(device: &cpal::Device, mut event_rx: Consumer<MidiEvent>, mut cmd
                     AudioCommand::SetParam(slot, param, val) => {
                         kit.set_param(slot, &param, val);
                     }
+                    AudioCommand::SetMod(slot, param, source, depth) => {
+                        if let Some(voice_opt) = kit.voices.get_mut(slot) {
+                            if let Some(voice) = voice_opt {
+                                voice.set_mod(&param, source, depth);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -210,27 +218,11 @@ async fn main() -> Result<()> {
                 if let Ok(content) = std::fs::read_to_string("kit.toml") {
                     if let Ok(config) = toml::from_str::<DrumKit>(&content) {
                         let kit_data: Vec<_> = config.sounds.iter().enumerate().map(|(idx, s)| {
-                            serde_json::json!({
-                                "id": idx,
-                                "name": s.name,
-                                "engine_type": s.engine_type.as_deref().unwrap_or("fm"),
-                                "freq": s.freq,
-                                "mod_ratio": s.mod_ratio.unwrap_or(1.0),
-                                "mod_index": s.mod_index.unwrap_or(1.0),
-                                "noise_level": s.noise_level.unwrap_or(0.0),
-                                "brightness": s.brightness.unwrap_or(0.5),
-                                "dampening": s.dampening.unwrap_or(0.5),
-                                "density": s.density.unwrap_or(0.5),
-                                "grain_size": s.grain_size.unwrap_or(50.0),
-                                "jitter": s.jitter.unwrap_or(0.2),
-                                "noise_color": s.noise_color.unwrap_or(0.5),
-                                "metallic": s.metallic.unwrap_or(0.5),
-                                "attack": s.attack,
-                                "decay": s.decay
-                            })
+                            serde_json::json!({ "id": idx, "name": s.name, "engine_type": s.engine_type.as_deref().unwrap_or("fm"), "freq": s.freq, "mod_ratio": s.mod_ratio.unwrap_or(1.0), "mod_index": s.mod_index.unwrap_or(1.0), "noise_level": s.noise_level.unwrap_or(0.0), "brightness": s.brightness.unwrap_or(0.5), "dampening": s.dampening.unwrap_or(0.5), "density": s.density.unwrap_or(0.5), "grain_size": s.grain_size.unwrap_or(50.0), "jitter": s.jitter.unwrap_or(0.2), "noise_color": s.noise_color.unwrap_or(0.5), "metallic": s.metallic.unwrap_or(0.5), "attack": s.attack, "decay": s.decay, "mods": s.mods })
                         }).collect();
                         comm.broadcast(format!("KIT: {}", serde_json::to_string(&kit_data).unwrap_or_default())).await;
                     }
+
                 }
             } else if text.starts_with("GET_SCHEMA:") {
                 let slot: usize = text.replace("GET_SCHEMA:", "").parse().unwrap_or(0);
@@ -337,7 +329,7 @@ async fn main() -> Result<()> {
                                             let _ = std::fs::write("kit.toml", toml_str);
                                             if let Ok(mut p) = c_prod.lock() { let _ = p.push(AudioCommand::ReloadKit); }
                                             let kit_data: Vec<_> = config.sounds.iter().enumerate().map(|(idx, s)| {
-                                                serde_json::json!({ "id": idx, "name": s.name, "engine_type": s.engine_type.as_deref().unwrap_or("fm"), "freq": s.freq, "mod_ratio": s.mod_ratio.unwrap_or(1.0), "mod_index": s.mod_index.unwrap_or(1.0), "noise_level": s.noise_level.unwrap_or(0.0), "brightness": s.brightness.unwrap_or(0.5), "dampening": s.dampening.unwrap_or(0.5), "density": s.density.unwrap_or(0.5), "grain_size": s.grain_size.unwrap_or(50.0), "jitter": s.jitter.unwrap_or(0.2), "noise_color": s.noise_color.unwrap_or(0.5), "metallic": s.metallic.unwrap_or(0.5), "attack": s.attack, "decay": s.decay })
+                                                serde_json::json!({ "id": idx, "name": s.name, "engine_type": s.engine_type.as_deref().unwrap_or("fm"), "freq": s.freq, "mod_ratio": s.mod_ratio.unwrap_or(1.0), "mod_index": s.mod_index.unwrap_or(1.0), "noise_level": s.noise_level.unwrap_or(0.0), "brightness": s.brightness.unwrap_or(0.5), "dampening": s.dampening.unwrap_or(0.5), "density": s.density.unwrap_or(0.5), "grain_size": s.grain_size.unwrap_or(50.0), "jitter": s.jitter.unwrap_or(0.2), "noise_color": s.noise_color.unwrap_or(0.5), "metallic": s.metallic.unwrap_or(0.5), "attack": s.attack, "decay": s.decay, "mods": s.mods })
                                             }).collect();
                                             comm.broadcast(format!("KIT: {}", serde_json::to_string(&kit_data).unwrap_or_default())).await;
                                         }
@@ -377,7 +369,7 @@ async fn main() -> Result<()> {
                     if let Ok(content) = std::fs::read_to_string("kit.toml") {
                         if let Ok(config) = toml::from_str::<DrumKit>(&content) {
                             let kit_data: Vec<_> = config.sounds.iter().enumerate().map(|(idx, s)| {
-                                serde_json::json!({ "id": idx, "name": s.name, "engine_type": s.engine_type.as_deref().unwrap_or("fm"), "freq": s.freq, "mod_ratio": s.mod_ratio.unwrap_or(1.0), "mod_index": s.mod_index.unwrap_or(1.0), "noise_level": s.noise_level.unwrap_or(0.0), "brightness": s.brightness.unwrap_or(0.5), "dampening": s.dampening.unwrap_or(0.5), "density": s.density.unwrap_or(0.5), "grain_size": s.grain_size.unwrap_or(50.0), "jitter": s.jitter.unwrap_or(0.2), "noise_color": s.noise_color.unwrap_or(0.5), "metallic": s.metallic.unwrap_or(0.5), "attack": s.attack, "decay": s.decay })
+                                serde_json::json!({ "id": idx, "name": s.name, "engine_type": s.engine_type.as_deref().unwrap_or("fm"), "freq": s.freq, "mod_ratio": s.mod_ratio.unwrap_or(1.0), "mod_index": s.mod_index.unwrap_or(1.0), "noise_level": s.noise_level.unwrap_or(0.0), "brightness": s.brightness.unwrap_or(0.5), "dampening": s.dampening.unwrap_or(0.5), "density": s.density.unwrap_or(0.5), "grain_size": s.grain_size.unwrap_or(50.0), "jitter": s.jitter.unwrap_or(0.2), "noise_color": s.noise_color.unwrap_or(0.5), "metallic": s.metallic.unwrap_or(0.5), "attack": s.attack, "decay": s.decay, "mods": s.mods })
                             }).collect();
                             comm.broadcast(format!("KIT: {}", serde_json::to_string(&kit_data).unwrap_or_default())).await;
                         }
@@ -414,6 +406,47 @@ async fn main() -> Result<()> {
                                 if let Ok(toml_str) = toml::to_string(&config) {
                                     let _ = std::fs::write("kit.toml", toml_str);
                                     if needs_reload { if let Ok(mut p) = c_prod.lock() { let _ = p.push(AudioCommand::ReloadKit); } }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if text.starts_with("SET_MOD:") {
+                let parts: Vec<&str> = text.split(':').collect();
+                if parts.len() == 5 {
+                    let slot: usize = parts[1].parse().unwrap_or(0);
+                    let param = parts[2];
+                    let source_str = parts[3];
+                    let depth: f32 = parts[4].parse().unwrap_or(0.0);
+
+                    let source = match source_str {
+                        "Envelope" => ModSource::Envelope,
+                        "Lfo1" => ModSource::Lfo1,
+                        "Lfo2" => ModSource::Lfo2,
+                        "Velocity" => ModSource::Velocity,
+                        _ => ModSource::None,
+                    };
+
+                    if let Ok(mut p) = c_prod.lock() { 
+                        let _ = p.push(AudioCommand::SetMod(slot, param.to_string(), source, depth)); 
+                    }
+
+                    if let Ok(content) = std::fs::read_to_string("kit.toml") {
+                        if let Ok(mut config) = toml::from_str::<DrumKit>(&content) {
+                            if let Some(sound) = config.sounds.get_mut(slot) {
+                                let mut mods = sound.mods.clone().unwrap_or_default();
+                                if let Some(m) = mods.iter_mut().find(|m| m.param == param && m.source == source) {
+                                    m.depth = depth;
+                                } else if source != ModSource::None {
+                                    mods.push(crate::kit::ModEntry { param: param.to_string(), source, depth });
+                                }
+                                
+                                // Remove None sources or zero depth if cleaning up
+                                mods.retain(|m| m.source != ModSource::None);
+
+                                sound.mods = Some(mods);
+                                if let Ok(toml_str) = toml::to_string(&config) {
+                                    let _ = std::fs::write("kit.toml", toml_str);
                                 }
                             }
                         }
