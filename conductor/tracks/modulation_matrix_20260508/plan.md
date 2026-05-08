@@ -1,11 +1,11 @@
 # Implementation Plan: modulation_matrix_20260508
 
-## Phase 1: Diagnostic & UI Fix (Laser Kick)
+## Phase 1: Diagnostic & UI Fix (Laser Kick) [checkpoint: 3f0969b]
 - [x] Task: Diagnose and resolve Laser Kick UI visibility.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Diagnostic & UI Fix' (Protocol in workflow.md)
 
 ## Phase 2: Backend Modulation Infrastructure
-- [ ] Task: Implement Core Modulation Data Structures.
+- [~] Task: Implement Core Modulation Data Structures.
 - [ ] Task: Implement `ModulationEngine` logic.
 - [ ] Task: Integrate Modulation into `SoundEngine` trait.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Backend Modulation Infrastructure' (Protocol in workflow.md)
