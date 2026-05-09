@@ -59,7 +59,7 @@ export function Button({
   );
 }
 
-export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2), className }: { 
+export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2), className, modValue }: { 
   label: string, 
   value: number, 
   min: number, 
@@ -67,21 +67,35 @@ export function Slider({ label, value, min, max, step, onChange, format = (v: nu
   step: number, 
   onChange: (v: number) => void,
   format?: (v: number) => string,
-  className?: string
+  className?: string,
+  modValue?: number
 }) {
+  const modPos = modValue !== undefined 
+    ? ((modValue - min) / (max - min)) * 100 
+    : undefined;
+
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
         <span className="text-sm font-mono font-bold bg-muted px-2 py-0.5 rounded">{format(value)}</span>
       </div>
-      <input 
-        type="range" 
-        min={min} max={max} step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all"
-      />
+      <div className="relative group/track">
+        <input 
+          type="range" 
+          min={min} max={max} step={step}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all"
+        />
+        {modPos !== undefined && (
+          <div 
+            data-testid="mod-indicator"
+            className="absolute top-1/2 -translate-y-1/2 h-3 w-1 bg-primary/40 rounded-full shadow-[0_0_8px_var(--color-primary)] transition-all duration-75 pointer-events-none border border-primary/20"
+            style={{ left: `${Math.max(0, Math.min(100, modPos))}%`, transform: 'translate(-50%, -50%)' }}
+          />
+        )}
+      </div>
     </div>
   )
 }
@@ -109,22 +123,18 @@ export function ParamSlider({
   onModChange?: (index: number, source: string, depth: number) => void,
   modValue?: number
 }) {
-  const modPos = modValue !== undefined 
-    ? ((modValue - min) / (max - min)) * 100 
-    : undefined;
-
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <Slider label={label} value={value} min={min} max={max} step={step} onChange={onChange} format={format} />
-        {modPos !== undefined && (
-          <div 
-            data-testid="mod-indicator"
-            className="absolute bottom-0 h-1 w-1 bg-primary rounded-full shadow-[0_0_8px_var(--color-primary)] transition-all duration-75 pointer-events-none"
-            style={{ left: `${Math.max(0, Math.min(100, modPos))}%`, transform: 'translateX(-50%)' }}
-          />
-        )}
-      </div>
+      <Slider 
+        label={label} 
+        value={value} 
+        min={min} 
+        max={max} 
+        step={step} 
+        onChange={onChange} 
+        format={format} 
+        modValue={modValue}
+      />
       
       {mods.length > 0 && (
         <div className="flex gap-4 items-end pl-2 border-l-2 border-primary/20">
