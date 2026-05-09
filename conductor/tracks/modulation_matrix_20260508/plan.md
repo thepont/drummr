@@ -10,13 +10,13 @@
 - [x] Task: Integrate Modulation into `SoundEngine` trait. 1be29a2
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Backend Modulation Infrastructure' (Protocol in workflow.md)
 
-## Phase 3: WebSocket & Persistence Expansion
-- [~] Task: Update WebSocket Protocol for Modulation.
-- [ ] Task: Persist Modulation in `kit.toml`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: WebSocket & Persistence Expansion' (Protocol in workflow.md)
+## Phase 3: WebSocket & Persistence Expansion [checkpoint: ed5de43]
+- [x] Task: Update WebSocket Protocol for Modulation. ed5de43
+- [x] Task: Persist Modulation in `kit.toml`. ed5de43
+- [x] Task: Conductor - User Manual Verification 'Phase 3: WebSocket & Persistence Expansion' (Protocol in workflow.md)
 
 ## Phase 4: Frontend Modulation UI
-- [ ] Task: Implement `ModSlot` UI in `ParamSlider`.
+- [x] Task: Implement `ModSlot` UI in `ParamSlider`. a69f77c
 - [ ] Task: Create `EnvelopeEditor` and `ModulationPanel`.
 - [ ] Task: Implement Real-time Visual Feedback.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Frontend Modulation UI' (Protocol in workflow.md)
