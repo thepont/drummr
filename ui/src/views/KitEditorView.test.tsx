@@ -49,7 +49,7 @@ describe('KitEditorView Schema Parsing', () => {
       messageHandler({ data: `SCHEMA:0:${JSON.stringify(schemaData)}` });
     });
 
-    expect(screen.getByText(/Freq: 55/)).toBeInTheDocument();
+    expect(screen.getByText(/Base Pitch: 55/)).toBeInTheDocument();
     expect(screen.getByText(/Mod ratio: 1/)).toBeInTheDocument();
   });
 });

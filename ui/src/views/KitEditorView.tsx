@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Play, FloppyDisk, Sparkle, Waves, Sliders as SlidersIcon, Clock } from "@phosphor-icons/react"
+import { Play, FloppyDisk, Sparkle, Waves, Sliders as SlidersIcon, Clock, Cpu } from "@phosphor-icons/react"
 import { cn, ParamSlider, Button, Card } from '../components/ui'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
@@ -171,11 +171,11 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">Kit Editor</h3>
-          <p className="text-muted-foreground mt-1">Sculpt your sounds in real-time.</p>
+          <h3 className="text-2xl font-bold tracking-tight">Sound Designer</h3>
+          <p className="text-muted-foreground mt-1">Horizontal signal flow: Source → Shape → Timbre → Mod</p>
         </div>
         
         <div className="flex gap-2">
@@ -184,220 +184,202 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
             variant="primary" 
             icon={<Play weight="fill" />}
            >
-            Preview Sound
+            Preview
            </Button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Sound List */}
-        <aside className="lg:col-span-3 space-y-6">
-          <div className="space-y-2">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-2">Sounds</div>
-            {sounds.map(sound => (
-              <button
-                key={sound.id}
-                onClick={() => setSelectedSoundId(sound.id)}
-                className={cn(
-                  "w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group",
-                  selectedSoundId === sound.id 
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                    : "bg-card/30 border border-border hover:border-primary/50"
-                )}
-              >
-                <span className="font-medium text-sm">{sound.name}</span>
-                <Sparkle 
-                  size={14} 
-                  weight={selectedSoundId === sound.id ? "fill" : "regular"}
-                  className={selectedSoundId === sound.id ? "text-primary-foreground" : "text-muted-foreground opacity-0 group-hover:opacity-100"} 
-                />
-              </button>
-            ))}
-          </div>
+      {/* Sound Selector - Horizontal Strip */}
+      <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
+        {sounds.map(sound => (
+          <button
+            key={sound.id}
+            onClick={() => setSelectedSoundId(sound.id)}
+            className={cn(
+              "flex-shrink-0 px-6 py-3 rounded-2xl transition-all border flex items-center gap-3",
+              selectedSoundId === sound.id 
+                ? "bg-primary text-primary-foreground shadow-lg border-primary" 
+                : "bg-card/30 border-border hover:border-primary/50"
+            )}
+          >
+            <span className="font-bold text-xs uppercase tracking-widest">{sound.name}</span>
+            {selectedSoundId === sound.id && <Sparkle size={14} weight="fill" />}
+          </button>
+        ))}
+      </div>
 
-          <div className="space-y-4 pt-4 border-t border-border/50">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Sound Library</div>
+      {selectedSound ? (
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-stretch">
+          
+          {/* Module 1: Source */}
+          <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col">
+            <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+              <Cpu size={16} />
+              1. Source
+            </header>
             
-            <div className="px-2 space-y-2">
-               <input 
-                type="text" 
-                placeholder="Preset Name..." 
-                className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-xs"
-                value={newPresetName}
-                onChange={e => setNewPresetName(e.target.value)}
-              />
-              <Button 
-                variant="secondary" 
-                className="w-full text-[10px] h-8"
-                onClick={() => {
-                  if (newPresetName && selectedSoundId && ws) {
-                    ws.send(`SAVE_SOUND_PRESET:${newPresetName}:${selectedSoundId}`);
-                    setNewPresetName("");
-                  }
-                }}
-              >
-                Save as Preset
-              </Button>
-            </div>
-
-            <div className="space-y-1">
-              {soundPresets.map(preset => (
-                <button
-                  key={preset}
-                  onClick={() => {
-                    if (selectedSoundId && ws) {
-                      ws.send(`LOAD_SOUND_PRESET:${preset}:${selectedSoundId}`);
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded-lg transition-colors"
-                >
-                  {preset}
-                </button>
-              ))}
-              {soundPresets.length === 0 && (
-                <div className="px-4 py-2 text-[10px] text-muted-foreground italic">No presets saved yet</div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-4 pt-4 border-t border-border/50">
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2">Kit Library</div>
-            
-            <div className="px-2 space-y-2">
-               <input 
-                type="text" 
-                placeholder="New Kit Name..." 
-                className="w-full bg-background/50 border border-border rounded-lg px-3 py-2 text-xs"
-                value={newKitName}
-                onChange={e => setNewKitName(e.target.value)}
-              />
-              <Button 
-                variant="secondary" 
-                className="w-full text-[10px] h-8"
-                onClick={() => {
-                  if (newKitName && ws) {
-                    ws.send(`SAVE_KIT_AS:${newKitName}`);
-                    setNewKitName("");
-                  }
-                }}
-              >
-                Save Kit As
-              </Button>
-            </div>
-
-            <div className="space-y-1">
-              {kitList.map(kit => (
-                <button
-                  key={kit}
-                  onClick={() => {
-                    if (ws) {
-                      ws.send(`LOAD_KIT:${kit}`);
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-card/50 rounded-lg transition-colors"
-                >
-                  {kit}
-                </button>
-              ))}
-              {kitList.length === 0 && (
-                <div className="px-4 py-2 text-[10px] text-muted-foreground italic">No kits saved yet</div>
-              )}
-            </div>
-          </div>
-        </aside>
-
-        {/* Editor Area */}
-        <main className="lg:col-span-9 space-y-8">
-          {selectedSound ? (
-            <>
-              {/* Visualizer Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <section className="bg-card/30 border border-border rounded-3xl p-6 flex flex-col gap-4">
-                  <header className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                    <Waves size={18} />
-                    Envelope
-                  </header>
-                  <div className="flex-1 min-h-[200px] bg-background/50 rounded-2xl relative overflow-hidden border border-border/50">
-                    <EnvelopeEditor 
-                      attack={selectedSound.attack} 
-                      decay={selectedSound.decay}
-                      onChange={(a, d) => {
-                        updateParam('attack', a);
-                        updateParam('decay', d);
-                      }}
-                    />
-                  </div>
-                </section>
-
-                <ModulationPanel 
-                  lfo1_freq={selectedSound.lfo1_freq || 1.0}
-                  lfo2_freq={selectedSound.lfo2_freq || 1.0}
-                  onChangeLfo={updateLfo}
-                  modValues={selectedSlotIndex !== -1 ? modStates[selectedSlotIndex] : undefined}
-                />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                {['fm', 'phys', 'granular', 'hybrid'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => updateParam('engine_type' as any, type as any)}
+                    className={cn(
+                      "px-3 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest border",
+                      selectedSound.engine_type === type 
+                        ? "bg-primary border-primary text-primary-foreground" 
+                        : "bg-background/50 border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {type}
+                  </button>
+                ))}
               </div>
 
-              {/* Controls */}
-              <section className="bg-card/30 border border-border rounded-3xl p-8 space-y-10">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Engine Type</div>
-                  <div className="flex bg-background/50 p-1 rounded-xl border border-border/50">
-                    {['fm', 'phys', 'granular', 'hybrid'].map(type => (
-                      <button
-                        key={type}
-                        onClick={() => updateParam('engine_type' as any, type as any)}
-                        className={cn(
-                          "px-4 py-1.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider",
-                          selectedSound.engine_type === type 
-                            ? "bg-primary text-primary-foreground shadow-sm" 
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                  {/* Schema-Driven Dynamic Sliders */}
-                  {schemas[selectedSound.id]?.map((param, idx) => {
-                    const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
-                    const displayMods = [...paramMods];
-                    while (displayMods.length < 1) { // Show at least 1 slot for now
-                      displayMods.push({ param: param.name, source: 'None', depth: 0 });
-                    }
-
-                    return (
-                      <div key={param.name} className="space-y-8">
-                        <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-                          {param.name.replace('_', ' ')}
-                        </div>
-                        <ParamSlider 
-                          label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')} 
-                          value={selectedSound[param.name] ?? param.default} 
-                          min={param.min} 
-                          max={param.max} 
-                          step={param.max - param.min > 10 ? 1 : 0.01}
-                          format={v => param.unit ? `${v.toFixed(param.unit === 'Hz' ? 0 : 2)} ${param.unit}` : v.toFixed(2)}
-                          onChange={v => updateParam(param.name as any, v)} 
-                          mods={displayMods}
-                          onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
-                          modValue={getModulatedValue(param.name, selectedSound[param.name] ?? param.default)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            </>
-          ) : (
-            <div className="h-[400px] flex items-center justify-center border-2 border-dashed border-border rounded-3xl text-muted-foreground italic">
-              Select a sound to start editing
+              <div className="pt-4">
+                <ParamSlider 
+                  label="Base Pitch" 
+                  value={selectedSound.freq} 
+                  min={20} 
+                  max={2000} 
+                  step={1}
+                  format={v => `${v.toFixed(0)} Hz`}
+                  onChange={v => updateParam('freq', v)} 
+                  modValue={getModulatedValue('freq', selectedSound.freq)}
+                />
+              </div>
             </div>
-          )}
-        </main>
-      </div>
+
+            <div className="mt-auto pt-6 border-t border-border/50">
+               <div className="text-[9px] font-bold text-muted-foreground italic">
+                 The raw sound generation engine. Choose the core synthesis method.
+               </div>
+            </div>
+          </section>
+
+          {/* Module 2: Shape */}
+          <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col xl:col-span-1">
+            <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+              <Clock size={16} />
+              2. Shape
+            </header>
+            
+            <div className="flex-1 min-h-[200px] bg-background/50 rounded-2xl relative overflow-hidden border border-border/50">
+              <EnvelopeEditor 
+                attack={selectedSound.attack} 
+                decay={selectedSound.decay}
+                onChange={(a, d) => {
+                  updateParam('attack', a);
+                  updateParam('decay', d);
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+               <div className="p-3 bg-background/30 rounded-xl border border-border/50">
+                 <div className="text-[8px] font-black text-muted-foreground uppercase mb-1">Attack</div>
+                 <div className="text-xs font-bold">{selectedSound.attack.toFixed(0)}ms</div>
+               </div>
+               <div className="p-3 bg-background/30 rounded-xl border border-border/50">
+                 <div className="text-[8px] font-black text-muted-foreground uppercase mb-1">Decay</div>
+                 <div className="text-xs font-bold">{selectedSound.decay.toFixed(0)}ms</div>
+               </div>
+            </div>
+          </section>
+
+          {/* Module 3: Timbre */}
+          <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col xl:col-span-1">
+            <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+              <SlidersIcon size={16} />
+              3. Timbre
+            </header>
+            
+            <div className="space-y-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {schemas[selectedSound.id]?.filter(p => !['freq', 'attack', 'decay'].includes(p.name)).map((param) => {
+                const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
+                const displayMods = [...paramMods];
+                while (displayMods.length < 1) {
+                  displayMods.push({ param: param.name, source: 'None', depth: 0 });
+                }
+
+                return (
+                  <div key={param.name}>
+                    <ParamSlider 
+                      label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')} 
+                      value={selectedSound[param.name] ?? param.default} 
+                      min={param.min} 
+                      max={param.max} 
+                      step={param.max - param.min > 10 ? 1 : 0.01}
+                      format={v => param.unit ? `${v.toFixed(param.unit === 'Hz' ? 0 : 2)} ${param.unit}` : v.toFixed(2)}
+                      onChange={v => updateParam(param.name as any, v)} 
+                      mods={displayMods}
+                      onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
+                      modValue={getModulatedValue(param.name, selectedSound[param.name] ?? param.default)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Module 4: Modulation */}
+          <section className="xl:col-span-1">
+             <ModulationPanel 
+                lfo1_freq={selectedSound.lfo1_freq || 1.0}
+                lfo2_freq={selectedSound.lfo2_freq || 1.0}
+                onChangeLfo={updateLfo}
+                modValues={selectedSlotIndex !== -1 ? modStates[selectedSlotIndex] : undefined}
+              />
+          </section>
+
+        </div>
+      ) : (
+        <div className="h-[400px] flex items-center justify-center border-2 border-dashed border-border rounded-3xl text-muted-foreground italic">
+          Select a sound to start designing
+        </div>
+      )}
+
+      {/* Preset Footer */}
+      <footer className="fixed bottom-0 left-0 lg:left-64 right-0 bg-background/80 backdrop-blur-xl border-t border-border p-4 px-8 flex items-center justify-between z-20">
+         <div className="flex items-center gap-6 overflow-x-auto no-scrollbar max-w-[60%]">
+            <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">Presets</div>
+            {soundPresets.map(preset => (
+              <button
+                key={preset}
+                onClick={() => {
+                  if (selectedSoundId && ws) {
+                    ws.send(`LOAD_SOUND_PRESET:${preset}:${selectedSoundId}`);
+                  }
+                }}
+                className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors whitespace-nowrap"
+              >
+                {preset}
+              </button>
+            ))}
+         </div>
+
+         <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Save as..." 
+              className="bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary/50 transition-colors w-32"
+              value={newPresetName}
+              onChange={e => setNewPresetName(e.target.value)}
+            />
+            <Button 
+              variant="secondary" 
+              className="h-8 px-4 text-[10px]"
+              onClick={() => {
+                if (newPresetName && selectedSoundId && ws) {
+                  ws.send(`SAVE_SOUND_PRESET:${newPresetName}:${selectedSoundId}`);
+                  setNewPresetName("");
+                }
+              }}
+            >
+              Save
+            </Button>
+         </div>
+      </footer>
     </div>
   )
 }
