@@ -17,7 +17,7 @@
 
 ## Phase 4: Frontend Modulation UI
 - [x] Task: Implement `ModSlot` UI in `ParamSlider`. a69f77c
-- [ ] Task: Create `EnvelopeEditor` and `ModulationPanel`.
+- [~] Task: Create `EnvelopeEditor` and `ModulationPanel`.
 - [ ] Task: Implement Real-time Visual Feedback.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Frontend Modulation UI' (Protocol in workflow.md)
 

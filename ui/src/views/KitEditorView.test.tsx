@@ -5,6 +5,7 @@ import KitEditorView from './KitEditorView'
 // Mock the Button, Slider, Card components from ui.tsx if necessary or just render them
 vi.mock('../components/ui', () => ({
   cn: (...args: any[]) => args.filter(Boolean).join(' '),
+  Slider: ({ label, value }: any) => <div data-testid="slider">{label}: {value}</div>,
   ParamSlider: ({ label, value }: any) => <div data-testid="slider">{label}: {value}</div>,
   Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
   Card: ({ title, value }: any) => <div>{title}: {value}</div>,

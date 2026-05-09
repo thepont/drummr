@@ -20,6 +20,7 @@ pub trait SoundEngine: Send {
     fn schema(&self) -> Vec<ParamSchema>;
     fn set_param(&mut self, name: &str, value: f32);
     fn set_mod(&mut self, _param: &str, _source: ModSource, _depth: f32) {}
+    fn set_lfo(&mut self, _index: usize, _freq: f32) {}
     fn trigger(&mut self, velocity: f32);
     fn tick(&mut self) -> f32;
     fn is_active(&self) -> bool;
@@ -46,6 +47,13 @@ impl SoundEngine for FmVoice {
             "noise_level" => self.noise_level.base_value = value,
             "attack" => self.attack = value,
             "decay" => self.decay = value,
+            _ => {}
+        }
+    }
+    fn set_lfo(&mut self, index: usize, freq: f32) {
+        match index {
+            1 => self.mod_engine.lfo1.frequency = freq,
+            2 => self.mod_engine.lfo2.frequency = freq,
             _ => {}
         }
     }
@@ -122,6 +130,8 @@ pub struct DrumSound {
     pub metallic: Option<f32>,
     pub attack: f32,
     pub decay: f32,
+    pub lfo1_freq: Option<f32>,
+    pub lfo2_freq: Option<f32>,
     pub mods: Option<Vec<ModEntry>>,
 }
 
@@ -194,6 +204,8 @@ impl KitEngine {
                         voice_ptr.set_mod(&m.param, m.source, m.depth);
                     }
                 }
+                if let Some(f) = sound.lfo1_freq { voice_ptr.set_lfo(1, f); }
+                if let Some(f) = sound.lfo2_freq { voice_ptr.set_lfo(2, f); }
             }
             engine.voices.push(v_ptr);
         }

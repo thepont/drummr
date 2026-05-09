@@ -1,4 +1,4 @@
-use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
+use crate::dsp::modulation::{ModSource, ModulatableParam};
 use std::f32::consts::PI;
 
 pub struct Lfo {
