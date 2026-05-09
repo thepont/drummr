@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Play, FloppyDisk, Sparkle, Waves, Sliders as SlidersIcon, Clock, Cpu } from "@phosphor-icons/react"
-import { cn, ParamSlider, Button, Card } from '../components/ui'
+import { cn, ParamController, Button, Card, FrequencyVisualizer } from '../components/ui'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
 
@@ -237,13 +237,10 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
               </div>
 
               <div className="pt-4">
-                <ParamSlider 
-                  label="Base Pitch" 
+                <FrequencyVisualizer 
                   value={selectedSound.freq} 
                   min={20} 
                   max={2000} 
-                  step={1}
-                  format={v => `${v.toFixed(0)} Hz`}
                   onChange={v => updateParam('freq', v)} 
                   modValue={getModulatedValue('freq', selectedSound.freq)}
                 />
@@ -304,7 +301,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
 
                 return (
                   <div key={param.name}>
-                    <ParamSlider 
+                    <ParamController 
                       label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')} 
                       value={selectedSound[param.name] ?? param.default} 
                       min={param.min} 

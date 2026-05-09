@@ -107,7 +107,60 @@ export interface ModSlotData {
 
 type f32 = number;
 
-export function ParamSlider({ 
+import { useRef, useEffect } from 'react';
+
+export function Sparkline({ value, min, max, className }: { value: number, min: number, max: number, className?: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const historyRef = useRef<number[]>([]);
+  const frameRef = useRef<number>(0);
+
+  useEffect(() => {
+    const history = historyRef.current;
+    history.push(value);
+    if (history.length > 60) history.shift(); // Keep last 60 points (~1.5s at 40ms updates)
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const draw = () => {
+      const { width, height } = canvas;
+      ctx.clearRect(0, 0, width, height);
+      
+      if (history.length < 2) return;
+
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.5)'; // primary-400 with opacity
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / (history.length - 1)) * width;
+        const normalized = (history[i] - min) / (max - min);
+        const y = height - (normalized * height);
+        
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    };
+
+    frameRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [value, min, max]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      width={100} 
+      height={30} 
+      className={cn("bg-muted/20 rounded opacity-50", className)} 
+    />
+  );
+}
+
+export function ParamController({ 
   label, value, min, max, step, onChange, format, 
   mods = [], onModChange,
   modValue
@@ -124,17 +177,27 @@ export function ParamSlider({
   modValue?: number
 }) {
   return (
-    <div className="space-y-4">
-      <Slider 
-        label={label} 
-        value={value} 
-        min={min} 
-        max={max} 
-        step={step} 
-        onChange={onChange} 
-        format={format} 
-        modValue={modValue}
-      />
+    <div className="space-y-4 group/param">
+      <div className="flex items-end gap-4">
+        <div className="flex-1">
+          <Slider 
+            label={label} 
+            value={value} 
+            min={min} 
+            max={max} 
+            step={step} 
+            onChange={onChange} 
+            format={format} 
+            modValue={modValue}
+          />
+        </div>
+        <Sparkline 
+          value={modValue ?? value} 
+          min={min} 
+          max={max} 
+          className="mb-1"
+        />
+      </div>
       
       {mods.length > 0 && (
         <div className="flex gap-4 items-end pl-2 border-l-2 border-primary/20">
@@ -148,6 +211,100 @@ export function ParamSlider({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+export function FrequencyVisualizer({ value, min, max, onChange, modValue }: { 
+  value: number, 
+  min: number, 
+  max: number, 
+  onChange: (v: number) => void,
+  modValue?: number
+}) {
+  const freqToNote = (f: number) => {
+    const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const semi = 12 * (Math.log2(f / 440)) + 69;
+    const noteIdx = Math.round(semi) % 12;
+    const octave = Math.floor(Math.round(semi) / 12) - 1;
+    return `${notes[noteIdx]}${octave}`;
+  };
+
+  const getLogPos = (f: number) => {
+    return (Math.log2(f / min) / Math.log2(max / min)) * 100;
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const update = (moveEvent: MouseEvent) => {
+      const x = Math.max(0, Math.min(rect.width, moveEvent.clientX - rect.left));
+      const percent = x / rect.width;
+      // Inverse of log mapping
+      const newVal = min * Math.pow(max / min, percent);
+      onChange(newVal);
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', update);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', update);
+    window.addEventListener('mouseup', handleMouseUp);
+    update(e.nativeEvent as any);
+  };
+
+  const pos = getLogPos(value);
+  const mPos = modValue ? getLogPos(modValue) : undefined;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-muted-foreground italic">Pitch Spectrum</span>
+        <span className="text-sm font-mono font-black text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+          {freqToNote(modValue ?? value)} ({Math.round(modValue ?? value)}Hz)
+        </span>
+      </div>
+      
+      <div 
+        className="h-12 bg-muted/30 rounded-xl relative overflow-hidden border border-border/50 cursor-ew-resize group"
+        onMouseDown={handleMouseDown}
+      >
+        {/* Background Piano-style grid */}
+        <div className="absolute inset-0 flex justify-between px-2 opacity-20 pointer-events-none">
+           {[60, 110, 220, 440, 880, 1760].filter(f => f >= min && f <= max).map(f => (
+             <div key={f} className="h-full w-[1px] bg-border relative" style={{ left: `${getLogPos(f)}%` }}>
+                <span className="absolute bottom-1 left-1 text-[8px] font-bold">{f}Hz</span>
+             </div>
+           ))}
+        </div>
+
+        {/* Base Value Marker */}
+        <div 
+          className="absolute top-0 bottom-0 w-1 bg-muted-foreground/30 z-10 transition-all duration-200"
+          style={{ left: `${pos}%`, transform: 'translateX(-50%)' }}
+        />
+
+        {/* Modulated Value Active Bar */}
+        {mPos !== undefined && (
+          <div 
+            className="absolute top-0 bottom-0 bg-primary/20 border-x border-primary/40 shadow-[0_0_15px_var(--color-primary)] transition-all duration-75"
+            style={{ 
+              left: `${Math.min(pos, mPos)}%`, 
+              width: `${Math.abs(mPos - pos)}%` 
+            }}
+          />
+        )}
+        
+        {/* The "Glow" Head */}
+        <div 
+          className="absolute top-0 bottom-0 w-1.5 bg-primary shadow-[0_0_10px_var(--color-primary)] z-20 transition-all duration-75"
+          style={{ left: `${mPos ?? pos}%`, transform: 'translateX(-50%)' }}
+        />
+      </div>
+      <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center opacity-50">
+        Logarithmic Piano Spectrum
+      </div>
     </div>
   );
 }

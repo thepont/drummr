@@ -6,7 +6,8 @@ import KitEditorView from './KitEditorView'
 vi.mock('../components/ui', () => ({
   cn: (...args: any[]) => args.filter(Boolean).join(' '),
   Slider: ({ label, value }: any) => <div data-testid="slider">{label}: {value}</div>,
-  ParamSlider: ({ label, value }: any) => <div data-testid="slider">{label}: {value}</div>,
+  ParamController: ({ label, value }: any) => <div data-testid="slider">{label}: {value}</div>,
+  FrequencyVisualizer: ({ value }: any) => <div data-testid="slider">Base Pitch: {value}</div>,
   Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
   Card: ({ title, value }: any) => <div>{title}: {value}</div>,
 }))

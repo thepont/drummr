@@ -1,11 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import { ParamSlider } from './ui'
+import { ParamController } from './ui'
 
-describe('ParamSlider', () => {
+describe('ParamController', () => {
   it('renders with label and value', () => {
     render(
-      <ParamSlider 
+      <ParamController 
         label="Freq" 
         value={440} 
         min={20} 
@@ -24,7 +24,7 @@ describe('ParamSlider', () => {
       { source: 'Lfo1', depth: -0.2 }
     ]
     render(
-      <ParamSlider 
+      <ParamController 
         label="Freq" 
         value={440} 
         min={20} 
@@ -44,7 +44,7 @@ describe('ParamSlider', () => {
     const onModChange = vi.fn()
     const mods = [{ source: 'Envelope', depth: 0.5 }]
     render(
-      <ParamSlider 
+      <ParamController 
         label="Freq" 
         value={440} 
         min={20} 
@@ -66,7 +66,7 @@ describe('ParamSlider', () => {
 
   it('renders a modulated value indicator', () => {
     render(
-      <ParamSlider 
+      <ParamController 
         label="Freq" 
         value={440} 
         min={20} 
