@@ -59,17 +59,18 @@ export function Button({
   );
 }
 
-export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2) }: { 
+export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2), className }: { 
   label: string, 
   value: number, 
   min: number, 
   max: number, 
   step: number, 
   onChange: (v: number) => void,
-  format?: (v: number) => string
+  format?: (v: number) => string,
+  className?: string
 }) {
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", className)}>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
         <span className="text-sm font-mono font-bold bg-muted px-2 py-0.5 rounded">{format(value)}</span>
@@ -81,6 +82,102 @@ export function Slider({ label, value, min, max, step, onChange, format = (v: nu
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all"
       />
+    </div>
+  )
+}
+
+export interface ModSlotData {
+  source: string;
+  depth: f32;
+}
+
+type f32 = number;
+
+export function ParamSlider({ 
+  label, value, min, max, step, onChange, format, 
+  mods = [], onModChange 
+}: { 
+  label: string, 
+  value: number, 
+  min: number, 
+  max: number, 
+  step: number, 
+  onChange: (v: number) => void,
+  format?: (v: number) => string,
+  mods?: ModSlotData[],
+  onModChange?: (index: number, source: string, depth: number) => void
+}) {
+  return (
+    <div className="space-y-4">
+      <Slider label={label} value={value} min={min} max={max} step={step} onChange={onChange} format={format} />
+      
+      {mods.length > 0 && (
+        <div className="flex gap-4 items-end pl-2 border-l-2 border-primary/20">
+          {mods.map((mod, idx) => (
+            <ModSlot 
+              key={idx} 
+              source={mod.source} 
+              depth={mod.depth} 
+              onChange={(source, depth) => onModChange?.(idx, source, depth)} 
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ModSlot({ source, depth, onChange }: { 
+  source: string, 
+  depth: number, 
+  onChange: (source: string, depth: number) => void 
+}) {
+  const sources = ['None', 'Envelope', 'Lfo1', 'Lfo2', 'Velocity'];
+  
+  const cycleSource = () => {
+    const currentIndex = sources.indexOf(source);
+    const nextIndex = (currentIndex + 1) % sources.length;
+    onChange(sources[nextIndex], depth);
+  };
+
+  const sourceLabel = source === 'Envelope' ? 'Env' : 
+                     source === 'Lfo1' ? 'LFO 1' :
+                     source === 'Lfo2' ? 'LFO 2' :
+                     source === 'Velocity' ? 'Vel' : '---';
+
+  return (
+    <div className="flex flex-col gap-1 items-center group">
+      <button 
+        onClick={cycleSource}
+        className={cn(
+          "text-[9px] font-black uppercase tracking-tighter transition-all px-1.5 py-0.5 rounded border",
+          source !== 'None' 
+            ? "bg-primary/10 border-primary/30 text-primary" 
+            : "bg-muted border-transparent text-muted-foreground hover:border-border"
+        )}
+      >
+        {sourceLabel}
+      </button>
+      <div className="h-20 w-1.5 bg-muted rounded-full relative overflow-hidden flex items-end cursor-ns-resize mt-1">
+         <input 
+          type="range" 
+          aria-label="depth"
+          min="-1" max="1" step="0.01"
+          value={depth}
+          onChange={(e) => onChange(source, parseFloat(e.target.value))}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-ns-resize z-10"
+          style={{ appearance: 'slider-vertical' as any }}
+        />
+        <div 
+          className={cn(
+            "w-full transition-all duration-300",
+            source === 'None' ? "bg-muted-foreground/20" :
+            depth >= 0 ? "bg-primary" : "bg-destructive"
+          )}
+          style={{ height: `${Math.abs(depth) * 50}%`, bottom: depth >= 0 ? '50%' : 'auto', top: depth < 0 ? '50%' : 'auto', position: 'absolute' }}
+        />
+        <div className="absolute top-1/2 left-0 w-full h-[1px] bg-border/50" />
+      </div>
     </div>
   )
 }

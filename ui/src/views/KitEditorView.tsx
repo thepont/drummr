@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Play, FloppyDisk, Sparkle, Waves, Sliders as SlidersIcon, Clock } from "@phosphor-icons/react"
-import { cn, Slider, Button, Card } from '../components/ui'
+import { cn, ParamSlider, Button, Card } from '../components/ui'
 
 interface ParamSchema {
   name: string;
@@ -10,10 +10,20 @@ interface ParamSchema {
   unit: string;
 }
 
+interface ModSlotData {
+  source: string;
+  depth: number;
+}
+
+interface ModEntry extends ModSlotData {
+  param: string;
+}
+
 interface Sound {
   id: string;
   name: string;
   engine_type: string;
+  mods?: ModEntry[];
   [key: string]: any; // Allow dynamic parameters
 }
 
@@ -85,6 +95,33 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
     ));
 
     ws.send(`SET_PARAM:${selectedSoundId}:${param}:${value}`);
+  };
+
+  const updateMod = (param: string, index: number, source: string, depth: number) => {
+    if (!selectedSoundId || !ws) return;
+
+    setSounds(prev => prev.map(s => {
+      if (s.id !== selectedSoundId) return s;
+      const mods = [...(s.mods || [])];
+      
+      // We need to find the specific mod for this param and index
+      // For simplicity, we assume 2 slots per param. 
+      // But the backend uses a Vec<ModEntry> which is more flexible.
+      // Let's filter by param and take the index-th one.
+      const paramMods = mods.filter(m => m.param === param);
+      const modToUpdate = paramMods[index];
+
+      if (modToUpdate) {
+        modToUpdate.source = source;
+        modToUpdate.depth = depth;
+      } else {
+        mods.push({ param, source, depth });
+      }
+
+      return { ...s, mods };
+    }));
+
+    ws.send(`SET_MOD:${selectedSoundId}:${param}:${source}:${depth}`);
   };
 
   const triggerPreview = () => {
@@ -284,14 +321,18 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
                   {/* Schema-Driven Dynamic Sliders */}
                   {schemas[selectedSound.id]?.map((param, idx) => {
-                    // Split parameters into two columns roughly
-                    const isLeftColumn = idx < Math.ceil(schemas[selectedSound.id].length / 2);
+                    const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
+                    const displayMods = [...paramMods];
+                    while (displayMods.length < 1) { // Show at least 1 slot for now
+                      displayMods.push({ param: param.name, source: 'None', depth: 0 });
+                    }
+
                     return (
                       <div key={param.name} className="space-y-8">
                         <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
                           {param.name.replace('_', ' ')}
                         </div>
-                        <Slider 
+                        <ParamSlider 
                           label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')} 
                           value={selectedSound[param.name] ?? param.default} 
                           min={param.min} 
@@ -299,6 +340,8 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                           step={param.max - param.min > 10 ? 1 : 0.01}
                           format={v => param.unit ? `${v.toFixed(param.unit === 'Hz' ? 0 : 2)} ${param.unit}` : v.toFixed(2)}
                           onChange={v => updateParam(param.name as any, v)} 
+                          mods={displayMods}
+                          onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
                         />
                       </div>
                     );
