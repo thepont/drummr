@@ -14,9 +14,41 @@ use anyhow::Result;
 use rtrb::{RingBuffer, Producer, Consumer};
 use wmidi::MidiMessage;
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 type MidiEvent = [u8; 3];
 
-#[derive(Debug)]
+struct SharedState {
+    mod_values: Vec<Vec<AtomicU32>>, // [slot][source]
+}
+
+impl SharedState {
+    fn new() -> Self {
+        let mut mod_values = Vec::with_capacity(16);
+        for _ in 0..16 {
+            let mut slot = Vec::with_capacity(4);
+            for _ in 0..4 {
+                slot.push(AtomicU32::new(0));
+            }
+            mod_values.push(slot);
+        }
+        Self { mod_values }
+    }
+
+    fn set_value(&self, slot: usize, source_idx: usize, value: f32) {
+        if slot < 16 && source_idx < 4 {
+            self.mod_values[slot][source_idx].store(value.to_bits(), Ordering::Relaxed);
+        }
+    }
+
+    fn get_values(&self) -> Vec<Vec<f32>> {
+        (0..16).map(|slot| {
+            (0..4).map(|source| {
+                f32::from_bits(self.mod_values[slot][source].load(Ordering::Relaxed))
+            }).collect()
+        }).collect()
+    }
+}
 enum AudioCommand {
     ReloadKit,
     SetParam(usize, String, f32),
@@ -110,7 +142,7 @@ fn load_kit(sample_rate: f32) -> KitEngine {
     KitEngine::new(sample_rate)
 }
 
-fn start_audio(device: &cpal::Device, mut event_rx: Consumer<MidiEvent>, mut cmd_rx: Consumer<AudioCommand>) -> Result<cpal::Stream> {
+fn start_audio(device: &cpal::Device, mut event_rx: Consumer<MidiEvent>, mut cmd_rx: Consumer<AudioCommand>, shared_state: Arc<SharedState>) -> Result<cpal::Stream> {
     let config_supported = device.default_output_config()?;
     let mut config: cpal::StreamConfig = config_supported.into();
     config.buffer_size = cpal::BufferSize::Fixed(128);
@@ -123,6 +155,7 @@ fn start_audio(device: &cpal::Device, mut event_rx: Consumer<MidiEvent>, mut cmd
     let stream = device.build_output_stream(
         &config,
         move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+            // ... (cmd handling)
             while let Ok(cmd) = cmd_rx.pop() {
                 match cmd {
                     AudioCommand::ReloadKit => {
@@ -154,6 +187,16 @@ fn start_audio(device: &cpal::Device, mut event_rx: Consumer<MidiEvent>, mut cmd
                 let velocity = msg[2] as f32 / 127.0;
                 if status >= 0x90 && status <= 0x9F && velocity > 0.0 {
                     kit.trigger(note, velocity);
+                }
+            }
+
+            for (slot_idx, voice_opt) in kit.voices.iter().enumerate() {
+                if slot_idx >= 16 { break; }
+                if let Some(voice) = voice_opt {
+                    let vals = voice.get_mod_values();
+                    for (src_idx, &val) in vals.iter().enumerate() {
+                        shared_state.set_value(slot_idx, src_idx, val);
+                    }
                 }
             }
 
@@ -193,8 +236,23 @@ async fn main() -> Result<()> {
     let cmd_consumer_clone = cmd_consumer_wrapped.clone();
     let cmd_prod_clone = cmd_prod.clone();
 
+    let shared_state = Arc::new(SharedState::new());
+    let shared_state_audio = shared_state.clone();
+    let shared_state_comm = shared_state.clone();
+
     println!("Starting drummr engine...");
     
+    let comm_clone_loop = comm_engine.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(40));
+        loop {
+            interval.tick().await;
+            let values = shared_state_comm.get_values();
+            let msg = format!("MOD_STATES:{}", serde_json::to_string(&values).unwrap_or_default());
+            comm_clone_loop.broadcast(msg).await;
+        }
+    });
+
     comm_engine.start("127.0.0.1:8080", move |text| {
         let midi = midi_clone.clone();
         let comm = comm_clone.clone();
@@ -203,6 +261,7 @@ async fn main() -> Result<()> {
         let e_cons = event_consumer_clone.clone();
         let c_cons = cmd_consumer_clone.clone();
         let c_prod = cmd_prod_clone.clone();
+        let ss_audio = shared_state_audio.clone();
 
         async move {
             if text == "LIST_MIDI" {
@@ -518,7 +577,7 @@ async fn main() -> Result<()> {
                         if let (Some(consumer), Some(cmd_consumer)) = (cons_lock.take(), c_cons_lock.take()) {
                             let mut name = String::new();
                             let mut success = false;
-                            if let Ok(stream) = start_audio(device, consumer, cmd_consumer) {
+                            if let Ok(stream) = start_audio(device, consumer, cmd_consumer, ss_audio.clone()) {
                                 name = device.name().unwrap_or_default();
                                 println!("Active audio device: {}", name);
                                 std::mem::forget(stream); // Crucial: leak stream to keep it running
@@ -563,7 +622,7 @@ async fn main() -> Result<()> {
         let mut cons_lock = event_consumer_wrapped.lock().await;
         let mut c_cons_lock = cmd_consumer_wrapped.lock().await;
         if let (Some(consumer), Some(cmd_consumer)) = (cons_lock.take(), c_cons_lock.take()) {
-            if let Ok(stream) = start_audio(device, consumer, cmd_consumer) {
+            if let Ok(stream) = start_audio(device, consumer, cmd_consumer, shared_state.clone()) {
                 let name = device.name().unwrap_or_default();
                 println!("Active audio device: {}", name);
                 std::mem::forget(stream);

@@ -21,6 +21,7 @@ pub trait SoundEngine: Send {
     fn set_param(&mut self, name: &str, value: f32);
     fn set_mod(&mut self, _param: &str, _source: ModSource, _depth: f32) {}
     fn set_lfo(&mut self, _index: usize, _freq: f32) {}
+    fn get_mod_values(&self) -> [f32; 4] { [0.0; 4] }
     fn trigger(&mut self, velocity: f32);
     fn tick(&mut self) -> f32;
     fn is_active(&self) -> bool;
@@ -56,6 +57,9 @@ impl SoundEngine for FmVoice {
             2 => self.mod_engine.lfo2.frequency = freq,
             _ => {}
         }
+    }
+    fn get_mod_values(&self) -> [f32; 4] {
+        self.mod_engine.get_all_source_values()
     }
     fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
         let slots = match param {

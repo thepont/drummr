@@ -63,4 +63,20 @@ describe('ParamSlider', () => {
     
     expect(onModChange).toHaveBeenCalledWith(0, 'Envelope', 0.8)
   })
+
+  it('renders a modulated value indicator', () => {
+    render(
+      <ParamSlider 
+        label="Freq" 
+        value={440} 
+        min={20} 
+        max={2000} 
+        step={1} 
+        modValue={600}
+        onChange={() => {}} 
+      />
+    )
+    // Assuming we use a data-testid for the indicator
+    expect(screen.getByTestId('mod-indicator')).toBeInTheDocument()
+  })
 })

@@ -37,9 +37,14 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   const [newPresetName, setNewPresetName] = useState("");
   const [kitList, setKitList] = useState<string[]>([]);
   const [newKitName, setNewKitName] = useState("");
+  const [modStates, setModStates] = useState<number[][]>([]);
 
   const selectedSound = useMemo(() => 
     sounds.find(s => s.id === selectedSoundId), 
+  [sounds, selectedSoundId]);
+
+  const selectedSlotIndex = useMemo(() => 
+    sounds.findIndex(s => s.id === selectedSoundId),
   [sounds, selectedSoundId]);
 
   useEffect(() => {
@@ -71,6 +76,11 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
       } else if (data.startsWith('KIT_LIST:')) {
         const list = data.replace('KIT_LIST:', '');
         setKitList(list ? list.split(',') : []);
+      } else if (data.startsWith('MOD_STATES:')) {
+        try {
+          const states = JSON.parse(data.replace('MOD_STATES:', ''));
+          setModStates(states);
+        } catch (e) {}
       } else if (data.startsWith('SCHEMA:')) {
         const parts = data.split(':');
         const soundId = parts[1];
@@ -140,6 +150,24 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
     if (selectedSoundId && ws) {
       ws.send(`TEST_TRIGGER:${selectedSoundId}`);
     }
+  };
+
+  const getModulatedValue = (paramName: string, baseValue: number) => {
+    if (selectedSlotIndex === -1 || !modStates[selectedSlotIndex] || !selectedSound) return undefined;
+    const currentMods = selectedSound.mods?.filter(m => m.param === paramName) || [];
+    let totalMod = 0;
+    currentMods.forEach(m => {
+      const srcIdx = m.source === 'Envelope' ? 0 : 
+                     m.source === 'Lfo1' ? 1 :
+                     m.source === 'Lfo2' ? 2 :
+                     m.source === 'Velocity' ? 3 : -1;
+      if (srcIdx !== -1) {
+        totalMod += modStates[selectedSlotIndex][srcIdx] * m.depth;
+      }
+    });
+    // For many params, totalMod is just a linear offset.
+    // For some like freq, it might be more complex, but we'll stick to linear for now.
+    return baseValue + totalMod;
   };
 
   return (
@@ -305,6 +333,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                   lfo1_freq={selectedSound.lfo1_freq || 1.0}
                   lfo2_freq={selectedSound.lfo2_freq || 1.0}
                   onChangeLfo={updateLfo}
+                  modValues={selectedSlotIndex !== -1 ? modStates[selectedSlotIndex] : undefined}
                 />
               </div>
 
@@ -354,6 +383,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                           onChange={v => updateParam(param.name as any, v)} 
                           mods={displayMods}
                           onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
+                          modValue={getModulatedValue(param.name, selectedSound[param.name] ?? param.default)}
                         />
                       </div>
                     );

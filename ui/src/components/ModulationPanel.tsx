@@ -1,10 +1,11 @@
 import { Waves } from "@phosphor-icons/react"
 import { Slider } from './ui'
 
-export function ModulationPanel({ lfo1_freq, lfo2_freq, onChangeLfo }: { 
+export function ModulationPanel({ lfo1_freq, lfo2_freq, onChangeLfo, modValues }: { 
   lfo1_freq: number, 
   lfo2_freq: number, 
-  onChangeLfo: (index: number, freq: number) => void 
+  onChangeLfo: (index: number, freq: number) => void,
+  modValues?: number[]
 }) {
   return (
     <section className="bg-card/30 border border-border rounded-3xl p-6 flex flex-col gap-6">
@@ -15,7 +16,15 @@ export function ModulationPanel({ lfo1_freq, lfo2_freq, onChangeLfo }: {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">
-          <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">LFO 1</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">LFO 1</div>
+            {modValues && (
+              <div 
+                className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all duration-75"
+                style={{ opacity: (modValues[1] + 1) / 2 }}
+              />
+            )}
+          </div>
           <Slider 
             label="LFO 1 Rate" 
             value={lfo1_freq} 
@@ -26,7 +35,15 @@ export function ModulationPanel({ lfo1_freq, lfo2_freq, onChangeLfo }: {
         </div>
 
         <div className="space-y-4">
-          <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">LFO 2</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">LFO 2</div>
+            {modValues && (
+              <div 
+                className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all duration-75"
+                style={{ opacity: (modValues[2] + 1) / 2 }}
+              />
+            )}
+          </div>
           <Slider 
             label="LFO 2 Rate" 
             value={lfo2_freq} 

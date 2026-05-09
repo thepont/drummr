@@ -95,7 +95,8 @@ type f32 = number;
 
 export function ParamSlider({ 
   label, value, min, max, step, onChange, format, 
-  mods = [], onModChange 
+  mods = [], onModChange,
+  modValue
 }: { 
   label: string, 
   value: number, 
@@ -105,11 +106,25 @@ export function ParamSlider({
   onChange: (v: number) => void,
   format?: (v: number) => string,
   mods?: ModSlotData[],
-  onModChange?: (index: number, source: string, depth: number) => void
+  onModChange?: (index: number, source: string, depth: number) => void,
+  modValue?: number
 }) {
+  const modPos = modValue !== undefined 
+    ? ((modValue - min) / (max - min)) * 100 
+    : undefined;
+
   return (
     <div className="space-y-4">
-      <Slider label={label} value={value} min={min} max={max} step={step} onChange={onChange} format={format} />
+      <div className="relative">
+        <Slider label={label} value={value} min={min} max={max} step={step} onChange={onChange} format={format} />
+        {modPos !== undefined && (
+          <div 
+            data-testid="mod-indicator"
+            className="absolute bottom-0 h-1 w-1 bg-primary rounded-full shadow-[0_0_8px_var(--color-primary)] transition-all duration-75 pointer-events-none"
+            style={{ left: `${Math.max(0, Math.min(100, modPos))}%`, transform: 'translateX(-50%)' }}
+          />
+        )}
+      </div>
       
       {mods.length > 0 && (
         <div className="flex gap-4 items-end pl-2 border-l-2 border-primary/20">

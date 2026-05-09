@@ -55,6 +55,15 @@ impl ModulationEngine {
         }
     }
 
+    pub fn get_all_source_values(&self) -> [f32; 4] {
+        [
+            self.env_value,
+            self.lfo1.phase.sin(),
+            self.lfo2.phase.sin(),
+            self.velocity,
+        ]
+    }
+
     /// Calculates the final value of a parameter after applying all modulation slots.
     /// Range is usually clamped by the engine using the param, but we provide the offset here.
     pub fn calculate_mod(&self, param: &ModulatableParam) -> f32 {
