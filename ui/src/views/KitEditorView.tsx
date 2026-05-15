@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Play, FloppyDisk, Sparkle, Waves, Sliders as SlidersIcon, Clock, Cpu } from "@phosphor-icons/react"
-import { cn, ParamController, Button, Card, FrequencyVisualizer } from '../components/ui'
+import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu } from "@phosphor-icons/react"
+import { cn, ParamController, Button, FrequencyVisualizer, PredictiveGraph } from '../components/ui'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
 
@@ -22,76 +22,57 @@ interface ModEntry extends ModSlotData {
 }
 
 interface Sound {
-  id: string;
+  id: any;
   name: string;
   engine_type: string;
   mods?: ModEntry[];
-  [key: string]: any; // Allow dynamic parameters
+  [key: string]: any;
 }
 
-export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
-  const [sounds, setSounds] = useState<Sound[]>([]);
-  const [selectedSoundId, setSelectedSoundId] = useState<string | null>(null);
-  const [schemas, setSchemas] = useState<Record<string, ParamSchema[]>>({});
-  const [soundPresets, setSoundPresets] = useState<string[]>([]);
+interface KitEditorProps {
+  ws: WebSocket | null;
+  sounds: Sound[];
+  setSounds: React.Dispatch<React.SetStateAction<Sound[]>>;
+  schemas: Record<string, ParamSchema[]>;
+  setSchemas: React.Dispatch<React.SetStateAction<Record<string, ParamSchema[]>>>;
+  soundPresets: string[];
+}
+
+export default function KitEditorView({ ws, sounds, setSounds, schemas, soundPresets }: KitEditorProps) {
+  const [selectedSoundId, setSelectedSoundId] = useState<any>(null);
   const [newPresetName, setNewPresetName] = useState("");
-  const [kitList, setKitList] = useState<string[]>([]);
-  const [newKitName, setNewKitName] = useState("");
   const [modStates, setModStates] = useState<number[][]>([]);
 
   const selectedSound = useMemo(() => 
-    sounds.find(s => s.id === selectedSoundId), 
+    sounds.find(s => String(s.id) === String(selectedSoundId)), 
   [sounds, selectedSoundId]);
 
   const selectedSlotIndex = useMemo(() => 
-    sounds.findIndex(s => s.id === selectedSoundId),
+    sounds.findIndex(s => String(s.id) === String(selectedSoundId)),
   [sounds, selectedSoundId]);
 
   useEffect(() => {
-    if (!selectedSoundId || !ws) return;
-    ws.send(`GET_SCHEMA:${selectedSoundId}`);
+    if (sounds.length > 0 && selectedSoundId === null) {
+      setSelectedSoundId(sounds[0].id);
+    }
+  }, [sounds, selectedSoundId]);
+
+  useEffect(() => {
+    if (selectedSoundId !== null && ws) {
+      ws.send(`GET_SCHEMA:${selectedSoundId}`);
+    }
   }, [selectedSoundId, ws, selectedSound?.engine_type]);
 
   useEffect(() => {
     if (!ws) return;
-    ws.send('GET_KIT');
-    ws.send('LIST_SOUND_PRESETS');
-    ws.send('LIST_KITS');
-
+    
     const handleMessage = (event: MessageEvent) => {
       const data = event.data as string;
-      if (data.startsWith('KIT: ')) {
-        try {
-          const kit = JSON.parse(data.replace('KIT: ', '')) as Sound[];
-          setSounds(kit);
-          if (kit.length > 0 && !selectedSoundId) {
-            setSelectedSoundId(kit[0].id);
-          }
-        } catch (e) {
-          console.error('Failed to parse kit:', e);
-        }
-      } else if (data.startsWith('SOUND_PRESETS:')) {
-        const list = data.replace('SOUND_PRESETS:', '');
-        setSoundPresets(list ? list.split(',') : []);
-      } else if (data.startsWith('KIT_LIST:')) {
-        const list = data.replace('KIT_LIST:', '');
-        setKitList(list ? list.split(',') : []);
-      } else if (data.startsWith('MOD_STATES:')) {
+      if (data.startsWith('MOD_STATES:')) {
         try {
           const states = JSON.parse(data.replace('MOD_STATES:', ''));
           setModStates(states);
         } catch (e) {}
-      } else if (data.startsWith('SCHEMA:')) {
-        const parts = data.split(':');
-        const soundId = parts[1];
-        // The JSON starts at the first '[' which is after the soundId
-        const jsonStr = data.substring(data.indexOf('[', data.indexOf(soundId)));
-        try {
-          const schema = JSON.parse(jsonStr) as ParamSchema[];
-          setSchemas(prev => ({ ...prev, [soundId]: schema }));
-        } catch (e) {
-          console.error('Failed to parse schema:', e);
-        }
       }
     };
 
@@ -100,26 +81,21 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   }, [ws]);
 
   const updateParam = (param: keyof Sound, value: number) => {
-    if (!selectedSoundId || !ws) return;
+    if (selectedSoundId === null || !ws) return;
     
     setSounds(prev => prev.map(s => 
-      s.id === selectedSoundId ? { ...s, [param]: value } : s
+      String(s.id) === String(selectedSoundId) ? { ...s, [param]: value } : s
     ));
 
-    ws.send(`SET_PARAM:${selectedSoundId}:${param}:${value}`);
+    ws.send(`SET_PARAM:${selectedSoundId}:${String(param)}:${value}`);
   };
 
   const updateMod = (param: string, index: number, source: string, depth: number) => {
-    if (!selectedSoundId || !ws) return;
+    if (selectedSoundId === null || !ws) return;
 
     setSounds(prev => prev.map(s => {
-      if (s.id !== selectedSoundId) return s;
+      if (String(s.id) !== String(selectedSoundId)) return s;
       const mods = [...(s.mods || [])];
-      
-      // We need to find the specific mod for this param and index
-      // For simplicity, we assume 2 slots per param. 
-      // But the backend uses a Vec<ModEntry> which is more flexible.
-      // Let's filter by param and take the index-th one.
       const paramMods = mods.filter(m => m.param === param);
       const modToUpdate = paramMods[index];
 
@@ -137,17 +113,17 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
   };
 
   const updateLfo = (index: number, freq: number) => {
-    if (!selectedSoundId || !ws) return;
+    if (selectedSoundId === null || !ws) return;
 
     setSounds(prev => prev.map(s => 
-      s.id === selectedSoundId ? { ...s, [`lfo${index}_freq`]: freq } : s
+      String(s.id) === String(selectedSoundId) ? { ...s, [`lfo${index}_freq`]: freq } : s
     ));
 
     ws.send(`SET_LFO:${selectedSoundId}:${index}:${freq}`);
   };
 
   const triggerPreview = () => {
-    if (selectedSoundId && ws) {
+    if (selectedSoundId !== null && ws) {
       ws.send(`TEST_TRIGGER:${selectedSoundId}`);
     }
   };
@@ -165,8 +141,6 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
         totalMod += modStates[selectedSlotIndex][srcIdx] * m.depth;
       }
     });
-    // For many params, totalMod is just a linear offset.
-    // For some like freq, it might be more complex, but we'll stick to linear for now.
     return baseValue + totalMod;
   };
 
@@ -189,7 +163,6 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
         </div>
       </header>
 
-      {/* Sound Selector - Horizontal Strip */}
       <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
         {sounds.map(sound => (
           <button
@@ -197,21 +170,19 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
             onClick={() => setSelectedSoundId(sound.id)}
             className={cn(
               "flex-shrink-0 px-6 py-3 rounded-2xl transition-all border flex items-center gap-3",
-              selectedSoundId === sound.id 
+              String(selectedSoundId) === String(sound.id) 
                 ? "bg-primary text-primary-foreground shadow-lg border-primary" 
                 : "bg-card/30 border-border hover:border-primary/50"
             )}
           >
             <span className="font-bold text-xs uppercase tracking-widest">{sound.name}</span>
-            {selectedSoundId === sound.id && <Sparkle size={14} weight="fill" />}
+            {String(selectedSoundId) === String(sound.id) && <Sparkle size={14} weight="fill" />}
           </button>
         ))}
       </div>
 
       {selectedSound ? (
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-stretch">
-          
-          {/* Module 1: Source */}
           <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col">
             <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
               <Cpu size={16} />
@@ -244,6 +215,17 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                   onChange={v => updateParam('freq', v)} 
                   modValue={getModulatedValue('freq', selectedSound.freq)}
                 />
+                <PredictiveGraph 
+                  base={selectedSound.freq}
+                  min={20}
+                  max={2000}
+                  mods={selectedSound.mods?.filter(m => m.param === 'freq') || []}
+                  attack={selectedSound.attack}
+                  decay={selectedSound.decay}
+                  lfo1_freq={selectedSound.lfo1_freq}
+                  lfo2_freq={selectedSound.lfo2_freq}
+                  className="w-full mt-4 h-12"
+                />
               </div>
             </div>
 
@@ -254,7 +236,6 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
             </div>
           </section>
 
-          {/* Module 2: Shape */}
           <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col xl:col-span-1">
             <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
               <Clock size={16} />
@@ -284,7 +265,6 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
             </div>
           </section>
 
-          {/* Module 3: Timbre */}
           <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col xl:col-span-1">
             <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
               <SlidersIcon size={16} />
@@ -292,7 +272,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
             </header>
             
             <div className="space-y-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {schemas[selectedSound.id]?.filter(p => !['freq', 'attack', 'decay'].includes(p.name)).map((param) => {
+              {schemas[selectedSoundId]?.filter(p => !['freq', 'attack', 'decay'].includes(p.name)).map((param) => {
                 const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
                 const displayMods = [...paramMods];
                 while (displayMods.length < 1) {
@@ -312,6 +292,10 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
                       mods={displayMods}
                       onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
                       modValue={getModulatedValue(param.name, selectedSound[param.name] ?? param.default)}
+                      attack={selectedSound.attack}
+                      decay={selectedSound.decay}
+                      lfo1_freq={selectedSound.lfo1_freq}
+                      lfo2_freq={selectedSound.lfo2_freq}
                     />
                   </div>
                 );
@@ -319,7 +303,6 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
             </div>
           </section>
 
-          {/* Module 4: Modulation */}
           <section className="xl:col-span-1">
              <ModulationPanel 
                 lfo1_freq={selectedSound.lfo1_freq || 1.0}
@@ -336,7 +319,6 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
         </div>
       )}
 
-      {/* Preset Footer */}
       <footer className="fixed bottom-0 left-0 lg:left-64 right-0 bg-background/80 backdrop-blur-xl border-t border-border p-4 px-8 flex items-center justify-between z-20">
          <div className="flex items-center gap-6 overflow-x-auto no-scrollbar max-w-[60%]">
             <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">Presets</div>
@@ -344,7 +326,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
               <button
                 key={preset}
                 onClick={() => {
-                  if (selectedSoundId && ws) {
+                  if (selectedSoundId !== null && ws) {
                     ws.send(`LOAD_SOUND_PRESET:${preset}:${selectedSoundId}`);
                   }
                 }}
@@ -367,7 +349,7 @@ export default function KitEditorView({ ws }: { ws: WebSocket | null }) {
               variant="secondary" 
               className="h-8 px-4 text-[10px]"
               onClick={() => {
-                if (newPresetName && selectedSoundId && ws) {
+                if (newPresetName && selectedSoundId !== null && ws) {
                   ws.send(`SAVE_SOUND_PRESET:${newPresetName}:${selectedSoundId}`);
                   setNewPresetName("");
                 }

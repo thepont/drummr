@@ -11,7 +11,11 @@ pub struct Settings {
 
 impl Settings {
     pub fn load() -> Self {
-        let path = Path::new("settings.toml");
+        Self::load_from("settings.toml")
+    }
+
+    pub fn load_from<P: AsRef<Path>>(path: P) -> Self {
+        let path = path.as_ref();
         if path.exists() {
             let content = fs::read_to_string(path).unwrap_or_default();
             toml::from_str(&content).unwrap_or_default()
@@ -21,8 +25,12 @@ impl Settings {
     }
 
     pub fn save(&self) -> Result<()> {
+        self.save_to("settings.toml")
+    }
+
+    pub fn save_to<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let content = toml::to_string_pretty(self)?;
-        fs::write("settings.toml", content)?;
+        fs::write(path, content)?;
         Ok(())
     }
 }

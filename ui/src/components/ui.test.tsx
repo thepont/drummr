@@ -36,7 +36,7 @@ describe('ParamController', () => {
       />
     )
     // Assuming we show the source names
-    expect(screen.getByText('Env')).toBeInTheDocument()
+    expect(screen.getByText('Shape')).toBeInTheDocument()
     expect(screen.getByText('LFO 1')).toBeInTheDocument()
   })
 

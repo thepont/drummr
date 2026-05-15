@@ -1,5 +1,4 @@
 use drummr::dsp::phys::PhysEngine;
-use drummr::kit::SoundEngine;
 
 #[test]
 fn test_phys_engine_output() {

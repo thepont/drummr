@@ -1,4 +1,3 @@
-use drummr::kit::{SoundEngine, ParamSchema};
 use drummr::dsp::fm::FmVoice;
 
 #[test]

@@ -8,10 +8,10 @@ fn test_kit_engine_mapping() {
     // Add to slot 0
     let mut v = FmVoice::new(44100.0);
     v.frequency.base_value = 440.0;
-    kit.voices.push(Some(Box::new(v)));
+    kit.voices[0] = Some(drummr::kit::Voice::Fm(v));
     
     // Map note 60 to slot 0
-    kit.midi_map.insert(60, 0);
+    kit.midi_map[60] = Some(0);
     
     // Trigger the mapped note
     kit.trigger(60, 1.0);
@@ -24,12 +24,12 @@ fn test_kit_engine_mapping() {
 fn test_kit_engine_clamping() {
     let mut kit = KitEngine::new(44100.0);
     
-    // Add many loud voices
-    for i in 0..20 {
+    // Add many loud voices (up to 16)
+    for i in 0..16 {
         let mut v = FmVoice::new(44100.0);
         v.frequency.base_value = 100.0;
-        kit.voices.push(Some(Box::new(v)));
-        kit.midi_map.insert(i as u8, i);
+        kit.voices[i] = Some(drummr::kit::Voice::Fm(v));
+        kit.midi_map[i as usize] = Some(i);
         kit.trigger(i as u8, 1.0);
     }
     

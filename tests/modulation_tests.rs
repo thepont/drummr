@@ -13,7 +13,6 @@ fn test_fm_voice_lfo_modulation() {
     
     // Map Lfo1 to mod_index with depth 5.0
     // The final mod_index will swing between 5.0 and 15.0
-    use drummr::kit::SoundEngine;
     voice.set_mod("mod_index", ModSource::Lfo1, 5.0);
     
     voice.trigger(1.0);
@@ -42,7 +41,6 @@ fn test_fm_voice_env_modulation() {
     // Hit should start at base + depth and decay towards base
     voice.frequency.base_value = 100.0;
     voice.attack = 0.01; // Very fast attack for test
-    use drummr::kit::SoundEngine;
     voice.set_mod("freq", ModSource::Envelope, 100.0);
     
     voice.trigger(1.0);

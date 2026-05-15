@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use std::collections::HashMap;
 use crate::dsp::fm::FmVoice;
 use crate::dsp::noise::NoiseVoice;
 
@@ -13,87 +12,106 @@ pub struct ParamSchema {
     pub unit: String,
 }
 
-use crate::dsp::modulation::{ModSource, ModAmount};
+use crate::dsp::modulation::ModSource;
 
-pub trait SoundEngine: Send {
-    fn name(&self) -> &str;
-    fn schema(&self) -> Vec<ParamSchema>;
-    fn set_param(&mut self, name: &str, value: f32);
-    fn set_mod(&mut self, _param: &str, _source: ModSource, _depth: f32) {}
-    fn set_lfo(&mut self, _index: usize, _freq: f32) {}
-    fn get_mod_values(&self) -> [f32; 4] { [0.0; 4] }
-    fn trigger(&mut self, velocity: f32);
-    fn tick(&mut self) -> f32;
-    fn is_active(&self) -> bool;
+pub enum Voice {
+    Fm(FmVoice),
+    Phys(crate::dsp::phys::PhysEngine),
+    Granular(crate::dsp::granular::GranularEngine),
+    Hybrid(crate::dsp::hybrid::HybridEngine),
+    Noise(NoiseVoice),
 }
 
-// Temporary shim to make FmVoice and NoiseVoice compatible with SoundEngine
-impl SoundEngine for FmVoice {
-    fn name(&self) -> &str { "FM" }
-    fn schema(&self) -> Vec<ParamSchema> {
-        vec![
-            ParamSchema { name: "freq".to_string(), min: 20.0, max: 2000.0, default: 440.0, unit: "Hz".to_string() },
-            ParamSchema { name: "mod_ratio".to_string(), min: 0.0, max: 10.0, default: 1.0, unit: "ratio".to_string() },
-            ParamSchema { name: "mod_index".to_string(), min: 0.0, max: 50.0, default: 1.0, unit: "index".to_string() },
-            ParamSchema { name: "noise_level".to_string(), min: 0.0, max: 1.0, default: 0.0, unit: "level".to_string() },
-            ParamSchema { name: "attack".to_string(), min: 1.0, max: 1000.0, default: 1.0, unit: "ms".to_string() },
-            ParamSchema { name: "decay".to_string(), min: 1.0, max: 2000.0, default: 200.0, unit: "ms".to_string() },
-        ]
-    }
-    fn set_param(&mut self, param: &str, value: f32) {
-        match param {
-            "freq" => self.frequency.base_value = value,
-            "mod_ratio" => self.mod_ratio.base_value = value,
-            "mod_index" => self.mod_index.base_value = value,
-            "noise_level" => self.noise_level.base_value = value,
-            "attack" => self.attack = value,
-            "decay" => self.decay = value,
-            _ => {}
+impl Voice {
+    pub fn name(&self) -> &str {
+        match self {
+            Voice::Fm(_) => "FM",
+            Voice::Phys(_) => "Physical Modeling",
+            Voice::Granular(_) => "Granular",
+            Voice::Hybrid(_) => "Hybrid",
+            Voice::Noise(_) => "Noise",
         }
     }
-    fn set_lfo(&mut self, index: usize, freq: f32) {
-        match index {
-            1 => self.mod_engine.lfo1.frequency = freq,
-            2 => self.mod_engine.lfo2.frequency = freq,
-            _ => {}
-        }
-    }
-    fn get_mod_values(&self) -> [f32; 4] {
-        self.mod_engine.get_all_source_values()
-    }
-    fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
-        let slots = match param {
-            "freq" => &mut self.frequency.mod_slots,
-            "mod_ratio" => &mut self.mod_ratio.mod_slots,
-            "mod_index" => &mut self.mod_index.mod_slots,
-            "noise_level" => &mut self.noise_level.mod_slots,
-            _ => return,
-        };
 
-        if let Some(slot) = slots.iter_mut().find(|s| s.source == source) {
-            slot.depth = depth;
-        } else {
-            slots.push(ModAmount { source, depth });
+    pub fn schema(&self) -> Vec<ParamSchema> {
+        match self {
+            Voice::Fm(v) => v.schema(),
+            Voice::Phys(v) => v.schema(),
+            Voice::Granular(v) => v.schema(),
+            Voice::Hybrid(v) => v.schema(),
+            Voice::Noise(v) => v.schema(),
         }
     }
-    fn trigger(&mut self, velocity: f32) { self.trigger(velocity); }
-    fn tick(&mut self) -> f32 { self.tick() }
-    fn is_active(&self) -> bool { self.is_active() }
-}
 
-impl SoundEngine for NoiseVoice {
-    fn name(&self) -> &str { "Noise" }
-    fn schema(&self) -> Vec<ParamSchema> { vec![] }
-    fn set_param(&mut self, param: &str, value: f32) {
-        match param {
-            "attack" => self.amp_env.set_params(value, self.amp_env.decay_sec),
-            "decay" => self.amp_env.set_params(self.amp_env.attack_sec, value),
-            _ => {}
+    pub fn set_param(&mut self, name: &str, value: f32) {
+        match self {
+            Voice::Fm(v) => v.set_param(name, value),
+            Voice::Phys(v) => v.set_param(name, value),
+            Voice::Granular(v) => v.set_param(name, value),
+            Voice::Hybrid(v) => v.set_param(name, value),
+            Voice::Noise(v) => v.set_param(name, value),
         }
     }
-    fn trigger(&mut self, velocity: f32) { self.trigger(velocity); }
-    fn tick(&mut self) -> f32 { self.tick() }
-    fn is_active(&self) -> bool { self.is_active() }
+
+    pub fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
+        match self {
+            Voice::Fm(v) => v.set_mod(param, source, depth),
+            Voice::Phys(v) => v.set_mod(param, source, depth),
+            Voice::Granular(v) => v.set_mod(param, source, depth),
+            Voice::Hybrid(v) => v.set_mod(param, source, depth),
+            Voice::Noise(_) => {},
+        }
+    }
+
+    pub fn set_lfo(&mut self, index: usize, freq: f32) {
+        match self {
+            Voice::Fm(v) => v.set_lfo(index, freq),
+            Voice::Phys(v) => v.mod_engine.set_lfo(index, freq),
+            Voice::Granular(v) => v.mod_engine.set_lfo(index, freq),
+            Voice::Hybrid(v) => v.mod_engine.set_lfo(index, freq),
+            Voice::Noise(_) => {},
+        }
+    }
+
+    pub fn get_mod_values(&self) -> [f32; 4] {
+        match self {
+            Voice::Fm(v) => v.get_mod_values(),
+            Voice::Phys(v) => v.mod_engine.get_all_source_values(),
+            Voice::Granular(v) => v.mod_engine.get_all_source_values(),
+            Voice::Hybrid(v) => v.mod_engine.get_all_source_values(),
+            Voice::Noise(_) => [0.0; 4],
+        }
+    }
+
+    pub fn trigger(&mut self, velocity: f32) {
+        match self {
+            Voice::Fm(v) => v.trigger(velocity),
+            Voice::Phys(v) => v.trigger(velocity),
+            Voice::Granular(v) => v.trigger(velocity),
+            Voice::Hybrid(v) => v.trigger(velocity),
+            Voice::Noise(v) => v.trigger(velocity),
+        }
+    }
+
+    pub fn tick(&mut self) -> f32 {
+        match self {
+            Voice::Fm(v) => v.tick(),
+            Voice::Phys(v) => v.tick(),
+            Voice::Granular(v) => v.tick(),
+            Voice::Hybrid(v) => v.tick(),
+            Voice::Noise(v) => v.tick(),
+        }
+    }
+
+    pub fn is_active(&self) -> bool {
+        match self {
+            Voice::Fm(v) => v.is_active(),
+            Voice::Phys(v) => v.is_active(),
+            Voice::Granular(v) => v.is_active(),
+            Voice::Hybrid(v) => v.is_active(),
+            Voice::Noise(v) => v.is_active(),
+        }
+    }
 }
 
 #[serde_as]
@@ -140,26 +158,28 @@ pub struct DrumSound {
 }
 
 pub struct KitEngine {
-    pub voices: Vec<Option<Box<dyn SoundEngine>>>,
+    pub voices: [Option<Voice>; 16],
     pub sample_rate: f32,
-    pub midi_map: HashMap<u8, usize>, // note -> slot index
+    pub midi_map: [Option<usize>; 128], // note -> slot index
 }
 
 impl KitEngine {
     pub fn new(sample_rate: f32) -> Self {
+        const NO_VOICE: Option<Voice> = None;
         Self {
-            voices: vec![],
+            voices: [NO_VOICE; 16],
             sample_rate,
-            midi_map: HashMap::new(),
+            midi_map: [None; 128],
         }
     }
 
     pub fn from_config(config: DrumKit, sample_rate: f32, mappings: Vec<DrumMapping>) -> Self {
         let mut engine = Self::new(sample_rate);
         
-        for sound in config.sounds {
+        for (idx, sound) in config.sounds.into_iter().enumerate() {
+            if idx >= 16 { break; }
             let engine_type = sound.engine_type.as_deref().unwrap_or("fm");
-            let voice: Box<dyn SoundEngine> = match engine_type {
+            let mut voice: Voice = match engine_type {
                 "phys" => {
                     let mut v = crate::dsp::phys::PhysEngine::new(sample_rate);
                     v.frequency.base_value = sound.freq;
@@ -167,7 +187,7 @@ impl KitEngine {
                     v.dampening.base_value = sound.dampening.unwrap_or(0.5);
                     v.attack = sound.attack;
                     v.decay = sound.decay;
-                    Box::new(v)
+                    Voice::Phys(v)
                 }
                 "granular" => {
                     let mut v = crate::dsp::granular::GranularEngine::new(sample_rate);
@@ -177,7 +197,7 @@ impl KitEngine {
                     v.jitter.base_value = sound.jitter.unwrap_or(0.2);
                     v.attack = sound.attack;
                     v.decay = sound.decay;
-                    Box::new(v)
+                    Voice::Granular(v)
                 }
                 "hybrid" => {
                     let mut v = crate::dsp::hybrid::HybridEngine::new(sample_rate);
@@ -186,7 +206,7 @@ impl KitEngine {
                     v.metallic.base_value = sound.metallic.unwrap_or(0.5);
                     v.attack = sound.attack;
                     v.decay = sound.decay;
-                    Box::new(v)
+                    Voice::Hybrid(v)
                 }
                 _ => {
                     let mut v = FmVoice::new(sample_rate);
@@ -198,41 +218,54 @@ impl KitEngine {
                     v.decay = sound.decay;
                     v.pitch_bend = 150.0;
                     v.pitch_env.set_params(0.001, 0.05);
-                    Box::new(v)
+                    Voice::Fm(v)
                 }
             };
-            let mut v_ptr = Some(voice);
-            if let Some(voice_ptr) = v_ptr.as_mut() {
-                if let Some(mods) = sound.mods {
-                    for m in mods {
-                        voice_ptr.set_mod(&m.param, m.source, m.depth);
-                    }
+            
+            if let Some(mods) = sound.mods {
+                for m in mods {
+                    voice.set_mod(&m.param, m.source, m.depth);
                 }
-                if let Some(f) = sound.lfo1_freq { voice_ptr.set_lfo(1, f); }
-                if let Some(f) = sound.lfo2_freq { voice_ptr.set_lfo(2, f); }
             }
-            engine.voices.push(v_ptr);
+            if let Some(f) = sound.lfo1_freq { voice.set_lfo(1, f); }
+            if let Some(f) = sound.lfo2_freq { voice.set_lfo(2, f); }
+            
+            engine.voices[idx] = Some(voice);
         }
 
         for mapping in mappings {
-            engine.midi_map.insert(mapping.note, mapping.slot);
+            if mapping.note < 128 && mapping.slot < 16 {
+                engine.midi_map[mapping.note as usize] = Some(mapping.slot);
+            }
+        }
+
+        // Ensure every active slot has AT LEAST a default mapping (36 + slot) if not already mapped
+        for idx in 0..16 {
+            if engine.voices[idx].is_some() {
+                if !engine.midi_map.iter().any(|&s| s == Some(idx)) {
+                    let default_note = 36 + idx as u8;
+                    if default_note < 128 && engine.midi_map[default_note as usize].is_none() {
+                        engine.midi_map[default_note as usize] = Some(idx);
+                    }
+                }
+            }
         }
 
         engine
     }
 
     pub fn set_param(&mut self, slot: usize, param: &str, value: f32) {
-        if let Some(voice_opt) = self.voices.get_mut(slot) {
-            if let Some(voice) = voice_opt {
+        if slot < 16 {
+            if let Some(voice) = &mut self.voices[slot] {
                 voice.set_param(param, value);
             }
         }
     }
 
     pub fn trigger(&mut self, note: u8, velocity: f32) {
-        if let Some(&slot) = self.midi_map.get(&note) {
-            if let Some(voice_opt) = self.voices.get_mut(slot) {
-                if let Some(voice) = voice_opt {
+        if note < 128 {
+            if let Some(slot) = self.midi_map[note as usize] {
+                if let Some(voice) = &mut self.voices[slot] {
                     voice.trigger(velocity);
                 }
             }
@@ -240,8 +273,8 @@ impl KitEngine {
     }
 
     pub fn get_schema(&self, slot: usize) -> Option<Vec<ParamSchema>> {
-        if let Some(voice_opt) = self.voices.get(slot) {
-            if let Some(voice) = voice_opt {
+        if slot < 16 {
+            if let Some(voice) = &self.voices[slot] {
                 return Some(voice.schema());
             }
         }

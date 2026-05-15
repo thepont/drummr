@@ -19,6 +19,9 @@ fn test_sound_preset_serialization() {
         metallic: None,
         attack: 1.0,
         decay: 100.0,
+        lfo1_freq: None,
+        lfo2_freq: None,
+        mods: None,
     };
     
     let toml_str = toml::to_string(&sound).expect("Should serialize sound");

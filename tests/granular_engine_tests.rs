@@ -1,5 +1,4 @@
 use drummr::dsp::granular::GranularEngine;
-use drummr::kit::SoundEngine;
 
 #[test]
 fn test_granular_engine_output() {

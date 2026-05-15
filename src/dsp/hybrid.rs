@@ -1,8 +1,7 @@
-use crate::kit::SoundEngine;
 use crate::dsp::envelope::AdEnvelope;
 use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
-use std::f32::consts::PI;
+use crate::dsp::utils::{SINE_LUT, Xorshift};
 
 pub struct HybridEngine {
     sample_rate: f32,
@@ -18,7 +17,8 @@ pub struct HybridEngine {
     
     // Internal State
     amp_env: AdEnvelope,
-    rng_state: u32,
+    rng: Xorshift,
+    last_noise: f32, // For one-pole filter
     pub mod_engine: ModulationEngine,
 }
 
@@ -33,23 +33,17 @@ impl HybridEngine {
             attack: 1.0,
             decay: 200.0,
             amp_env: AdEnvelope::new(sample_rate),
-            rng_state: 0x9ABC,
+            rng: Xorshift::new(0x9ABC),
+            last_noise: 0.0,
             mod_engine: ModulationEngine::new(sample_rate),
         }
     }
-
-    fn next_noise(&mut self) -> f32 {
-        self.rng_state ^= self.rng_state << 13;
-        self.rng_state ^= self.rng_state >> 17;
-        self.rng_state ^= self.rng_state << 5;
-        (self.rng_state as f32 / u32::MAX as f32) * 2.0 - 1.0
-    }
 }
 
-impl SoundEngine for HybridEngine {
-    fn name(&self) -> &str { "Hybrid" }
+impl HybridEngine {
+    pub fn name(&self) -> &str { "Hybrid" }
 
-    fn schema(&self) -> Vec<crate::kit::ParamSchema> {
+    pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
             crate::kit::ParamSchema {
                 name: "freq".to_string(),
@@ -89,14 +83,17 @@ impl SoundEngine for HybridEngine {
         ]
     }
 
-    fn trigger(&mut self, velocity: f32) {
-        self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
-        self.amp_env.trigger();
+    pub fn trigger(&mut self, velocity: f32) {
         self.mod_engine.velocity = velocity;
-        self.phases = [0.0; 3];
+        if velocity > 0.0 {
+            self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
+            self.amp_env.trigger();
+            self.phases = [0.0; 3];
+            self.last_noise = 0.0;
+        }
     }
 
-    fn tick(&mut self) -> f32 {
+    pub fn tick(&mut self) -> f32 {
         let env = self.amp_env.tick();
         self.mod_engine.env_value = env;
         self.mod_engine.tick();
@@ -104,28 +101,30 @@ impl SoundEngine for HybridEngine {
         if env <= 0.0 && !self.amp_env.is_active() { return 0.0; }
 
         let current_freq = self.mod_engine.calculate_mod(&self.frequency);
-        let noise_color = self.mod_engine.calculate_mod(&self.noise_color).clamp(0.0, 1.0);
+        let noise_color = self.mod_engine.calculate_mod(&self.noise_color).clamp(0.01, 1.0);
         let metallic = self.mod_engine.calculate_mod(&self.metallic).clamp(0.0, 1.0);
 
-        // Sub-oscillators for body
+        // Sub-oscillators for body using LUT
         let ratios = [1.0, 1.52, 2.11];
         let mut osc_out = 0.0;
         for i in 0..3 {
             let f = current_freq * ratios[i];
-            self.phases[i] += (2.0 * PI * f) / self.sample_rate;
-            self.phases[i] %= 2.0 * PI;
-            osc_out += self.phases[i].sin() * (1.0 - (i as f32 * 0.3));
+            self.phases[i] += f / self.sample_rate;
+            self.phases[i] = self.phases[i].fract();
+            osc_out += SINE_LUT.sin(self.phases[i]) * (1.0 - (i as f32 * 0.3));
         }
 
-        let noise = self.next_noise();
-        // Basic noise color via simple mix
-        let noise_out = noise * noise_color;
+        let noise_raw = self.rng.next_f32_bipolar();
+        // One-pole LP filter for noise color
+        // Higher noise_color = higher cutoff
+        let lp_out = self.last_noise + noise_color * (noise_raw - self.last_noise);
+        self.last_noise = lp_out;
 
-        let mixed = (osc_out * (1.0 - metallic)) + (noise_out * metallic);
-        mixed * env
+        let mixed = (osc_out * (1.0 - metallic)) + (lp_out * metallic);
+        (mixed * env).clamp(-1.0, 1.0)
     }
 
-    fn set_param(&mut self, param: &str, value: f32) {
+    pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
             "freq" => self.frequency.base_value = value,
             "noise_color" => self.noise_color.base_value = value.clamp(0.0, 1.0),
@@ -136,7 +135,7 @@ impl SoundEngine for HybridEngine {
         }
     }
 
-    fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
+    pub fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
         let slots = match param {
             "freq" => &mut self.frequency.mod_slots,
             "noise_color" => &mut self.noise_color.mod_slots,
@@ -151,7 +150,7 @@ impl SoundEngine for HybridEngine {
         }
     }
 
-    fn is_active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         self.amp_env.is_active()
     }
 }

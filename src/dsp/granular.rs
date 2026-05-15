@@ -1,20 +1,22 @@
-use crate::kit::SoundEngine;
 use crate::dsp::envelope::AdEnvelope;
 use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
+use arrayvec::ArrayVec;
 
 struct Grain {
     pos: f32,
     inc: f32,
-    amp: f32,
+    _amp: f32,
     life: f32,
     decay: f32,
 }
 
+use crate::dsp::utils::Xorshift;
+
 pub struct GranularEngine {
     sample_rate: f32,
     noise_buffer: Vec<f32>,
-    grains: Vec<Grain>,
+    grains: ArrayVec<Grain, 32>,
     
     // Parameters
     pub frequency: ModulatableParam,
@@ -27,25 +29,22 @@ pub struct GranularEngine {
     
     // Internal State
     amp_env: AdEnvelope,
-    rng_state: u32,
+    rng: Xorshift,
     pub mod_engine: ModulationEngine,
 }
 
 impl GranularEngine {
     pub fn new(sample_rate: f32) -> Self {
         let mut noise_buffer = vec![0.0; 44100];
-        let mut state: u32 = 0x1234;
+        let mut rng = Xorshift::new(0x1234);
         for x in noise_buffer.iter_mut() {
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            *x = (state as f32 / u32::MAX as f32) * 2.0 - 1.0;
+            *x = rng.next_f32_bipolar();
         }
 
         Self {
             sample_rate,
             noise_buffer,
-            grains: Vec::with_capacity(32),
+            grains: ArrayVec::new(),
             frequency: ModulatableParam::new(440.0),
             density: ModulatableParam::new(0.5),
             grain_size: ModulatableParam::new(50.0),
@@ -53,23 +52,16 @@ impl GranularEngine {
             attack: 1.0,
             decay: 200.0,
             amp_env: AdEnvelope::new(sample_rate),
-            rng_state: 0x5678,
+            rng: Xorshift::new(0x5678),
             mod_engine: ModulationEngine::new(sample_rate),
         }
     }
-
-    fn next_random(&mut self) -> f32 {
-        self.rng_state ^= self.rng_state << 13;
-        self.rng_state ^= self.rng_state >> 17;
-        self.rng_state ^= self.rng_state << 5;
-        (self.rng_state as f32) / (u32::MAX as f32)
-    }
 }
 
-impl SoundEngine for GranularEngine {
-    fn name(&self) -> &str { "Granular" }
+impl GranularEngine {
+    pub fn name(&self) -> &str { "Granular" }
 
-    fn schema(&self) -> Vec<crate::kit::ParamSchema> {
+    pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
             crate::kit::ParamSchema {
                 name: "freq".to_string(),
@@ -115,15 +107,16 @@ impl SoundEngine for GranularEngine {
             },
         ]
     }
-
-    fn trigger(&mut self, velocity: f32) {
-        self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
-        self.amp_env.trigger();
+    pub fn trigger(&mut self, velocity: f32) {
         self.mod_engine.velocity = velocity;
-        self.grains.clear();
+        if velocity > 0.0 {
+            self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
+            self.amp_env.trigger();
+            self.grains.clear();
+        }
     }
 
-    fn tick(&mut self) -> f32 {
+    pub fn tick(&mut self) -> f32 {
         let env = self.amp_env.tick();
         self.mod_engine.env_value = env;
         self.mod_engine.tick();
@@ -136,17 +129,17 @@ impl SoundEngine for GranularEngine {
         let jitter = self.mod_engine.calculate_mod(&self.jitter).clamp(0.0, 1.0);
 
         // Spawn grains
-        if self.next_random() < (density * 0.1) {
-            if self.grains.len() < 32 {
-                let jitter_off = (self.next_random() * 2.0 - 1.0) * jitter * 1000.0;
+        if self.rng.next_f32() < (density * 0.1) {
+            if !self.grains.is_full() {
+                let jitter_off = (self.rng.next_f32_bipolar()) * jitter * 1000.0;
                 let g_freq = (current_freq + jitter_off).max(10.0);
                 let g_size_samples = (grain_size / 1000.0 * self.sample_rate) as f32;
-                let g_pos = self.next_random() * (self.noise_buffer.len() as f32);
+                let g_pos = self.rng.next_f32() * (self.noise_buffer.len() as f32);
                 
-                self.grains.push(Grain {
+                let _ = self.grains.try_push(Grain {
                     pos: g_pos,
                     inc: g_freq / self.sample_rate,
-                    amp: 1.0,
+                    _amp: 1.0,
                     life: 1.0,
                     decay: 1.0 / g_size_samples,
                 });
@@ -173,7 +166,7 @@ impl SoundEngine for GranularEngine {
         mixed * env * 0.5
     }
 
-    fn set_param(&mut self, param: &str, value: f32) {
+    pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
             "freq" => self.frequency.base_value = value,
             "density" => self.density.base_value = value.clamp(0.0, 1.0),
@@ -185,7 +178,7 @@ impl SoundEngine for GranularEngine {
         }
     }
 
-    fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
+    pub fn set_mod(&mut self, param: &str, source: ModSource, depth: f32) {
         let slots = match param {
             "freq" => &mut self.frequency.mod_slots,
             "density" => &mut self.density.mod_slots,
@@ -201,7 +194,7 @@ impl SoundEngine for GranularEngine {
         }
     }
 
-    fn is_active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         self.amp_env.is_active() || !self.grains.is_empty()
     }
 }

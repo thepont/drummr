@@ -1,44 +1,19 @@
-use drummr::kit::{SoundEngine, ParamSchema};
+use drummr::kit::{Voice, ParamSchema};
+use drummr::dsp::fm::FmVoice;
 use serde_json;
 
-struct MockEngine {
-    frequency: f32,
-}
-
-impl SoundEngine for MockEngine {
-    fn name(&self) -> &str { "MockEngine" }
-    
-    fn schema(&self) -> Vec<ParamSchema> {
-        vec![
-            ParamSchema {
-                name: "frequency".to_string(),
-                min: 20.0,
-                max: 2000.0,
-                default: 440.0,
-                unit: "Hz".to_string(),
-            }
-        ]
-    }
-
-    fn set_param(&mut self, name: &str, value: f32) {
-        if name == "frequency" {
-            self.frequency = value;
-        }
-    }
-
-    fn trigger(&mut self, _velocity: f32) {}
-    fn tick(&mut self) -> f32 { 0.0 }
-    fn is_active(&self) -> bool { false }
-}
-
 #[test]
-fn test_sound_engine_dispatch() {
-    let mut engine: Box<dyn SoundEngine> = Box::new(MockEngine { frequency: 440.0 });
-    assert_eq!(engine.name(), "MockEngine");
+fn test_voice_enum_dispatch() {
+    let mut v = FmVoice::new(44100.0);
+    v.frequency.base_value = 440.0;
+    let mut voice = Voice::Fm(v);
     
-    engine.set_param("frequency", 880.0);
-    // Note: We'd need a way to inspect the internal state for a real test, 
-    // maybe a get_param or just observing side effects in tick/trigger.
+    assert_eq!(voice.name(), "FM");
+    
+    voice.set_param("freq", 880.0);
+    // After set_param, schema should still be available
+    let schema = voice.schema();
+    assert!(schema.iter().any(|p| p.name == "freq"));
 }
 
 #[test]
@@ -60,17 +35,23 @@ fn test_kit_engine_polymorphism() {
     use drummr::kit::KitEngine;
     let mut engine = KitEngine::new(44100.0);
     
-    // Add two different engines (using MockEngine for both now, but as Trait Objects)
-    engine.voices.push(Some(Box::new(MockEngine { frequency: 50.0 })));
-    engine.voices.push(Some(Box::new(MockEngine { frequency: 200.0 })));
+    // Add two different engines
+    let mut v1 = FmVoice::new(44100.0);
+    v1.frequency.base_value = 50.0;
+    engine.voices[0] = Some(Voice::Fm(v1));
+    
+    let mut v2 = FmVoice::new(44100.0);
+    v2.frequency.base_value = 200.0;
+    engine.voices[1] = Some(Voice::Fm(v2));
     
     // Map notes to slots
-    engine.midi_map.insert(36, 0);
-    engine.midi_map.insert(38, 1);
+    engine.midi_map[36] = Some(0);
+    engine.midi_map[38] = Some(1);
     
-    assert_eq!(engine.voices.len(), 2);
+    assert_eq!(engine.voices.len(), 16);
     engine.trigger(36, 1.0);
-    let _sample = engine.tick();
+    let sample = engine.tick();
+    assert!(sample != 0.0);
 }
 
 #[test]
@@ -80,9 +61,11 @@ fn test_kit_engine_get_schema() {
     let mut engine = KitEngine::new(44100.0);
     
     // Add voice to slot 0
-    engine.voices.push(Some(Box::new(MockEngine { frequency: 50.0 })));
+    let mut v = FmVoice::new(44100.0);
+    v.frequency.base_value = 50.0;
+    engine.voices[0] = Some(Voice::Fm(v));
     
     let schema = engine.get_schema(0).expect("Should find schema");
-    assert_eq!(schema.len(), 1);
-    assert_eq!(schema[0].name, "frequency");
+    assert!(schema.len() >= 1);
+    assert!(schema.iter().any(|p| p.name == "freq"));
 }

@@ -1,0 +1,82 @@
+use anyhow::Result;
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use rtrb::Consumer;
+use std::sync::Arc;
+use crate::state::{SharedState, AudioCommand, MidiEvent};
+
+pub fn start_audio(device: &cpal::Device, mut event_rx: Consumer<MidiEvent>, mut cmd_rx: Consumer<AudioCommand>, shared_state: Arc<SharedState>) -> Result<cpal::Stream> {
+    let config_supported = device.default_output_config()?;
+    let mut config: cpal::StreamConfig = config_supported.into();
+    config.buffer_size = cpal::BufferSize::Fixed(128);
+    let channels = config.channels as usize;
+
+    let stream = device.build_output_stream(
+        &config,
+        move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+            if let Ok(mut kit) = shared_state.kit.try_lock() {
+                while let Ok(cmd) = cmd_rx.pop() {
+                    match cmd {
+                        AudioCommand::SetParam(slot, param, val) => {
+                            kit.set_param(slot, &param, val);
+                        }
+                        AudioCommand::SetMod(slot, param, source, depth) => {
+                            if let Some(voice_opt) = kit.voices.get_mut(slot) {
+                                if let Some(voice) = voice_opt {
+                                    voice.set_mod(&param, source, depth);
+                                }
+                            }
+                        }
+                        AudioCommand::SetLfo(slot, index, freq) => {
+                            if let Some(voice_opt) = kit.voices.get_mut(slot) {
+                                if let Some(voice) = voice_opt {
+                                    voice.set_lfo(index, freq);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                while let Ok(msg) = event_rx.pop() {
+                    let status = msg[0];
+                    let note = msg[1];
+                    let velocity = msg[2] as f32 / 127.0;
+                    if status >= 0x80 && status <= 0x9F {
+                        kit.trigger(note, velocity);
+                    }
+                }
+
+                for (slot_idx, voice_opt) in kit.voices.iter().enumerate() {
+                    if let Some(voice) = voice_opt {
+                        if voice.is_active() {
+                            let vals = voice.get_mod_values();
+                            for (src_idx, &val) in vals.iter().enumerate() {
+                                shared_state.set_value(slot_idx, src_idx, val);
+                            }
+                        }
+                    }
+                }
+
+                for frame in data.chunks_mut(channels) {
+                    let out = kit.tick() * 0.7;
+                    for sample in frame.iter_mut() {
+                        *sample = out;
+                    }
+                }
+            } else {
+                // Could not get lock, zero out buffer to avoid repeating old audio
+                for sample in data.iter_mut() { *sample = 0.0; }
+            }
+        },
+        |_err| { /* RT thread should not log ideally */ },
+        None
+    )?;
+    stream.play()?;
+    Ok(stream)
+}
+
+pub fn get_default_audio_device() -> Result<cpal::Device> {
+    let host = cpal::default_host();
+    let device = host.default_output_device()
+        .ok_or_else(|| anyhow::anyhow!("No default output device found"))?;
+    Ok(device)
+}

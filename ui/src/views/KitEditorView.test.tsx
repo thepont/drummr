@@ -8,6 +8,7 @@ vi.mock('../components/ui', () => ({
   Slider: ({ label, value }: any) => <div data-testid="slider">{label}: {value}</div>,
   ParamController: ({ label, value }: any) => <div data-testid="slider">{label}: {value}</div>,
   FrequencyVisualizer: ({ value }: any) => <div data-testid="slider">Base Pitch: {value}</div>,
+  PredictiveGraph: () => <div data-testid="predictive-graph" />,
   Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
   Card: ({ title, value }: any) => <div>{title}: {value}</div>,
 }))

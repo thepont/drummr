@@ -1,11 +1,11 @@
 use crate::dsp::envelope::AdEnvelope;
-use rand::prelude::*;
+use crate::dsp::utils::Xorshift;
 
 pub struct NoiseVoice {
     #[allow(dead_code)]
     sample_rate: f32,
     pub amp_env: AdEnvelope,
-    rng: SmallRng,
+    rng: Xorshift,
     velocity: f32,
 }
 
@@ -17,7 +17,7 @@ impl NoiseVoice {
         Self {
             sample_rate,
             amp_env,
-            rng: SmallRng::seed_from_u64(42),
+            rng: Xorshift::new(42),
             velocity: 0.0,
         }
     }
@@ -33,11 +33,23 @@ impl NoiseVoice {
             return 0.0;
         }
 
-        let noise: f32 = self.rng.random_range(-1.0..1.0);
+        let noise = self.rng.next_f32_bipolar();
         noise * amp * self.velocity
     }
 
     pub fn is_active(&self) -> bool {
         self.amp_env.is_active()
+    }
+
+    pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
+        vec![] // Noise engine has no specific params yet beyond envelopes
+    }
+
+    pub fn set_param(&mut self, param: &str, value: f32) {
+        match param {
+            "attack" => self.amp_env.set_params(value / 1000.0, self.amp_env.decay_sec),
+            "decay" => self.amp_env.set_params(self.amp_env.attack_sec, value / 1000.0),
+            _ => {}
+        }
     }
 }

@@ -1,0 +1,90 @@
+use std::sync::Arc;
+use tokio::sync::{Mutex, mpsc};
+use crate::midi::MidiEngine;
+use crate::comm::CommEngine;
+use crate::settings::Settings;
+use crate::kit::{KitEngine, DrumKit, DrumMapping};
+use rtrb::Producer;
+use wmidi::MidiMessage;
+use crate::state::MidiEvent;
+use anyhow::Result;
+
+pub async fn start_midi(
+    midi_engine: Arc<Mutex<MidiEngine>>, 
+    comm_engine: Arc<CommEngine>, 
+    midi_tx: mpsc::UnboundedSender<String>,
+    raw_midi_producer: Arc<std::sync::Mutex<Producer<MidiEvent>>>,
+    index: usize
+) -> Result<()> {
+    let mut midi = midi_engine.lock().await;
+    let res = midi.start(index, move |msg| {
+        match msg {
+            MidiMessage::NoteOn(_chan, note, vel) => {
+                let n_u8: u8 = note.into();
+                let v_u8: u8 = vel.into();
+                if let Ok(mut p) = raw_midi_producer.lock() {
+                    let _ = p.push([0x90, n_u8, v_u8]);
+                }
+                let _ = midi_tx.send(format!("MIDI: {},{}", n_u8, v_u8));
+            },
+            MidiMessage::NoteOff(_chan, note, _vel) => {
+                let n_u8: u8 = note.into();
+                if let Ok(mut p) = raw_midi_producer.lock() {
+                    let _ = p.push([0x80, n_u8, 0]);
+                }
+                let _ = midi_tx.send(format!("MIDI: {},0", n_u8));
+            },
+            _ => {}
+        }
+    });
+
+    match res {
+        Ok(port_name) => {
+            println!("MIDI started: {}", port_name);
+            comm_engine.broadcast(format!("PORT: {}", port_name));
+            let mut settings = Settings::load();
+            settings.last_midi_port = Some(port_name);
+            let _ = settings.save();
+            Ok(())
+        },
+        Err(e) => Err(anyhow::anyhow!("MIDI start failed: {}", e))
+    }
+}
+
+pub fn load_mappings() -> Vec<DrumMapping> {
+    if let Ok(content) = std::fs::read_to_string("mapping.toml") {
+        if let Ok(mappings) = toml::from_str::<Vec<DrumMapping>>(&content) {
+            return mappings;
+        }
+    }
+    // 16 Default mappings (General MIDI style + extra compatibility)
+    vec![
+        DrumMapping { note: 36, slot: 0 },  // Kick
+        DrumMapping { note: 38, slot: 1 },  // Snare
+        DrumMapping { note: 42, slot: 2 },  // Closed Hat
+        DrumMapping { note: 46, slot: 3 },  // Open Hat
+        DrumMapping { note: 41, slot: 4 },  // Floor Tom
+        DrumMapping { note: 45, slot: 5 },  // Mid Tom
+        DrumMapping { note: 48, slot: 6 },  // High Tom
+        DrumMapping { note: 49, slot: 7 },  // Crash
+        DrumMapping { note: 51, slot: 8 },  // Ride
+        DrumMapping { note: 39, slot: 9 },  // Clap
+        DrumMapping { note: 37, slot: 10 }, // Rimshot
+        DrumMapping { note: 56, slot: 11 }, // Cowbell
+        DrumMapping { note: 53, slot: 12 }, // Mapping Note 53 to Slot 12 (Tambourine)
+        DrumMapping { note: 62, slot: 13 }, // Mute Hi Conga
+        DrumMapping { note: 63, slot: 14 }, // Open Hi Conga
+        DrumMapping { note: 64, slot: 15 }, // Low Conga
+    ]
+}
+
+pub fn load_kit<P: AsRef<std::path::Path>>(path: P, sample_rate: f32) -> KitEngine {
+    let mappings = load_mappings();
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        if let Ok(config) = toml::from_str::<DrumKit>(&content) {
+            println!("Loaded kit from {:?}: {}", path.as_ref(), config.name);
+            return KitEngine::from_config(config, sample_rate, mappings);
+        }
+    }
+    KitEngine::new(sample_rate)
+}

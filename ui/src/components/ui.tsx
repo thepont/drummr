@@ -160,10 +160,139 @@ export function Sparkline({ value, min, max, className }: { value: number, min: 
   );
 }
 
+export function PredictiveGraph({ 
+  base, min, max, mods, attack, decay, lfo1_freq, lfo2_freq, className 
+}: { 
+  base: number, 
+  min: number, 
+  max: number, 
+  mods: ModSlotData[], 
+  attack: number, 
+  decay: number,
+  lfo1_freq?: number,
+  lfo2_freq?: number,
+  className?: string 
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const draw = () => {
+      const { width, height } = canvas;
+      ctx.clearRect(0, 0, width, height);
+
+      const totalSeconds = 2.0;
+      const points = 100;
+      const range = max - min;
+      const baseNorm = (base - min) / range;
+      const baseY = height - (baseNorm * height);
+
+      const activeMods = {
+        env: mods.some(m => m.source === 'Envelope' && Math.abs(m.depth) > 0.01),
+        lfo1: mods.some(m => m.source === 'Lfo1' && Math.abs(m.depth) > 0.01),
+        lfo2: mods.some(m => m.source === 'Lfo2' && Math.abs(m.depth) > 0.01),
+      };
+
+      // 1. Draw Individual Components (Faint)
+      const drawComponent = (color: string, calc: (t: number) => number) => {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.setLineDash([2, 2]);
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= points; i++) {
+          const t = (i / points) * totalSeconds;
+          const val = calc(t);
+          const x = (i / points) * width;
+          const y = height - (((base + val * (range * 0.5)) - min) / range) * height;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      };
+
+      if (activeMods.env) {
+        drawComponent('rgba(251, 191, 36, 0.3)', (t) => {
+          const a = attack / 1000, d = decay / 1000;
+          const depth = mods.find(m => m.source === 'Envelope')?.depth || 0;
+          return (t < a ? t / a : (t < a + d ? 1.0 - (t - a) / d : 0)) * depth;
+        });
+      }
+
+      if (activeMods.lfo1 || activeMods.lfo2) {
+        drawComponent('rgba(96, 165, 250, 0.2)', (t) => {
+          const m1 = mods.find(m => m.source === 'Lfo1'), m2 = mods.find(m => m.source === 'Lfo2');
+          const v1 = m1 ? Math.sin(2 * Math.PI * (lfo1_freq || 1) * t) * m1.depth : 0;
+          const v2 = m2 ? Math.sin(2 * Math.PI * (lfo2_freq || 1) * t) * m2.depth : 0;
+          return v1 + v2;
+        });
+      }
+
+      // 2. Draw Final Combined Path (Bold)
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.8)';
+      ctx.lineWidth = 2;
+      
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0, 'rgba(52, 211, 153, 0.2)');
+      grad.addColorStop(1, 'rgba(52, 211, 153, 0)');
+      ctx.fillStyle = grad;
+
+      for (let i = 0; i <= points; i++) {
+        const t = (i / points) * totalSeconds;
+        const a = attack / 1000, d = decay / 1000;
+        const env = t < a ? t / a : (t < a + d ? 1.0 - (t - a) / d : 0);
+        const lfo1 = Math.sin(2 * Math.PI * (lfo1_freq || 1) * t);
+        const lfo2 = Math.sin(2 * Math.PI * (lfo2_freq || 1) * t);
+
+        let totalMod = 0;
+        mods.forEach(m => {
+          if (m.source === 'Envelope') totalMod += env * m.depth;
+          if (m.source === 'Lfo1') totalMod += lfo1 * m.depth;
+          if (m.source === 'Lfo2') totalMod += lfo2 * m.depth;
+          if (m.source === 'Velocity') totalMod += 1.0 * m.depth;
+        });
+
+        const scaledVal = base + (totalMod * (range * 0.5)); 
+        const x = (i / points) * width;
+        const normalized = (scaledVal - min) / range;
+        const y = height - (normalized * height);
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.lineTo(width, baseY);
+      ctx.lineTo(0, baseY);
+      ctx.fill();
+    };
+
+    draw();
+
+  }, [base, min, max, mods, attack, decay, lfo1_freq, lfo2_freq]);
+
+  return (
+    <div className="relative group">
+      <canvas ref={canvasRef} width={120} height={40} className={cn("bg-muted/10 rounded-lg", className)} />
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-background/40 backdrop-blur-[1px] rounded-lg">
+         <span className="text-[8px] font-black uppercase text-primary">Lifecycle</span>
+      </div>
+    </div>
+  );
+}
+
 export function ParamController({ 
   label, value, min, max, step, onChange, format, 
   mods = [], onModChange,
-  modValue
+  modValue,
+  attack = 1,
+  decay = 200,
+  lfo1_freq = 1.0,
+  lfo2_freq = 1.0
 }: { 
   label: string, 
   value: number, 
@@ -174,7 +303,11 @@ export function ParamController({
   format?: (v: number) => string,
   mods?: ModSlotData[],
   onModChange?: (index: number, source: string, depth: number) => void,
-  modValue?: number
+  modValue?: number,
+  attack?: number,
+  decay?: number,
+  lfo1_freq?: number,
+  lfo2_freq?: number
 }) {
   return (
     <div className="space-y-4 group/param">
@@ -191,11 +324,15 @@ export function ParamController({
             modValue={modValue}
           />
         </div>
-        <Sparkline 
-          value={modValue ?? value} 
+        <PredictiveGraph 
+          base={value}
           min={min} 
           max={max} 
-          className="mb-1"
+          mods={mods}
+          attack={attack}
+          decay={decay}
+          lfo1_freq={lfo1_freq}
+          lfo2_freq={lfo2_freq}
         />
       </div>
       
@@ -322,25 +459,26 @@ export function ModSlot({ source, depth, onChange }: {
     onChange(sources[nextIndex], depth);
   };
 
-  const sourceLabel = source === 'Envelope' ? 'Env' : 
+  const sourceLabel = source === 'Envelope' ? 'Shape' : 
                      source === 'Lfo1' ? 'LFO 1' :
                      source === 'Lfo2' ? 'LFO 2' :
-                     source === 'Velocity' ? 'Vel' : '---';
+                     source === 'Velocity' ? 'Hit' : '---';
 
   return (
     <div className="flex flex-col gap-1 items-center group">
       <button 
         onClick={cycleSource}
         className={cn(
-          "text-[9px] font-black uppercase tracking-tighter transition-all px-1.5 py-0.5 rounded border",
+          "text-[8px] font-black uppercase tracking-tighter transition-all px-2 py-0.5 rounded-md border",
           source !== 'None' 
-            ? "bg-primary/10 border-primary/30 text-primary" 
+            ? "bg-primary/20 border-primary/40 text-primary shadow-[0_0_10px_var(--color-primary-transparent)]" 
             : "bg-muted border-transparent text-muted-foreground hover:border-border"
         )}
+        title={source === 'Envelope' ? "Link to global Decay/Attack shape" : "Select Modulation Source"}
       >
         {sourceLabel}
       </button>
-      <div className="h-20 w-1.5 bg-muted rounded-full relative overflow-hidden flex items-end cursor-ns-resize mt-1">
+      <div className="h-16 w-1.5 bg-muted rounded-full relative overflow-hidden flex items-end cursor-ns-resize mt-1">
          <input 
           type="range" 
           aria-label="depth"

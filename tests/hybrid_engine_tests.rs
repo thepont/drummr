@@ -1,5 +1,4 @@
 use drummr::dsp::hybrid::HybridEngine;
-use drummr::kit::SoundEngine;
 
 #[test]
 fn test_hybrid_engine_output() {

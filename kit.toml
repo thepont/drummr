@@ -1,155 +1,155 @@
-name = "Neon Night"
-description = "Vibrant, 16-sound electronic kit using all engines for maximum variety."
+name = "Industrial Glitch"
+description = "A gritty, 16-sound experimental kit using all engines."
 
 [[sounds]]
-name = "Laser Kick"
+name = "Cyber Kick"
 engine_type = "fm"
-freq = 55.0
-mod_ratio = 1.0
-mod_index = 6.0
-noise_level = 0.0
+freq = 42.0
+mod_ratio = 0.5
+mod_index = 12.0
+noise_level = 0.05000000074505806
 attack = 1.0
-decay = 400.0
-
-[[sounds]]
-name = "Plasma Snare"
-engine_type = "fm"
-freq = 220.0
-mod_ratio = 2.450000047683716
-mod_index = 15.0
-noise_level = 0.4000000059604645
-attack = 1.5
-decay = 220.0
-
-[[sounds]]
-name = "Neon Hat"
-engine_type = "fm"
-freq = 1800.0
-mod_ratio = 0.23000000417232513
-mod_index = 10.0
-noise_level = 0.20000000298023224
-attack = 0.5
-decay = 60.0
-
-[[sounds]]
-name = "Grid Tom 1"
-engine_type = "fm"
-freq = 150.0
-mod_ratio = 0.550000011920929
-mod_index = 4.0
-noise_level = 0.0
-attack = 2.0
 decay = 450.0
 
 [[sounds]]
-name = "Grid Tom 2"
-engine_type = "phys"
-freq = 110.0
-brightness = 0.6000000238418579
-dampening = 0.30000001192092896
-attack = 2.0
-decay = 550.0
-
-[[sounds]]
-name = "Grid Tom 3"
-engine_type = "fm"
-freq = 80.0
-mod_ratio = 0.75
-mod_index = 4.0
-noise_level = 0.0
-attack = 2.0
-decay = 650.0
-
-[[sounds]]
-name = "Pulse Clap"
-engine_type = "granular"
-freq = 1250.0
-density = 0.949999988079071
-grain_size = 30.0
-jitter = 0.30000001192092896
-attack = 0.10000000149011612
-decay = 350.0
-
-[[sounds]]
-name = "Chrome Crash"
+name = "Rusty Snare"
 engine_type = "hybrid"
-freq = 3200.0
-noise_color = 0.7799999713897705
-metallic = 0.6399999856948853
+freq = 195.0
+noise_color = 0.75
+metallic = 0.550000011920929
 attack = 1.0
-decay = 1800.0
+decay = 220.0
 
 [[sounds]]
-name = "Data Ride"
-engine_type = "hybrid"
-freq = 4200.0
-noise_color = 0.949999988079071
-metallic = 0.47999998927116394
-attack = 1.0
-decay = 1122.0
-
-[[sounds]]
-name = "Bit Click"
+name = "Static Hat"
 engine_type = "granular"
-freq = 3800.0
-density = 0.15000000596046448
-grain_size = 4.0
-jitter = 0.10000000149011612
-attack = 0.10000000149011612
-decay = 25.0
-
-[[sounds]]
-name = "Synth Cowbell"
-engine_type = "hybrid"
-freq = 25.0
-noise_color = 0.36000001430511475
-metallic = 1.0
-attack = 1.0
-decay = 426.0
-
-[[sounds]]
-name = "Glow Shaker"
-engine_type = "granular"
-freq = 2800.0
+freq = 950.0
 density = 0.8500000238418579
 grain_size = 12.0
-jitter = 0.6000000238418579
-attack = 10.0
-decay = 180.0
+jitter = 0.699999988079071
+attack = 0.5
+decay = 45.0
 
 [[sounds]]
-name = "Vector Rim"
+name = "Metal Clang"
+engine_type = "hybrid"
+freq = 440.0
+noise_color = 0.30000001192092896
+metallic = 0.8999999761581421
+attack = 0.5
+decay = 600.0
+
+[[sounds]]
+name = "Void Tom"
 engine_type = "phys"
-freq = 1300.0
-brightness = 0.15000000596046448
-dampening = 0.30000001192092896
-attack = 1.0
-decay = 70.0
+freq = 80.0
+brightness = 0.6000000238418579
+dampening = 0.20000000298023224
+attack = 5.0
+decay = 800.0
 
 [[sounds]]
-name = "Sub Zap"
+name = "Neon Chirp"
 engine_type = "fm"
-freq = 85.0
-mod_ratio = 8.0
-mod_index = 25.0
+freq = 1500.0
+mod_ratio = 2.7100000381469727
+mod_index = 8.0
+noise_level = 0.0
+attack = 1.0
+decay = 30.0
+
+[[sounds]]
+name = "Glitch Spark"
+engine_type = "granular"
+freq = 2000.0
+density = 0.949999988079071
+grain_size = 5.0
+jitter = 0.8999999761581421
+attack = 0.10000000149011612
+decay = 20.0
+
+[[sounds]]
+name = "Factory Bell"
+engine_type = "phys"
+freq = 880.0
+brightness = 0.8999999761581421
+dampening = 0.10000000149011612
+attack = 0.5
+decay = 1200.0
+
+[[sounds]]
+name = "Sub Drone"
+engine_type = "fm"
+freq = 30.0
+mod_ratio = 1.0
+mod_index = 2.0
+noise_level = 0.0
+attack = 50.0
+decay = 2000.0
+
+[[sounds]]
+name = "Steam Hiss"
+engine_type = "granular"
+freq = 500.0
+density = 0.4000000059604645
+grain_size = 150.0
+jitter = 0.30000001192092896
+attack = 100.0
+decay = 1500.0
+
+[[sounds]]
+name = "Anvil"
+engine_type = "hybrid"
+freq = 220.0
+noise_color = 0.10000000149011612
+metallic = 1.0
+attack = 0.5
+decay = 400.0
+
+[[sounds]]
+name = "Broken Glass"
+engine_type = "granular"
+freq = 2500.0
+density = 0.699999988079071
+grain_size = 30.0
+jitter = 0.800000011920929
+attack = 0.5
+decay = 150.0
+
+[[sounds]]
+name = "Radio Noise"
+engine_type = "fm"
+freq = 100.0
+mod_ratio = 0.10000000149011612
+mod_index = 50.0
+noise_level = 0.800000011920929
+attack = 10.0
+decay = 100.0
+
+[[sounds]]
+name = "Deep Tube"
+engine_type = "phys"
+freq = 65.0
+brightness = 0.30000001192092896
+dampening = 0.4000000059604645
+attack = 10.0
+decay = 500.0
+
+[[sounds]]
+name = "Short Click"
+engine_type = "fm"
+freq = 3000.0
+mod_ratio = 1.0
+mod_index = 0.0
 noise_level = 0.0
 attack = 0.10000000149011612
-decay = 250.0
+decay = 10.0
 
 [[sounds]]
-name = "Phase Conga 1"
+name = "Scrape"
 engine_type = "phys"
-freq = 280.0
-brightness = 0.3499999940395355
-dampening = 0.44999998807907104
-attack = 2.0
-decay = 320.0
-
-[[sounds]]
-name = "Phase Conga 2"
-engine_type = "phys"
-freq = 190.0
-brightness = 0.3499999940395355
-dampening = 0.44999998807907104
-attack = 2.0
-decay = 380.0
+freq = 400.0
+brightness = 0.10000000149011612
+dampening = 0.800000011920929
+attack = 50.0
+decay = 300.0

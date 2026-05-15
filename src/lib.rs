@@ -3,3 +3,8 @@ pub mod comm;
 pub mod kit;
 pub mod settings;
 pub mod dsp;
+pub mod state;
+pub mod persistence;
+pub mod audio;
+pub mod commands;
+pub mod app_utils;

@@ -23,6 +23,11 @@ export default function App() {
   
   const [availableMidi, setAvailableMidi] = useState<string[]>([]);
   const [availableAudio, setAvailableAudio] = useState<string[]>([]);
+  const [availableKits, setAvailableKits] = useState<string[]>([]);
+  
+  const [sounds, setSounds] = useState<any[]>([]);
+  const [schemas, setSchemas] = useState<Record<string, any[]>>({});
+  const [soundPresets, setSoundPresets] = useState<string[]>([]);
   
   const [lastMidi, setLastMidi] = useState<{note: number, vel: number} | null>(null);
   const [isMidiFlashing, setIsMidiFlashing] = useState(false);
@@ -41,6 +46,7 @@ export default function App() {
         setStatus('Connected');
         socket.send('LIST_MIDI');
         socket.send('LIST_AUDIO');
+        socket.send('LIST_KITS');
         setWs(socket);
       };
 
@@ -69,9 +75,33 @@ export default function App() {
           setAvailableMidi(data.replace('LIST_MIDI: ', '').split(',').filter(Boolean));
         } else if (data.startsWith('LIST_AUDIO: ')) {
           setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
+        } else if (data.startsWith('KIT_LIST:')) {
+          setAvailableKits(data.replace('KIT_LIST:', '').split(',').filter(Boolean));
+        } else if (data.startsWith('KIT: ')) {
+          try {
+            const kit = JSON.parse(data.replace('KIT: ', ''));
+            console.log('[WS DEBUG] Received KIT:', kit);
+            setSounds(kit);
+          } catch (e) { console.error('Failed to parse kit:', e); }
+        } else if (data.startsWith('SOUND_PRESETS:')) {
+          setSoundPresets(data.replace('SOUND_PRESETS:', '').split(',').filter(Boolean));
+        } else if (data.startsWith('SCHEMA:')) {
+          try {
+            // Format: SCHEMA:<id>|[json]
+            const firstColon = data.indexOf(':');
+            const firstPipe = data.indexOf('|', firstColon + 1);
+            const soundId = data.substring(firstColon + 1, firstPipe);
+            const jsonStr = data.substring(firstPipe + 1);
+            
+            const schema = JSON.parse(jsonStr);
+            console.log('[WS DEBUG] Received SCHEMA for:', soundId);
+            setSchemas(prev => ({ ...prev, [soundId]: schema }));
+          } catch (e) { console.error('Failed to parse schema:', e); }
         } else if (data.startsWith('MIDI: ')) {
           const rawValues = data.replace('MIDI: ', '');
           const parts = rawValues.split(',');
+          if (parts.length < 2) return;
+          
           const note = parseInt(parts[0]);
           const vel = parseInt(parts[1]);
 
@@ -159,12 +189,28 @@ export default function App() {
             </h2>
           </div>
           
-          <div className="flex items-center gap-3">
-             <div className={cn(
-               "w-2 h-2 rounded-full transition-all duration-75",
-               isMidiFlashing ? "bg-emerald-400 shadow-[0_0_10px_#34d399] scale-125" : "bg-zinc-800"
-             )} />
-             <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">MIDI In</span>
+          <div className="flex items-center gap-6">
+             {/* Kit Selector */}
+             <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground">Active Kit</span>
+                <select 
+                  className="bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-primary/50 transition-colors"
+                  onChange={(e) => ws?.send(`LOAD_KIT:${e.target.value}`)}
+                >
+                  <option value="">Select Kit...</option>
+                  {availableKits.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+             </div>
+
+             <div className="flex items-center gap-3 border-l border-border pl-6">
+                <div className={cn(
+                  "w-2 h-2 rounded-full transition-all duration-75",
+                  isMidiFlashing ? "bg-emerald-400 shadow-[0_0_10px_#34d399] scale-125" : "bg-zinc-800"
+                )} />
+                <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">MIDI In</span>
+             </div>
           </div>
         </header>
 
@@ -181,7 +227,16 @@ export default function App() {
             />
           )}
           {view === 'mapping' && <MappingView ws={ws} />}
-          {view === 'editor' && <KitEditorView ws={ws} />}
+          {view === 'editor' && (
+            <KitEditorView 
+              ws={ws} 
+              sounds={sounds} 
+              setSounds={setSounds}
+              schemas={schemas}
+              setSchemas={setSchemas}
+              soundPresets={soundPresets}
+            />
+          )}
         </div>
       </main>
     </div>
