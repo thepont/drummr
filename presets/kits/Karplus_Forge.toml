@@ -39,39 +39,43 @@ decay = 250.0
 
 [[sounds]]
 name = "Marimba Tom 1"
-engine_type = "phys"
+engine_type = "modal"
 freq = 260.0
-brightness = 0.25
-dampening = 0.4
+brightness = 0.55
+dampening = 0.25
+inharmonicity = 0.08
 attack = 1.0
-decay = 450.0
+decay = 700.0
 
 [[sounds]]
 name = "Marimba Tom 2"
-engine_type = "phys"
+engine_type = "modal"
 freq = 200.0
-brightness = 0.25
-dampening = 0.4
+brightness = 0.55
+dampening = 0.25
+inharmonicity = 0.08
 attack = 1.0
-decay = 500.0
+decay = 780.0
 
 [[sounds]]
 name = "Marimba Tom 3"
-engine_type = "phys"
+engine_type = "modal"
 freq = 150.0
-brightness = 0.25
-dampening = 0.4
+brightness = 0.55
+dampening = 0.25
+inharmonicity = 0.08
 attack = 1.0
-decay = 560.0
+decay = 860.0
 
 [[sounds]]
 name = "Marimba Tom 4"
-engine_type = "phys"
+engine_type = "modal"
 freq = 110.0
-brightness = 0.25
-dampening = 0.4
+brightness = 0.55
+dampening = 0.25
+inharmonicity = 0.08
 attack = 1.0
-decay = 620.0
+decay = 940.0
 
 [[sounds]]
 name = "KS Crash"

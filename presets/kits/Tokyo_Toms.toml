@@ -43,37 +43,41 @@ decay = 380.0
 
 [[sounds]]
 name = "Bell Tom 1"
-engine_type = "fm"
+engine_type = "modal"
 freq = 300.0
-mod_ratio = 3.5
-mod_index = 12.0
+brightness = 0.8
+dampening = 0.25
+inharmonicity = 0.85
 attack = 1.0
 decay = 380.0
 
 [[sounds]]
 name = "Bell Tom 2"
-engine_type = "fm"
+engine_type = "modal"
 freq = 240.0
-mod_ratio = 3.0
-mod_index = 13.0
+brightness = 0.8
+dampening = 0.25
+inharmonicity = 0.85
 attack = 1.0
 decay = 420.0
 
 [[sounds]]
 name = "Bell Tom 3"
-engine_type = "fm"
+engine_type = "modal"
 freq = 200.0
-mod_ratio = 2.5
-mod_index = 14.0
+brightness = 0.8
+dampening = 0.25
+inharmonicity = 0.9
 attack = 1.0
 decay = 460.0
 
 [[sounds]]
 name = "Bell Tom 4"
-engine_type = "fm"
+engine_type = "modal"
 freq = 180.0
-mod_ratio = 2.0
-mod_index = 15.0
+brightness = 0.8
+dampening = 0.25
+inharmonicity = 0.9
 attack = 1.0
 decay = 500.0
 
