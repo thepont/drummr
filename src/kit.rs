@@ -19,6 +19,7 @@ pub enum Voice {
     Phys(crate::dsp::phys::PhysEngine),
     Granular(crate::dsp::granular::GranularEngine),
     Hybrid(crate::dsp::hybrid::HybridEngine),
+    Modal(crate::dsp::modal::ModalEngine),
     Noise(NoiseVoice),
 }
 
@@ -29,6 +30,7 @@ impl Voice {
             Voice::Phys(_) => "Physical Modeling",
             Voice::Granular(_) => "Granular",
             Voice::Hybrid(_) => "Hybrid",
+            Voice::Modal(_) => "Modal",
             Voice::Noise(_) => "Noise",
         }
     }
@@ -39,6 +41,7 @@ impl Voice {
             Voice::Phys(v) => v.schema(),
             Voice::Granular(v) => v.schema(),
             Voice::Hybrid(v) => v.schema(),
+            Voice::Modal(v) => v.schema(),
             Voice::Noise(v) => v.schema(),
         }
     }
@@ -49,6 +52,7 @@ impl Voice {
             Voice::Phys(v) => v.set_param(name, value),
             Voice::Granular(v) => v.set_param(name, value),
             Voice::Hybrid(v) => v.set_param(name, value),
+            Voice::Modal(v) => v.set_param(name, value),
             Voice::Noise(v) => v.set_param(name, value),
         }
     }
@@ -59,6 +63,7 @@ impl Voice {
             Voice::Phys(v) => v.set_mod(param, source, depth),
             Voice::Granular(v) => v.set_mod(param, source, depth),
             Voice::Hybrid(v) => v.set_mod(param, source, depth),
+            Voice::Modal(v) => v.set_mod(param, source, depth),
             Voice::Noise(_) => {},
         }
     }
@@ -69,6 +74,7 @@ impl Voice {
             Voice::Phys(v) => v.mod_engine.set_lfo(index, freq),
             Voice::Granular(v) => v.mod_engine.set_lfo(index, freq),
             Voice::Hybrid(v) => v.mod_engine.set_lfo(index, freq),
+            Voice::Modal(v) => v.mod_engine.set_lfo(index, freq),
             Voice::Noise(_) => {},
         }
     }
@@ -79,6 +85,7 @@ impl Voice {
             Voice::Phys(v) => v.mod_engine.get_all_source_values(),
             Voice::Granular(v) => v.mod_engine.get_all_source_values(),
             Voice::Hybrid(v) => v.mod_engine.get_all_source_values(),
+            Voice::Modal(v) => v.mod_engine.get_all_source_values(),
             Voice::Noise(_) => [0.0; 4],
         }
     }
@@ -89,6 +96,7 @@ impl Voice {
             Voice::Phys(v) => v.trigger(velocity),
             Voice::Granular(v) => v.trigger(velocity),
             Voice::Hybrid(v) => v.trigger(velocity),
+            Voice::Modal(v) => v.trigger(velocity),
             Voice::Noise(v) => v.trigger(velocity),
         }
     }
@@ -99,6 +107,7 @@ impl Voice {
             Voice::Phys(v) => v.tick(),
             Voice::Granular(v) => v.tick(),
             Voice::Hybrid(v) => v.tick(),
+            Voice::Modal(v) => v.tick(),
             Voice::Noise(v) => v.tick(),
         }
     }
@@ -109,6 +118,7 @@ impl Voice {
             Voice::Phys(v) => v.is_active(),
             Voice::Granular(v) => v.is_active(),
             Voice::Hybrid(v) => v.is_active(),
+            Voice::Modal(v) => v.is_active(),
             Voice::Noise(v) => v.is_active(),
         }
     }
@@ -150,6 +160,7 @@ pub struct DrumSound {
     pub jitter: Option<f32>,
     pub noise_color: Option<f32>,
     pub metallic: Option<f32>,
+    pub inharmonicity: Option<f32>,
     pub attack: f32,
     pub decay: f32,
     pub lfo1_freq: Option<f32>,
@@ -207,6 +218,16 @@ impl KitEngine {
                     v.attack = sound.attack;
                     v.decay = sound.decay;
                     Voice::Hybrid(v)
+                }
+                "modal" => {
+                    let mut v = crate::dsp::modal::ModalEngine::new(sample_rate);
+                    v.frequency.base_value = sound.freq;
+                    v.brightness.base_value = sound.brightness.unwrap_or(0.7);
+                    v.dampening.base_value = sound.dampening.unwrap_or(0.5);
+                    v.inharmonicity.base_value = sound.inharmonicity.unwrap_or(0.3);
+                    v.attack = sound.attack;
+                    v.decay = sound.decay;
+                    Voice::Modal(v)
                 }
                 _ => {
                     let mut v = FmVoice::new(sample_rate);

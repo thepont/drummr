@@ -2,6 +2,7 @@ pub mod envelope;
 pub mod fm;
 pub mod granular;
 pub mod hybrid;
+pub mod modal;
 pub mod noise;
 pub mod phys;
 pub mod modulation;

@@ -17,6 +17,7 @@ fn test_sound_preset_serialization() {
         jitter: None,
         noise_color: None,
         metallic: None,
+        inharmonicity: None,
         attack: 1.0,
         decay: 100.0,
         lfo1_freq: None,

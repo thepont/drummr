@@ -1,0 +1,62 @@
+name = "Modal Demo"
+description = "Bessel-zero ratio modal resonators: shells, bars, plates, and bells."
+
+[[sounds]]
+name = "Tom Shell"
+engine_type = "modal"
+freq = 110.0
+brightness = 0.55
+dampening = 0.35
+inharmonicity = 0.6
+attack = 1.0
+decay = 600.0
+
+[[sounds]]
+name = "Cowbell"
+engine_type = "modal"
+freq = 540.0
+brightness = 0.85
+dampening = 0.4
+inharmonicity = 0.85
+attack = 1.0
+decay = 350.0
+
+[[sounds]]
+name = "Marimba Bar"
+engine_type = "modal"
+freq = 261.6
+brightness = 0.7
+dampening = 0.2
+inharmonicity = 0.05
+attack = 1.0
+decay = 900.0
+
+[[sounds]]
+name = "Plate"
+engine_type = "modal"
+freq = 320.0
+brightness = 0.95
+dampening = 0.1
+inharmonicity = 0.95
+attack = 1.0
+decay = 1500.0
+
+[[sounds]]
+name = "Glass Bell"
+engine_type = "modal"
+freq = 880.0
+brightness = 0.65
+dampening = 0.15
+inharmonicity = 0.75
+attack = 1.0
+decay = 1800.0
+
+[[sounds]]
+name = "Wood Block"
+engine_type = "modal"
+freq = 1100.0
+brightness = 0.5
+dampening = 0.8
+inharmonicity = 0.4
+attack = 1.0
+decay = 80.0
