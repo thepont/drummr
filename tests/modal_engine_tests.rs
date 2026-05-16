@@ -316,6 +316,70 @@ fn test_modal_eventually_inactive() {
 }
 
 #[test]
+fn test_modal_clipping_rate_acceptable() {
+    // Sweep a representative grid of the modal parameter space and count how
+    // many samples hit the clamp rail. The unity-peak per-mode normalisation
+    // plus OUTPUT_TRIM should keep the total clipped-sample count low across
+    // the whole grid -- catches future regressions that re-introduce the
+    // Q-dependent dynamic-range explosion.
+    let freqs = [50.0_f32, 200.0, 800.0, 2000.0, 4000.0];
+    let brights = [0.4_f32, 0.7, 1.0];
+    let damps = [0.0_f32, 0.2, 0.5];
+    let decays = [200.0_f32, 800.0, 2000.0];
+
+    let mut total_clipped: usize = 0;
+    let mut combos: usize = 0;
+    let mut worst: (usize, (f32, f32, f32, f32)) = (0, (0.0, 0.0, 0.0, 0.0));
+
+    for &f in &freqs {
+        for &b in &brights {
+            for &d in &damps {
+                for &dec in &decays {
+                    let mut e = ModalEngine::new(SR);
+                    e.set_param("freq", f);
+                    e.set_param("brightness", b);
+                    e.set_param("dampening", d);
+                    e.set_param("decay", dec);
+                    e.trigger(1.0);
+
+                    let n = (SR * (dec / 1000.0 + 0.3)) as usize;
+                    let mut clipped = 0usize;
+                    for _ in 0..n {
+                        let y = e.tick();
+                        assert!(
+                            y.is_finite(),
+                            "non-finite at f={} b={} d={} dec={}",
+                            f, b, d, dec
+                        );
+                        if y.abs() >= 0.999 {
+                            clipped += 1;
+                        }
+                    }
+                    total_clipped += clipped;
+                    combos += 1;
+                    if clipped > worst.0 {
+                        worst = (clipped, (f, b, d, dec));
+                    }
+                }
+            }
+        }
+    }
+
+    assert!(
+        total_clipped < 1000,
+        "total clipped samples across {} combinations was {} (>= 1000); \
+         worst combo {} samples at f={} b={} d={} dec={}",
+        combos,
+        total_clipped,
+        worst.0,
+        worst.1.0,
+        worst.1.1,
+        worst.1.2,
+        worst.1.3,
+    );
+}
+
+#[test]
 fn test_modal_repeated_triggers() {
     let mut e = ModalEngine::new(SR);
     for _ in 0..5 {

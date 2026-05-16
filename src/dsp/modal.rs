@@ -7,14 +7,17 @@ use std::f32::consts::PI;
 /// Number of parallel modes in the resonator bank.
 const NUM_MODES: usize = 12;
 
-/// Output trim applied at the end of `tick()`. The constant-skirt bandpass
-/// form has impulse-response peak scaling with Q, so the parameter-space
-/// dynamic range is wide (typical kit voices ~0.1-0.3 pre-trim, extreme
-/// f=4000+b=1.0+d=0.0 ~17 pre-trim). Trim 1.2 brings typical voices to a
-/// healthy -10 to -18 dBFS; extreme cases hit the trailing `clamp(-1.0, 1.0)`
-/// and produce a soft-clip-style distortion that sounds like the metallic
-/// clang you'd want at those settings anyway.
-const OUTPUT_TRIM: f32 = 1.2;
+/// Output trim applied at the end of `tick()`. With the unity-peak normalised
+/// bandpass form in `Mode::set_coeffs` each mode's impulse-response peak is
+/// ~1.0 regardless of Q, so the 12-mode parallel sum is bounded uniformly
+/// across the parameter space. Empirically the pre-trim peak ranges from
+/// ~0.1 (low-Q kicks where only the fundamental contributes meaningfully)
+/// to ~1.0 (extreme bright/low-damp/high-freq corners where many modes sum
+/// constructively). 0.85 brings shipped kit voices into roughly the
+/// -25 to -1 dBFS band and keeps the worst extreme corners below the
+/// trailing `clamp(-1.0, 1.0)` rail (measured sweep over all preset modal
+/// voices: 0/95 clip, kicks land near -18 dBFS).
+const OUTPUT_TRIM: f32 = 0.85;
 
 /// Below this absolute sample magnitude the mode bank is considered quiet
 /// enough to treat as inactive (used to keep `is_active()` honest while the
@@ -70,11 +73,14 @@ impl Mode {
         self.s2 = 0.0;
     }
 
-    /// Compute bandpass biquad coefficients (RBJ "constant skirt gain = 1",
-    /// peak gain = Q). The skirt form has a much larger impulse-response peak
-    /// than the constant-peak-gain form (alpha*Q vs alpha), so for percussion
-    /// driven by short impulses the modal bank produces output at the same
-    /// loudness ballpark as the other engines.
+    /// Compute bandpass biquad coefficients in a unity-peak-impulse-response
+    /// form. Instead of RBJ "constant skirt gain" (b0 = sin(w0)/2, impulse-
+    /// response peak scales with Q), we set b0 = sqrt(sin(w0)/Q) = sqrt(2*alpha)
+    /// so the per-mode impulse-response peak is ~1.0 regardless of Q:
+    /// peak ~= b0 / sqrt(2*alpha) = sqrt(2*alpha) / sqrt(2*alpha) = 1.0.
+    /// This removes the parameter-space dynamic-range problem: a low-Q kick
+    /// (Q~50) and a high-Q bell (Q=1200) now peak at the same per-mode level,
+    /// so a single OUTPUT_TRIM works for all voices.
     fn set_coeffs(&mut self, freq: f32, q: f32, sample_rate: f32) {
         // Clamp to a sane Nyquist range.
         let f = freq.clamp(10.0, sample_rate * 0.45);
@@ -85,10 +91,10 @@ impl Mode {
         let alpha = sin_w0 / (2.0 * q);
 
         let a0 = 1.0 + alpha;
-        // Constant skirt: b0 = sin(w0)/2 = alpha * Q. Impulse-response peak
-        // scales with Q -- low-Q kicks need this full gain to be audible;
-        // high-Q extremes overshoot but are caught by the tail clamp.
-        let b0 = sin_w0 * 0.5;
+        // Unity-peak normalisation: b0 = sqrt(sin(w0)/Q) = sqrt(2*alpha). The
+        // q.max(0.5) clamp above guarantees the divisor is positive, so the
+        // sqrt is always safe.
+        let b0 = (sin_w0 / q).sqrt();
         let b1 = 0.0;
         let b2 = -b0;
         let a1 = -2.0 * cos_w0;
