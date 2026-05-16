@@ -91,7 +91,7 @@ name = "Stone Hit"
 engine_type = "hybrid"
 freq = 120.0
 noise_color = 0.2
-metallic = 0.1
+metallic = 0.3
 attack = 1.0
 decay = 150.0
 

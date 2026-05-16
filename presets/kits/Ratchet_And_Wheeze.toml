@@ -25,16 +25,20 @@ bits = 10.0
 
 [[sounds]]
 name = "Wheeze Hi"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 2200.0
+noise_color = 0.7
+metallic = 1.0
 attack = 2.0
 decay = 60.0
 bits = 10.0
 
 [[sounds]]
 name = "Asthmatic Exhale"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 800.0
+noise_color = 0.35
+metallic = 1.0
 attack = 4.0
 decay = 280.0
 bits = 10.0
@@ -104,8 +108,10 @@ bits = 10.0
 
 [[sounds]]
 name = "Lung Pop"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 600.0
+noise_color = 0.5
+metallic = 1.0
 attack = 3.0
 decay = 160.0
 bits = 10.0
@@ -156,8 +162,10 @@ bits = 10.0
 
 [[sounds]]
 name = "Steam Hiss"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 3500.0
+noise_color = 0.85
+metallic = 1.0
 attack = 10.0
 decay = 400.0
 bits = 10.0

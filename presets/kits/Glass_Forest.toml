@@ -101,8 +101,10 @@ mods = [{param="inharmonicity", source="Lfo2", depth=0.03}]
 
 [[sounds]]
 name = "Ice Crack"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 3000.0
+noise_color = 0.8
+metallic = 1.0
 attack = 2.0
 decay = 220.0
 

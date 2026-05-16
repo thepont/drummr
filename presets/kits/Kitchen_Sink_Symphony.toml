@@ -100,8 +100,10 @@ decay = 1100.0
 
 [[sounds]]
 name = "Ceramic Click"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 2500.0
+noise_color = 0.7
+metallic = 1.0
 attack = 4.0
 decay = 180.0
 
@@ -134,8 +136,10 @@ decay = 60.0
 
 [[sounds]]
 name = "Whisk Brush"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 4000.0
+noise_color = 0.8
+metallic = 1.0
 attack = 1.0
 decay = 120.0
 

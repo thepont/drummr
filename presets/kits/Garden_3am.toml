@@ -35,13 +35,13 @@ mods = [{param="density", source="Lfo1", depth=0.15}]
 name = "Cricket Chorus"
 engine_type = "granular"
 freq = 6000.0
-density = 0.9
+density = 0.45
 grain_size = 10.0
 jitter = 0.75
 attack = 2.0
 decay = 300.0
 lfo1_freq = 9.0
-mods = [{param="density", source="Lfo1", depth=0.1}, {param="freq", source="Lfo1", depth=80.0}]
+mods = [{param="density", source="Lfo1", depth=0.05}, {param="freq", source="Lfo1", depth=80.0}]
 
 [[sounds]]
 name = "Frog Throat Hi"
@@ -97,7 +97,7 @@ decay = 900.0
 name = "Leaf Rustle"
 engine_type = "granular"
 freq = 5500.0
-density = 0.4
+density = 0.2
 grain_size = 20.0
 jitter = 1.0
 attack = 5.0
@@ -105,8 +105,10 @@ decay = 1500.0
 
 [[sounds]]
 name = "Owl Wing Beat"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 600.0
+noise_color = 0.4
+metallic = 1.0
 attack = 8.0
 decay = 240.0
 
@@ -131,8 +133,10 @@ decay = 600.0
 
 [[sounds]]
 name = "Wind Gust"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 400.0
+noise_color = 0.25
+metallic = 1.0
 attack = 80.0
 decay = 800.0
 

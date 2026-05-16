@@ -15,8 +15,10 @@ mods = [{param="mod_index", source="Velocity", depth=2.5}]
 
 [[sounds]]
 name = "Paper-Tear"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 3500.0
+noise_color = 0.75
+metallic = 1.0
 attack = 1.0
 decay = 140.0
 bits = 10.0
@@ -80,7 +82,7 @@ name = "Big Desk Hit"
 engine_type = "hybrid"
 freq = 80.0
 noise_color = 0.4
-metallic = 0.3
+metallic = 0.45
 attack = 2.0
 decay = 480.0
 bits = 10.0
@@ -107,8 +109,10 @@ bits = 10.0
 
 [[sounds]]
 name = "Folder Slap"
-engine_type = "noise"
-freq = 0.0
+engine_type = "hybrid"
+freq = 1500.0
+noise_color = 0.6
+metallic = 1.0
 attack = 6.0
 decay = 200.0
 bits = 10.0
