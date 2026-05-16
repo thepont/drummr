@@ -18,6 +18,13 @@ use drummr::audio::start_audio;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    if let Err(e) = std::env::set_current_dir(manifest_dir) {
+        eprintln!("warning: could not set cwd to {}: {}", manifest_dir, e);
+    } else {
+        println!("Working directory: {}", manifest_dir);
+    }
+
     let (midi_tx, mut midi_rx) = mpsc::unbounded_channel();
     let midi_engine = Arc::new(Mutex::new(MidiEngine::new()));
     let comm_engine = Arc::new(CommEngine::new());
