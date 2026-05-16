@@ -2,225 +2,188 @@
 
 Last updated: 2026-05-16
 
-Tracked list of known issues in the kit system surfaced by the recent bug-hunt
-pass. Ranked P0 → P3. Items marked `(in progress)` are being addressed in a
-parallel implementation pass.
+Tracked list of known issues. Ranked P0 → P3. `[x]` = landed (commit hash where known).
+Items marked `(in progress)` are being addressed in a parallel implementation pass.
 
 ---
 
 ## P0 — Blockers
 
-- [ ] **Kit paths resolve relative to cwd** — all kit/preset file I/O uses relative paths; launching from outside the repo root makes every kit silently disappear from the UI. `src/commands.rs:216,223,228,230,239,278`. `(in progress)`
-  - Why it matters: end-user-visible "No kits found" with no error in logs; reproduces any time the binary is launched from a different working dir (IDE, packaged build, systemd unit, etc.).
-  - Suggested fix: anchor all kit/preset/sound paths via `env!("CARGO_MANIFEST_DIR")` or a `DRUMMR_HOME` env var; log every fs error instead of `let _ =` no-op.
+- [x] **Kit paths resolve relative to cwd** — anchored via `env!("CARGO_MANIFEST_DIR")` in `src/main.rs:21-26`. (`b3de2f1`)
 
 ---
 
-## P1 — Top architectural priorities (in flight)
+## P1 — Top architectural priorities
 
-1. [ ] **Eliminate disk-as-truth for kit mutations** — 8+ command handlers in `src/commands.rs` re-read `kit.toml` from disk just to mutate it. `(in progress)`
-   - Move mutation onto in-memory `SharedState::kit`; snapshot to the persistence worker.
-   - Removes the disk round-trip from the audio/control hot path and the read-modify-write race below.
-
-2. [ ] **Stop rebuilding `KitEngine` for mapping changes** — `src/commands.rs:122,139` rebuild the full engine, which drops voice state mid-playback. `(in progress)`
-   - Add `KitEngine::set_mapping()` that mutates the existing engine in place.
-   - Preserves envelopes, LFO phase, and any pending voice state across mapping edits.
-
-3. [ ] **Surface filesystem errors in persistence worker** — `src/persistence.rs:21-30` swallows every save failure with `let _ =`. `(in progress)`
-   - Log errors with file path + errno; consider a UI-visible "save failed" toast.
-   - Today, a full disk or permission error is completely invisible.
+1. [x] **Eliminate disk-as-truth for kit mutations** — mutations now go through in-memory `SharedState::kit` + persistence-worker snapshot. (`2ef61dd`)
+2. [x] **Stop rebuilding `KitEngine` for mapping changes** — `KitEngine::set_mapping()` in place, voice state preserved. (`9eed2fa`)
+3. [x] **Surface filesystem errors in persistence worker** — `src/persistence.rs` now logs errno + path. (`1d2d128`)
+4. [x] **Consolidate triple-defined `kit_to_json`** — single helper at `src/commands.rs:17`. (`2ef61dd`)
 
 ---
 
-## P1 — Confirmed bugs
+## P1 — Confirmed Rust bugs
 
-- [ ] **`kit.toml` read-modify-write race on every `SET_PARAM`** — `src/commands.rs:271-311`.
-  - Why it matters: concurrent slider drags can wipe each other's edits.
-  - Suggested fix: subsumed by P1#1 (in-memory truth + snapshot writer).
-
-- [ ] **Atomic rename uses a hardcoded tmp filename + swallows errors** — `src/persistence.rs:20,28`.
-  - Why it matters: single-writer-only assumption is fragile; failed saves are invisible.
-  - Suggested fix: per-target `*.tmp.<pid>.<nonce>` filenames; bubble up `io::Error` and log.
-
-- [ ] **`Voice::Noise` silently no-ops `set_mod` / `set_lfo`** — `src/kit.rs:62,72`.
-  - Why it matters: TOML still accumulates mod/LFO entries that do nothing; users think routing is broken.
-  - Suggested fix: return a result from `set_mod`/`set_lfo`; reject (or skip persisting) entries the voice can't honour.
-
+- [ ] **Hybrid engine ignores velocity** — `src/dsp/hybrid.rs:124` returns `mixed * env` with no velocity term. Quiet hits play full volume.
+- [ ] **Granular engine ignores velocity** — `src/dsp/granular.rs:166` returns `mixed * env * 0.5` with no velocity term.
+- [ ] **`BpmEngine::new(_sample_rate: f32)` param unused** — `src/dsp/bpm_engine.rs:31`; drop from signature after autocorrelation refactor.
+- [ ] **cpal stream leaked via `std::mem::forget` on every `SELECT_AUDIO`** — `src/commands.rs:423`, `src/main.rs:174`. Dead streams accumulate on runtime device changes.
+- [ ] **Audio stream error callback is `|_err| {}`** — `src/audio.rs:69`. USB unplug / device disconnect / sleep is silent.
+- [ ] **3 frontend tests failing** — `ui/src/App.test.tsx` (2 WebSocket lifecycle tests), `ui/src/views/KitEditorView.test.tsx:66` ("Base Pitch" text not found).
+- [ ] **`kit.toml` read-modify-write race on `SET_PARAM`** — `src/commands.rs:271-311` (largely subsumed by P1 #1; verify residuals).
+- [ ] **Atomic rename uses hardcoded tmp + swallows errors** — `src/persistence.rs:20,28`. Need per-target `*.tmp.<pid>.<nonce>`.
+- [ ] **`Voice::Noise` silently no-ops `set_mod`/`set_lfo`** — `src/kit.rs:62,72`. Return Result, reject unhonoured routes.
 - [ ] **`SET_PARAM` doesn't refresh `shared_state.kit` for non-engine-type params** — `src/commands.rs:277`.
-  - Why it matters: UI shows the new value, audio engine keeps the old one until next kit reload.
-  - Suggested fix: write through to `SharedState::kit` for every param path, not just engine swaps.
-
-- [ ] **`cmd_rx.pop()` drops commands when audio thread can't lock** — `src/audio.rs:21`.
-  - Why it matters: lost UI edits with no retry, no log, no user feedback.
-  - Suggested fix: peek + retry, or move param updates off the audio thread; at minimum log the drop.
-
-- [ ] **`set_param` is a silent no-op on unknown names across every engine** — `src/fm.rs:133`, `src/phys.rs:190`, `src/granular.rs:177`, `src/hybrid.rs:52,134`.
-  - Why it matters: typo'd param names from the UI vanish silently; refactors break controls without anyone noticing.
-  - Suggested fix: return `Result<(), UnknownParam>`; log+surface from the command handler.
-
-- [ ] **`NoiseVoice` schema is empty but `set_param` matches `"attack"`/`"decay"`** — `src/noise.rs:44-54`.
-  - Why it matters: UI has no way to discover/edit these params even though the engine accepts them.
-  - Suggested fix: declare the schema fields, or remove the match arms.
-
+- [ ] **`cmd_rx.pop()` drops commands when audio thread can't lock** — `src/audio.rs:21`. No retry, no log.
+- [ ] **`set_param` silent no-op on unknown names** — `src/fm.rs:133`, `src/phys.rs:190`, `src/granular.rs:177`, `src/hybrid.rs:52,134`. Return `Result<(), UnknownParam>`.
+- [ ] **`NoiseVoice` schema empty but `set_param` matches `"attack"`/`"decay"`** — `src/noise.rs:44-54`.
 - [ ] **`TEST_TRIGGER` bypasses BPM onset registration** — `src/commands.rs:408` vs `src/app_utils.rs:31`.
-  - Why it matters: test triggers aren't counted by the tempo estimator, so manual auditioning skews/clears BPM tracking.
-  - Suggested fix: route test triggers through the same onset path as live hits.
-
 - [ ] **`from_config` silently truncates kits >16 voices** — `src/kit.rs:180`.
-  - Why it matters: oversized kits load partially with no error; voices past 16 just disappear.
-  - Suggested fix: hard error (or log warning) on overflow; surface to the UI.
+- [ ] **`set_mod` dedupe keyed on `(param, source)` without validation** — `src/commands.rs:336`.
+- [ ] **`set_mod` persistence accretes zero-depth entries forever** — `src/commands.rs:336-341`. Treat `depth == 0.0` as remove.
 
-- [ ] **`set_mod` dedupe keyed on `(param, source)`** — `src/commands.rs:336`.
-  - Why it matters: typos create ghost entries that aren't replaced on the next edit.
-  - Suggested fix: validate `param`/`source` against the engine schema before insert.
+---
 
-- [ ] **`set_mod` persistence accretes zero-depth entries forever** — `src/commands.rs:336-341`.
-  - Why it matters: TOML grows unbounded with `depth = 0.0` rows; harder to read and slows reloads.
-  - Suggested fix: treat `depth == 0.0` as a remove.
+## P1 — Confirmed UI bugs (Phase 2 review)
+
+- [ ] **Engine-type selector missing Modal and Noise** — `ui/src/views/KitEditorView.tsx:250` hardcodes `['fm','phys','granular','hybrid']`. Modal_Demo.toml not editable; clicking pills silently overwrites modal.
+- [ ] **PostFx (`bits`/`rate`) has zero UI** — round-trips via KIT JSON but no sliders. Suggested placement: 5th column in `KitEditorView.tsx:241` grid after Modulation.
+- [ ] **Auto-Sync placebo from cold start** — `App.tsx:140-144` sends `SET_AUTO_SYNC:true` but `commands.rs:406-408` only flips a flag; master clock thread (`sync.rs:42`) only spawned by SYNC_START. Lazy-spawn in `set_auto_sync(true)` or have UI also send `SYNC_START`.
+- [ ] **Only one mod slot per param rendered** — `KitEditorView.tsx:331-358` truncates with `while (displayMods.length < 1)`. Backend `voice.set_mod` is additive.
+- [ ] **No per-slot test-trigger button** — `KitEditorView.tsx:175-181` Preview is single-slot; not exposed in slot-tab row or `MappingView.tsx`.
+- [ ] **WebSocket reconnect doesn't re-fetch full state** — `App.tsx:61-66` only re-sends `LIST_MIDI/LIST_AUDIO/LIST_KITS/GET_SYNC_STATUS`. Missing: `GET_KIT`, `GET_MAPPING`, `LIST_SOUND_PRESETS`, all `GET_SCHEMA:<slot>`. Editor shows stale data after backend restart.
+- [ ] **`selectedSound.attack.toFixed(0)` crashes when schema arrives late** — `KitEditorView.tsx:315`. Same for `decay`. Needs `?? 0`.
+- [ ] **`MasterPeakMeter` driven by `isMidiFlashing`, not real audio** — `App.tsx:254`. "Signal Status" tied to syncStatus only. Misleading.
+- [ ] **`MappingView.tsx:163` re-requests `GET_MAPPING` on every `KIT:` broadcast** — noisy refresh loop.
+- [ ] **LibrarySidebar truncates kit names with no tooltip** — `LibrarySidebar.tsx:182`. 22 kits, single-input filter, no tags/categories.
+- [ ] **No "kit dirty" indicator** — save-kit-as is the only save (no overwrite); no signal that in-memory differs from disk.
+- [ ] **No error/failure feedback on WS commands** — save kit, load preset, etc. fire-and-forget.
 
 ---
 
 ## P2 — Suspicious patterns
 
-- [ ] **Audio-thread lock contention during kit/preset swap** — `src/audio.rs:21`.
-  - Commands hold the `kit` lock for the whole swap; audio thread can stall or drop commands.
-  - Fix direction: snapshot/swap pattern with a double-buffered kit pointer.
-
-- [ ] **`shared_state.kit` and `kit.toml` diverge when rtrb command ring is full**.
-  - Backpressure isn't surfaced; the UI and engine drift silently.
-  - Fix direction: bounded ring with a visible "dropped command" counter.
-
-- [ ] **`LOAD_KIT` doesn't bundle mappings** — slot order A loaded onto mapping B causes silent mis-triggers.
-  - Fix direction: persist mappings alongside the kit, or version-pair them.
-
-- [ ] **`from_config` re-adds default mappings after user deletion** — deleted mappings don't stick across reload.
-  - Fix direction: track an explicit "user removed" set, or stop merging defaults at load time.
-
-- [ ] **`DrumSound` is a flat `Option<…>` bag** — stale engine-specific fields persist across `engine_type` changes.
-  - Symptom: switching engines leaves dead fields in TOML; later switches accidentally re-pick them up.
-  - Fix direction: enum-tag per engine (see P3 design item).
-
-- [ ] **`GET_KIT` JSON projection duplicated in 3 places** — `src/commands.rs:54-76,185-208,245-267`.
-  - Fix direction: extract a single `kit_to_json(&KitEngine)` helper and call it everywhere.
-
-- [ ] **`noise_color` clamp inconsistent between `set_param` (0.0) and `tick` (0.01)** — `src/hybrid.rs:104,130`.
-  - Subtle DC/aliasing differences depending on entry point.
-  - Fix direction: define one clamp constant and use it in both paths.
-
-- [ ] **`KitEngine::midi_map` only updated by full rebuild** — drops voice state on every mapping edit. `src/kit.rs:163`, triggered at `src/commands.rs:122,139`.
-  - Duplicate of P1#2; tracked separately here as the symptom view.
+- [ ] **Audio-thread lock contention during kit/preset swap** — `src/audio.rs:21`. Snapshot/swap with double-buffered kit pointer.
+- [ ] **`shared_state.kit` and `kit.toml` diverge when rtrb command ring is full** — surface backpressure with a "dropped command" counter.
+- [ ] **`LOAD_KIT` doesn't bundle mappings** — slot order A on mapping B silently mis-triggers. Persist mappings with the kit or version-pair.
+- [ ] **`from_config` re-adds default mappings after user deletion** — track "user removed" set or stop merging defaults at load.
+- [ ] **`DrumSound` is a flat `Option<…>` bag** — stale engine-specific fields persist across `engine_type` changes. (Motivates P3 enum-tag.)
+- [ ] **`noise_color` clamp inconsistent between `set_param` (0.0) and `tick` (0.01)** — `src/hybrid.rs:104,130`. Single shared constant.
 
 ---
 
-## P3 — Design improvements
+## P2 — Hygiene & build
 
-- [ ] **Source-of-truth ambiguity**: TOML on disk, `SharedState::kit`, and the rtrb command ring all claim authority.
-  - Pick one canonical source (in-memory state) and define the others as views/sinks.
+- [ ] **`cargo fmt --check` fails repo-wide** — code unformatted.
+- [ ] **41 clippy warnings** — ~20 `collapsible_if` (sync.rs:89,104, audio.rs, commands.rs, main.rs:170), missing `Default` impls (MidiEngine, CommEngine, FastSine), `declare_interior_mutable_const` at `state.rs:18`, same-type cast, manual range contains.
+- [ ] **3 unused-import warnings** — `src/main.rs:1,5,13`: `ModSource`, `KitEngine/DrumKit/DrumMapping/DrumSound`, `PersistenceCommand`.
+- [ ] **38 ESLint errors in `ui/`** — mostly `@typescript-eslint/no-explicit-any`, empty-block, unused `e`.
+- [ ] **`npm run lint` returns non-zero**.
+- [ ] **README.md `:7-9` lists only FM + Phys** — Granular, Hybrid, Modal, Noise, PostFx, BPM detection, sync engine, 22 kit presets all unmentioned.
+- [ ] **CLAUDE.md `:47-53` lists 5 engines, omits Modal** — also says modulation broadcast is "16 × 5" but `get_mod_values` returns `[f32; 4]` (kit.rs:83). Still describes pre-refactor "kit.toml as source of truth" model.
+- [ ] **`.gitignore` only `/target`** — missing `kit.toml.tmp`, `mapping.toml.tmp`, `settings.toml`, `ui/settings.toml`.
+- [ ] **`settings.toml` is committed AND machine-specific** — currently holds user's SONY TV / MacBook Pro Speakers / DDTi MIDI 1 / MPK mini 3. Convert to `settings.example.toml` + gitignored real `settings.toml`.
 
-- [ ] **`DrumSound` should be enum-tagged per engine** — flat `Option<…>` bag won't scale as more engines are added.
-  - Tagged-union TOML (`engine = "fm"` plus an `[fm]` table) eliminates stale-field bleed.
+---
 
-- [ ] **Split `shared_state.kit: Mutex<KitEngine>`** — mixes mutable per-voice runtime state with mostly-immutable config.
-  - Use finer locks (or RCU-style swap) for config; keep voice state on the audio thread.
+## P2 — Missing test coverage
 
+- [ ] **ModalEngine** — only 2 inline unit tests in `src/dsp/modal.rs:347`; no `tests/modal_engine_tests.rs`.
+- [ ] **PostFx** — only inline tests in `src/dsp/postfx.rs:78`; no `tests/postfx_tests.rs`. Per-slot routing in `kit.rs:351` untested end-to-end.
+- [ ] **BPM engine** — no `tests/bpm_engine_tests.rs`. Autocorrelation + tactus + sub-harmonic logic uncovered.
+- [ ] **`commands.rs`** — entire 440-line WS dispatcher has zero coverage. SET_PARAM, LOAD_KIT, SET_MOD, SET_BITS/SET_RATE round-trips untested.
+- [ ] **`persistence.rs`** — untested.
+- [ ] **Groove MIDI Dataset corpus** — zero references in `tests/`. BPM accuracy untested against real beats.
+
+---
+
+## P3 — Design / architectural
+
+- [ ] **Source-of-truth ambiguity** — TOML on disk, `SharedState::kit`, rtrb ring all claim authority. Pick one canonical (in-memory) and define others as views/sinks.
+- [ ] **`DrumSound` should be enum-tagged per engine** — flat `Option<…>` bag won't scale. Tagged-union TOML (`engine = "fm"` + `[fm]` table) eliminates stale-field bleed.
+- [ ] **Split `shared_state.kit: Mutex<KitEngine>`** — mixes per-voice runtime state with mostly-immutable config. Finer locks or RCU swap.
 - [ ] **No `version` field on kit TOML** — silent schema drift between releases.
-  - Add `version = N`; refuse to load (or auto-migrate) on mismatch.
+- [ ] **Fully schema-driven UI** — UI is half schema-driven (`KitEditorView.tsx:331`). Migrate via `GET_SCHEMA`; add `LIST_ENGINES` WS command; add `category` + `display_name` optional fields to `ParamSchema`. Removes ~30% of `KitEditorView.tsx` and kills "backend ships new engine → UI silently broken" drift.
+- [ ] **Velocity contract across engines** — FM scales at tick (`fm.rs:106`), Phys at trigger via excitation_amp (`phys.rs:121`), Hybrid + Granular ignore it. Codify in a Voice trait or shared envelope-velocity convention.
+- [ ] **SyncEngine thread detached, never joined** — `src/sync.rs:57`. Stop sets a flag with no clean shutdown.
+- [ ] **`comm_engine.start().await?` ordering at `main.rs:130`** — verify it doesn't block (audio/MIDI init below would be dead code if so; functional evidence suggests it doesn't).
+- [ ] **No structured logging** — `println!`/`eprintln!` everywhere. Add `tracing` + `RUST_LOG` filter.
+- [ ] **No CI pipeline** — `.github/workflows/` absent. Nothing enforces fmt / clippy / lint / test.
+- [ ] **WS protocol unversioned** — plain-text prefix dispatcher with no handshake. Add `HELLO:v1` ↔ `OK:v1`.
+- [ ] **No LICENSE file** — repo defaults to all-rights-reserved.
+- [ ] **Packaging paths anchored to `CARGO_MANIFEST_DIR`** — `presets/`, `kit.toml`, `mapping.toml`, `settings.toml` won't survive a packaged release binary. Make `DRUMMR_HOME` env var optional.
+- [ ] **Modal engine `_ = env_active` at `src/dsp/modal.rs:297`** — leftover from refactor; either early-out when fully decayed or remove.
 
 ---
 
-## Classic Kit Library (queued for build)
+## Classic Kit Library
 
-TOML presets to land in `presets/kits/`. Twelve kits across three buckets.
+All twelve TOML presets landed in `presets/kits/`.
 
 **Classic-faithful (4):**
 
-- [ ] **808 Reborn** — Roland TR-808 emulation: FM kick at 50Hz with `mod_ratio 0.5` and `noise 0.05`; cowbell at FM 800Hz + 540Hz detuned-fifth Schmitt-trigger pair (`mod_ratio 0.675`); descending FM toms with strong `pitch_bend`.
-- [ ] **909 Warehouse** — TR-909: punchy FM kick with high noise (`0.3`); granular cymbals (small grains, high jitter) to approximate the 6-bit sample texture; FM toms.
-- [ ] **Linn Lite** — LinnDrum LM-1 controlled 80s sound: FM kicks with woody decay; Phys-modeled wooden toms (`brightness 0.4`, `dampening 0.7`); long produced clap.
-- [ ] **Hexagon** — Simmons SDS-V: FM toms with maximum `pitch_bend` (1500/1200/900/600Hz sweep) for the iconic "pewww" descending toms.
+- [x] **808 Reborn** — TR-808 emulation: FM kick at 50Hz, cowbell as FM 800/540Hz Schmitt pair, descending FM toms.
+- [x] **909 Warehouse** — TR-909: punchy FM kick with high noise; granular cymbals; FM toms.
+- [x] **Linn Lite** — LinnDrum LM-1: FM kicks; Phys wooden toms; long produced clap.
+- [x] **Hexagon** — Simmons SDS-V: FM toms with maximum `pitch_bend` sweep.
 
 **Modern/hybrid (4):**
 
-- [ ] **Rytm Lab** — Elektron Analog Rytm character: heavier `mod_index`, brighter `noise_color` throughout.
-- [ ] **Polar Kick** — Behringer RD-9: dirtier-than-909, extreme noise levels.
-- [ ] **Tokyo Toms** — Yamaha RX5 FM-drum character: bell-like inharmonic toms with high `mod_index`.
-- [ ] **Volca Hybrid** — analog FM + granular grit split character.
+- [x] **Rytm Lab** — Analog Rytm character.
+- [x] **Polar Kick** — Behringer RD-9: dirtier-than-909, extreme noise.
+- [x] **Tokyo Toms** — Yamaha RX5 FM-drum character.
+- [x] **Volca Hybrid** — analog FM + granular grit split.
 
 **Wild/experimental (4):**
 
-- [ ] **Karplus Forge** — all-Phys percussion (every drum has resonant tonal pitch).
-- [ ] **Grain Dust** — all-Granular textural kit.
-- [ ] **Foundry** — industrial/metallic: FM `mod_index` 15–30+ for clangour.
-- [ ] **Drift** — ambient/cinematic with slow attack and long decay throughout.
+- [x] **Karplus Forge** — all-Phys percussion.
+- [x] **Grain Dust** — all-Granular textural kit.
+- [x] **Foundry** — industrial/metallic FM `mod_index` 15–30+.
+- [x] **Drift** — ambient/cinematic.
 
 ---
 
-## Wacky Kit Library (queued for build)
+## Wacky Kit Library
 
-Five themed wacky kits to ship as TOML presets.
+All five themed kits landed.
 
-- [ ] **Kitchen Sink Symphony**
-  - Wet Drip Kick (FM)
-  - Knife-on-Bottle Snare (Hybrid metallic)
-  - Sizzle Hat (Granular small grains)
-  - Wooden Spoon Tom (Phys low brightness)
-  - Plate-Stack Crash (Hybrid max metallic)
-- [ ] **Office After Hours**
-  - Stapler Kick (FM `ratio 1.0` short decay)
-  - Paper-Tear Snare (Noise filtered)
-  - Pen-Click Rim (Phys tiny exciter)
-  - Typewriter Hat (Granular 4-grain burst)
-  - Drawer-Slam Accent (Hybrid wooden + metallic)
-- [ ] **Glass Forest**
-  - Iceberg Kick (FM low ratio sweep)
-  - Wine-Glass Snare (Phys high brightness 750Hz)
-  - Hailstone Hat (Granular dense small grains)
-  - Ice-Crack Clap (Noise+Hybrid burst)
-  - Glass-Bowl Bell (Hybrid very metallic 4s decay)
-- [ ] **Ratchet & Wheeze**
-  - Beatbox Kick (FM+noise burst)
-  - Tongue-Click Rim (Phys short impulse)
-  - Wheeze Hat (Noise band-passed 4-8kHz)
-  - Servo Snare (Hybrid pitch sweep)
-  - Modem Squeal Fill (FM detuned ops + S&H)
-- [ ] **Garden at 3 AM**
-  - Hollow-Log Kick (Phys 55Hz high damp)
-  - Twig-Snap Snare (Noise+Phys exciter)
-  - Cricket Hat (Granular modulated rate)
-  - Frog-Throat Tom (FM `ratio 1.4` fast index drop)
-  - Owl-Hoot Accent (FM with vibrato)
+- [x] **Kitchen Sink Symphony** — Wet Drip Kick, Knife-on-Bottle Snare, Sizzle Hat, Wooden Spoon Tom, Plate-Stack Crash.
+- [x] **Office After Hours** — Stapler Kick, Paper-Tear Snare, Pen-Click Rim, Typewriter Hat, Drawer-Slam Accent.
+- [x] **Glass Forest** — Iceberg Kick, Wine-Glass Snare, Hailstone Hat, Ice-Crack Clap, Glass-Bowl Bell.
+- [x] **Ratchet & Wheeze** — Beatbox Kick, Tongue-Click Rim, Wheeze Hat, Servo Snare, Modem Squeal Fill.
+- [x] **Garden at 3 AM** — Hollow-Log Kick, Twig-Snap Snare, Cricket Hat, Frog-Throat Tom, Owl-Hoot Accent.
+
+Plus: [x] **Modal_Demo** preset showcasing the modal engine.
 
 ---
 
-## Synth Methods (queued)
+## Synth Methods
 
-Five new engines recommended by the synth-research agent, ranked.
-
-1. [ ] **Modal synthesis (parallel resonator bank)** — N second-order bandpass biquads tuned to Bessel-zero ratios for membranes (1.0, 1.594, 2.136, 2.296, 2.653…) excited by impulse+noise. Each mode = damped sine. Unlocks: realistic toms with tuning, cowbells, blocks, marimba, bells, tabla. ~200 LOC. **HIGHEST PRIORITY — being implemented in this pass.**
-2. [ ] **4-/6-op FM with feedback** — Generalize FM to N operators with small "algorithm" routing enum (parallel stack, modulator-chain, feedback on op 1). Unlocks DX7-style cymbals, metallic clangs, Yamaha RX-style snares. ~250 LOC.
-3. [ ] **Wavetable with morph-over-envelope** — 2D table (positions × samples-per-cycle), wave position modulatable by envelope/LFO. Unlocks evolving hats, crashes that develop sidebands, vocal-formant toms. ~150 LOC.
-4. [ ] **Bitcrusher / SRR as per-voice post-FX** — `floor(x · 2^bits)/2^bits` + hold-and-skip sample rate reducer + tilt EQ. Unlocks SP-1200 / LinnDrum lo-fi character. ~50 LOC. **HIGH PRIORITY — being implemented in this pass.**
-5. [ ] **Self-oscillating SVF** — State-variable filter at high Q kicked by impulse. Unlocks 909 hi-hat character, filter-pinged toms, ARP-style bongo. ~80 LOC.
+1. [x] **Modal synthesis (parallel resonator bank)** — landed; Bessel-zero ratios; ~200 LOC. Now applied across multiple kits via the 3 upgrade commits.
+2. [ ] **4-/6-op FM with feedback** — DX7-style cymbals, metallic clangs, Yamaha RX-style snares. ~250 LOC.
+3. [ ] **Wavetable with morph-over-envelope** — evolving hats, sideband crashes, vocal-formant toms. ~150 LOC.
+4. [x] **Bitcrusher / SRR per-voice post-FX** — landed; SP-1200 / LinnDrum lo-fi character. Applied across existing kits via the 3 upgrade commits.
+5. [ ] **Self-oscillating SVF** — 909 hi-hat character, filter-pinged toms. ~80 LOC.
 
 **Honorable mentions:** ring modulation hybrid voice (Simmons clang), phase distortion (Casio CZ), dust/sparse impulse source, waveshaper post-FX, comb filter bank.
 
-**Radical idea (long-term):** Lorenz/Chua chaos oscillators — strange-attractor percussion where velocity crosses bifurcation thresholds and timbre changes character, not just loudness. ~30 LOC.
+**Radical idea (long-term):** Lorenz/Chua chaos oscillators — bifurcation-driven timbre changes with velocity. ~30 LOC.
 
 ---
 
 ## Identified synthesis gaps for classic kit faithfulness
 
-- [ ] **Multi-tap clap** — real LinnDrum/909 clap is 4 offset noise bursts ~12ms apart. Needed for LinnDrum, Linn Lite, 808 Reborn, 909 Warehouse.
-- [ ] **True cymbal machine** — 6 detuned squares/saws 200-800Hz + HPF + optional bell partial. Current best is granular jitter, which misses the bell ping. Needed for 909 ride.
+- [ ] **Multi-tap clap** — real LinnDrum/909 clap is 4 offset noise bursts ~12ms apart.
+- [ ] **True cymbal machine** — 6 detuned squares/saws 200-800Hz + HPF + optional bell partial. Granular jitter misses the bell ping.
 
 ---
 
 ## Producer reference tracks (for testing wacky kits)
 
-- [ ] Burial — *Archangel* (Untrue, 2007): rim-shot + clap as backbeat, vinyl crackle as continuous bed.
-- [ ] Amon Tobin — *Esther's* (Foley Room, 2007): wasps-in-jar + revving motorbike; drum kit hits submerged in water.
-- [ ] Squarepusher — *The Swifty* (Hard Normal Daddy, 1997): Funky Drummer break time-stretched into unrecognizable fragments.
-- [ ] RP Boo — *Baby Come On* (Legacy, 2015): triplet stutter is the groove; subtraction as percussion design.
+- [ ] Burial — *Archangel* (Untrue, 2007): rim-shot + clap as backbeat, vinyl crackle bed.
+- [ ] Amon Tobin — *Esther's* (Foley Room, 2007): wasps-in-jar + revving motorbike; submerged drum hits.
+- [ ] Squarepusher — *The Swifty* (Hard Normal Daddy, 1997): time-stretched Funky Drummer.
+- [ ] RP Boo — *Baby Come On* (Legacy, 2015): triplet stutter as groove; subtraction as percussion.
 - [ ] Autechre — *Bike* (LP5, 1998): every hit gets a pluck-like short delay.
 
 ---
@@ -239,8 +202,10 @@ Five new engines recommended by the synth-research agent, ranked.
 
 ## Suggested order of attack
 
-1. P0 kit-paths bug (in progress).
-2. P1 in-flight trio (in-memory truth, in-place mapping updates, error-logging persistence).
-3. P1 confirmed bugs in source-file order — most are short fixes once truth lives in memory.
-4. P2 patterns once the P1 plumbing is in place (several collapse into the P1 fixes).
-5. P3 design items as a follow-up milestone; they motivate a kit-schema v2.
+1. P1 velocity bugs (Hybrid + Granular) — one-line fixes with audible impact.
+2. P1 UI bugs in `KitEditorView.tsx` — engine selector, PostFx UI, mod slots, schema-late crashes.
+3. P1 WS reconnect re-fetch — eliminates stale-data class.
+4. P1 audio cleanup — cpal leak + error callback + Auto-Sync semantics.
+5. P2 hygiene sweep — fmt, clippy, eslint, gitignore, settings.example.toml — unblocks CI.
+6. P2 test coverage for Modal / PostFx / BPM / commands / persistence.
+7. P3 design milestones — schema-driven UI + enum-tagged DrumSound + structured logging together motivate kit-schema v2.
