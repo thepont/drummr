@@ -10,8 +10,8 @@ const NUM_MODES: usize = 12;
 /// Output trim applied at the end of `tick()`. The constant-skirt bandpass
 /// form has impulse-response peak scaling with Q, so the parameter-space
 /// dynamic range is wide (typical kit voices ~0.1-0.3 pre-trim, extreme
-/// f=4000+b=1.0+d=0.0 ~17 pre-trim). Trim 2.0 brings typical voices to a
-/// healthy -8 to -14 dBFS; extreme cases hit the trailing `clamp(-1.0, 1.0)`
+/// f=4000+b=1.0+d=0.0 ~17 pre-trim). Trim 1.2 brings typical voices to a
+/// healthy -10 to -18 dBFS; extreme cases hit the trailing `clamp(-1.0, 1.0)`
 /// and produce a soft-clip-style distortion that sounds like the metallic
 /// clang you'd want at those settings anyway.
 const OUTPUT_TRIM: f32 = 1.2;
@@ -341,8 +341,8 @@ impl ModalEngine {
         // open, so the threshold stays in audio-domain units.
         self.tail_active = (sum * OUTPUT_TRIM).abs() > TAIL_ACTIVE_THRESHOLD;
 
-        // Trim to keep worst-case peak around -6 dBFS so the master soft-clip
-        // has headroom. See OUTPUT_TRIM doc-comment.
+        // Apply OUTPUT_TRIM and rely on the trailing clamp as a soft hard-rail
+        // for extreme settings. See OUTPUT_TRIM doc-comment.
         let trimmed = out * OUTPUT_TRIM;
 
         trimmed.clamp(-1.0, 1.0)
