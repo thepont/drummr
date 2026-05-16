@@ -1,0 +1,146 @@
+name = "Karplus Forge"
+description = "All-Phys percussion. Resonant Karplus-Strong sculpting across every voice."
+
+[[sounds]]
+name = "KS Kick"
+engine_type = "phys"
+freq = 40.0
+brightness = 0.2
+dampening = 0.6
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "KS Snare"
+engine_type = "phys"
+freq = 200.0
+brightness = 0.9
+dampening = 0.2
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "KS Closed Hat"
+engine_type = "phys"
+freq = 9000.0
+brightness = 1.0
+dampening = 0.1
+attack = 1.0
+decay = 60.0
+
+[[sounds]]
+name = "KS Open Hat"
+engine_type = "phys"
+freq = 9000.0
+brightness = 1.0
+dampening = 0.1
+attack = 1.0
+decay = 250.0
+
+[[sounds]]
+name = "Marimba Tom 1"
+engine_type = "phys"
+freq = 260.0
+brightness = 0.25
+dampening = 0.4
+attack = 1.0
+decay = 450.0
+
+[[sounds]]
+name = "Marimba Tom 2"
+engine_type = "phys"
+freq = 200.0
+brightness = 0.25
+dampening = 0.4
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "Marimba Tom 3"
+engine_type = "phys"
+freq = 150.0
+brightness = 0.25
+dampening = 0.4
+attack = 1.0
+decay = 560.0
+
+[[sounds]]
+name = "Marimba Tom 4"
+engine_type = "phys"
+freq = 110.0
+brightness = 0.25
+dampening = 0.4
+attack = 1.0
+decay = 620.0
+
+[[sounds]]
+name = "KS Crash"
+engine_type = "phys"
+freq = 4000.0
+brightness = 1.0
+dampening = 0.05
+attack = 1.0
+decay = 2000.0
+
+[[sounds]]
+name = "KS Ride"
+engine_type = "phys"
+freq = 3200.0
+brightness = 0.95
+dampening = 0.1
+attack = 1.0
+decay = 1400.0
+
+[[sounds]]
+name = "KS Clap"
+engine_type = "phys"
+freq = 1500.0
+brightness = 0.8
+dampening = 0.6
+attack = 4.0
+decay = 180.0
+
+[[sounds]]
+name = "KS Rim"
+engine_type = "phys"
+freq = 1800.0
+brightness = 0.7
+dampening = 0.5
+attack = 1.0
+decay = 60.0
+
+[[sounds]]
+name = "Wood Bell"
+engine_type = "phys"
+freq = 800.0
+brightness = 0.6
+dampening = 0.2
+attack = 1.0
+decay = 600.0
+
+[[sounds]]
+name = "Plucked Perc 1"
+engine_type = "phys"
+freq = 600.0
+brightness = 0.5
+dampening = 0.3
+attack = 1.0
+decay = 350.0
+
+[[sounds]]
+name = "Plucked Perc 2"
+engine_type = "phys"
+freq = 420.0
+brightness = 0.45
+dampening = 0.35
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Plucked Perc 3"
+engine_type = "phys"
+freq = 300.0
+brightness = 0.4
+dampening = 0.4
+attack = 1.0
+decay = 420.0

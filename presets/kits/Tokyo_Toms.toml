@@ -1,0 +1,154 @@
+name = "Tokyo Toms"
+description = "Yamaha RX5-inspired FM bell character. Inharmonic tom-bells and clangour cymbals."
+
+[[sounds]]
+name = "Tokyo Kick"
+engine_type = "fm"
+freq = 65.0
+mod_ratio = 1.4
+mod_index = 7.0
+noise_level = 0.2
+attack = 1.0
+decay = 250.0
+
+[[sounds]]
+name = "Tokyo Snare"
+engine_type = "fm"
+freq = 240.0
+mod_ratio = 3.0
+mod_index = 8.0
+noise_level = 0.4
+attack = 1.0
+decay = 170.0
+
+[[sounds]]
+name = "Tokyo Closed Hat"
+engine_type = "fm"
+freq = 7800.0
+mod_ratio = 4.5
+mod_index = 12.0
+noise_level = 0.3
+attack = 1.0
+decay = 55.0
+
+[[sounds]]
+name = "Tokyo Open Hat"
+engine_type = "fm"
+freq = 7800.0
+mod_ratio = 4.5
+mod_index = 12.0
+noise_level = 0.3
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Bell Tom 1"
+engine_type = "fm"
+freq = 300.0
+mod_ratio = 3.5
+mod_index = 12.0
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Bell Tom 2"
+engine_type = "fm"
+freq = 240.0
+mod_ratio = 3.0
+mod_index = 13.0
+attack = 1.0
+decay = 420.0
+
+[[sounds]]
+name = "Bell Tom 3"
+engine_type = "fm"
+freq = 200.0
+mod_ratio = 2.5
+mod_index = 14.0
+attack = 1.0
+decay = 460.0
+
+[[sounds]]
+name = "Bell Tom 4"
+engine_type = "fm"
+freq = 180.0
+mod_ratio = 2.0
+mod_index = 15.0
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "FM Crash"
+engine_type = "fm"
+freq = 5200.0
+mod_ratio = 6.0
+mod_index = 25.0
+noise_level = 0.2
+attack = 1.0
+decay = 1500.0
+
+[[sounds]]
+name = "FM Ride"
+engine_type = "fm"
+freq = 3900.0
+mod_ratio = 5.5
+mod_index = 22.0
+noise_level = 0.15
+attack = 1.0
+decay = 1050.0
+
+[[sounds]]
+name = "Tokyo Clap"
+engine_type = "fm"
+freq = 1400.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 4.0
+decay = 230.0
+
+[[sounds]]
+name = "Tokyo Rim"
+engine_type = "fm"
+freq = 1900.0
+mod_ratio = 8.0
+mod_index = 8.0
+attack = 1.0
+decay = 32.0
+
+[[sounds]]
+name = "Tokyo Cowbell"
+engine_type = "fm"
+freq = 820.0
+mod_ratio = 0.72
+mod_index = 14.0
+attack = 1.0
+decay = 320.0
+
+[[sounds]]
+name = "Tine Perc"
+engine_type = "fm"
+freq = 880.0
+mod_ratio = 4.0
+mod_index = 18.0
+attack = 1.0
+decay = 220.0
+
+[[sounds]]
+name = "FM Shaker"
+engine_type = "fm"
+freq = 4200.0
+mod_ratio = 3.0
+mod_index = 10.0
+noise_level = 0.7
+attack = 1.0
+decay = 90.0
+
+[[sounds]]
+name = "FM Click"
+engine_type = "fm"
+freq = 2600.0
+mod_ratio = 5.0
+mod_index = 20.0
+attack = 1.0
+decay = 25.0

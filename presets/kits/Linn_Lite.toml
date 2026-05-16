@@ -1,0 +1,151 @@
+name = "Linn Lite"
+description = "LinnDrum LM-1 80s controlled, produced-clap and cabasa flavour."
+
+[[sounds]]
+name = "Linn Kick"
+engine_type = "fm"
+freq = 80.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.15
+attack = 2.0
+decay = 200.0
+
+[[sounds]]
+name = "Linn Snare"
+engine_type = "hybrid"
+freq = 250.0
+noise_color = 0.5
+metallic = 0.3
+attack = 2.0
+decay = 150.0
+
+[[sounds]]
+name = "Linn Closed Hat"
+engine_type = "hybrid"
+freq = 9000.0
+noise_color = 0.85
+metallic = 0.8
+attack = 1.0
+decay = 60.0
+
+[[sounds]]
+name = "Linn Open Hat"
+engine_type = "hybrid"
+freq = 9000.0
+noise_color = 0.85
+metallic = 0.8
+attack = 1.0
+decay = 250.0
+
+[[sounds]]
+name = "Linn Tom 1"
+engine_type = "phys"
+freq = 250.0
+brightness = 0.4
+dampening = 0.7
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "Linn Tom 2"
+engine_type = "phys"
+freq = 200.0
+brightness = 0.4
+dampening = 0.7
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "Linn Tom 3"
+engine_type = "phys"
+freq = 160.0
+brightness = 0.4
+dampening = 0.7
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "Linn Tom 4"
+engine_type = "phys"
+freq = 120.0
+brightness = 0.4
+dampening = 0.7
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "Linn Crash"
+engine_type = "granular"
+freq = 4500.0
+density = 0.7
+grain_size = 8.0
+jitter = 0.5
+attack = 1.0
+decay = 1200.0
+
+[[sounds]]
+name = "Linn Ride"
+engine_type = "phys"
+freq = 3500.0
+brightness = 0.8
+dampening = 0.3
+attack = 1.0
+decay = 900.0
+
+[[sounds]]
+name = "Linn Clap"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 8.0
+decay = 300.0
+
+[[sounds]]
+name = "Linn Rim"
+engine_type = "fm"
+freq = 1800.0
+mod_ratio = 1.0
+mod_index = 3.0
+attack = 1.0
+decay = 30.0
+
+[[sounds]]
+name = "Linn Cowbell"
+engine_type = "fm"
+freq = 700.0
+mod_ratio = 1.0
+mod_index = 6.0
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "Cabasa"
+engine_type = "granular"
+freq = 6000.0
+density = 0.4
+grain_size = 5.0
+jitter = 0.9
+attack = 1.0
+decay = 100.0
+
+[[sounds]]
+name = "Tambourine"
+engine_type = "granular"
+freq = 8000.0
+density = 0.6
+grain_size = 5.0
+jitter = 0.8
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "Conga"
+engine_type = "phys"
+freq = 280.0
+brightness = 0.5
+dampening = 0.4
+attack = 1.0
+decay = 280.0

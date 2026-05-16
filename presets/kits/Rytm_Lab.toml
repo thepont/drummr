@@ -1,0 +1,153 @@
+name = "Rytm Lab"
+description = "Elektron Analog Rytm-inspired: FM and hybrid heavy with bright modern noise."
+
+[[sounds]]
+name = "Rytm Kick"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 5.0
+noise_level = 0.4
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "Rytm Snare"
+engine_type = "hybrid"
+freq = 210.0
+noise_color = 0.85
+metallic = 0.5
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "Rytm Closed Hat"
+engine_type = "hybrid"
+freq = 8500.0
+noise_color = 0.95
+metallic = 0.75
+attack = 1.0
+decay = 55.0
+
+[[sounds]]
+name = "Rytm Open Hat"
+engine_type = "hybrid"
+freq = 8500.0
+noise_color = 0.95
+metallic = 0.75
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Rytm Tom 1"
+engine_type = "fm"
+freq = 240.0
+mod_ratio = 1.2
+mod_index = 6.0
+noise_level = 0.25
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Rytm Tom 2"
+engine_type = "fm"
+freq = 180.0
+mod_ratio = 1.2
+mod_index = 6.0
+noise_level = 0.25
+attack = 1.0
+decay = 420.0
+
+[[sounds]]
+name = "Rytm Tom 3"
+engine_type = "fm"
+freq = 140.0
+mod_ratio = 1.2
+mod_index = 6.0
+noise_level = 0.25
+attack = 1.0
+decay = 460.0
+
+[[sounds]]
+name = "Rytm Tom 4"
+engine_type = "fm"
+freq = 100.0
+mod_ratio = 1.2
+mod_index = 6.0
+noise_level = 0.25
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "Rytm Crash"
+engine_type = "hybrid"
+freq = 5500.0
+noise_color = 0.9
+metallic = 0.95
+attack = 1.0
+decay = 1600.0
+
+[[sounds]]
+name = "Rytm Ride"
+engine_type = "hybrid"
+freq = 4200.0
+noise_color = 0.85
+metallic = 0.9
+attack = 1.0
+decay = 1100.0
+
+[[sounds]]
+name = "Rytm Clap"
+engine_type = "fm"
+freq = 1300.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 3.0
+decay = 240.0
+
+[[sounds]]
+name = "Rytm Rim"
+engine_type = "fm"
+freq = 1700.0
+mod_ratio = 6.5
+mod_index = 6.0
+attack = 1.0
+decay = 35.0
+
+[[sounds]]
+name = "Rytm Cowbell"
+engine_type = "fm"
+freq = 780.0
+mod_ratio = 0.7
+mod_index = 9.0
+attack = 1.0
+decay = 320.0
+
+[[sounds]]
+name = "Lab Perc 1"
+engine_type = "hybrid"
+freq = 1200.0
+noise_color = 0.7
+metallic = 0.6
+attack = 1.0
+decay = 120.0
+
+[[sounds]]
+name = "Lab Perc 2"
+engine_type = "fm"
+freq = 540.0
+mod_ratio = 2.0
+mod_index = 7.0
+noise_level = 0.2
+attack = 1.0
+decay = 160.0
+
+[[sounds]]
+name = "Lab Perc 3"
+engine_type = "hybrid"
+freq = 320.0
+noise_color = 0.6
+metallic = 0.7
+attack = 1.0
+decay = 220.0

@@ -1,0 +1,160 @@
+name = "Polar Kick"
+description = "Behringer RD-9 dirtier-than-909. Pure analog FM punch with granular cymbals."
+
+[[sounds]]
+name = "Polar Kick"
+engine_type = "fm"
+freq = 50.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.5
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "Polar Snare"
+engine_type = "fm"
+freq = 200.0
+mod_ratio = 2.0
+mod_index = 8.0
+noise_level = 0.6
+attack = 1.0
+decay = 230.0
+
+[[sounds]]
+name = "Polar Closed Hat"
+engine_type = "granular"
+freq = 7500.0
+density = 0.9
+grain_size = 2.0
+jitter = 0.85
+attack = 1.0
+decay = 55.0
+
+[[sounds]]
+name = "Polar Open Hat"
+engine_type = "granular"
+freq = 7500.0
+density = 0.95
+grain_size = 3.0
+jitter = 0.9
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "Polar Tom 1"
+engine_type = "fm"
+freq = 230.0
+mod_ratio = 1.0
+mod_index = 5.0
+noise_level = 0.3
+attack = 1.0
+decay = 420.0
+
+[[sounds]]
+name = "Polar Tom 2"
+engine_type = "fm"
+freq = 175.0
+mod_ratio = 1.0
+mod_index = 5.0
+noise_level = 0.3
+attack = 1.0
+decay = 440.0
+
+[[sounds]]
+name = "Polar Tom 3"
+engine_type = "fm"
+freq = 135.0
+mod_ratio = 1.0
+mod_index = 5.0
+noise_level = 0.3
+attack = 1.0
+decay = 460.0
+
+[[sounds]]
+name = "Polar Tom 4"
+engine_type = "fm"
+freq = 100.0
+mod_ratio = 1.0
+mod_index = 5.0
+noise_level = 0.3
+attack = 1.0
+decay = 480.0
+
+[[sounds]]
+name = "Polar Crash"
+engine_type = "granular"
+freq = 5800.0
+density = 1.0
+grain_size = 2.0
+jitter = 1.0
+attack = 1.0
+decay = 1900.0
+
+[[sounds]]
+name = "Polar Ride"
+engine_type = "granular"
+freq = 4100.0
+density = 0.85
+grain_size = 4.0
+jitter = 0.7
+attack = 1.0
+decay = 1400.0
+
+[[sounds]]
+name = "Polar Clap"
+engine_type = "fm"
+freq = 1200.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 2.0
+decay = 220.0
+
+[[sounds]]
+name = "Polar Rim"
+engine_type = "fm"
+freq = 1400.0
+mod_ratio = 7.0
+mod_index = 6.0
+attack = 1.0
+decay = 28.0
+
+[[sounds]]
+name = "Polar Cowbell"
+engine_type = "fm"
+freq = 760.0
+mod_ratio = 0.68
+mod_index = 9.0
+attack = 1.0
+decay = 280.0
+
+[[sounds]]
+name = "Polar Perc 1"
+engine_type = "fm"
+freq = 320.0
+mod_ratio = 2.5
+mod_index = 8.0
+noise_level = 0.4
+attack = 1.0
+decay = 140.0
+
+[[sounds]]
+name = "Polar Perc 2"
+engine_type = "granular"
+freq = 3000.0
+density = 0.6
+grain_size = 6.0
+jitter = 0.8
+attack = 1.0
+decay = 100.0
+
+[[sounds]]
+name = "Polar Perc 3"
+engine_type = "fm"
+freq = 480.0
+mod_ratio = 1.5
+mod_index = 7.0
+noise_level = 0.35
+attack = 1.0
+decay = 180.0

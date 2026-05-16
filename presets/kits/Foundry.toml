@@ -1,0 +1,151 @@
+name = "Foundry"
+description = "Industrial metallic. Overdriven FM, anvil hits, and bell-of-doom cymbals."
+
+[[sounds]]
+name = "Foundry Kick"
+engine_type = "fm"
+freq = 45.0
+mod_ratio = 1.0
+mod_index = 15.0
+noise_level = 0.6
+attack = 1.0
+decay = 300.0
+
+[[sounds]]
+name = "Foundry Snare"
+engine_type = "hybrid"
+freq = 350.0
+noise_color = 1.0
+metallic = 1.0
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "Pipe Hat Closed"
+engine_type = "hybrid"
+freq = 8500.0
+noise_color = 0.95
+metallic = 1.0
+attack = 1.0
+decay = 55.0
+
+[[sounds]]
+name = "Pipe Hat Open"
+engine_type = "hybrid"
+freq = 8500.0
+noise_color = 0.95
+metallic = 1.0
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Anvil Tom 1"
+engine_type = "hybrid"
+freq = 320.0
+noise_color = 0.3
+metallic = 0.98
+attack = 1.0
+decay = 420.0
+
+[[sounds]]
+name = "Anvil Tom 2"
+engine_type = "hybrid"
+freq = 260.0
+noise_color = 0.3
+metallic = 0.98
+attack = 1.0
+decay = 460.0
+
+[[sounds]]
+name = "Anvil Tom 3"
+engine_type = "hybrid"
+freq = 200.0
+noise_color = 0.3
+metallic = 0.95
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "Anvil Tom 4"
+engine_type = "hybrid"
+freq = 150.0
+noise_color = 0.3
+metallic = 0.95
+attack = 1.0
+decay = 540.0
+
+[[sounds]]
+name = "Bell of Doom"
+engine_type = "fm"
+freq = 4800.0
+mod_ratio = 5.0
+mod_index = 35.0
+noise_level = 0.2
+attack = 1.0
+decay = 1800.0
+
+[[sounds]]
+name = "Doom Ride"
+engine_type = "fm"
+freq = 3600.0
+mod_ratio = 4.5
+mod_index = 30.0
+noise_level = 0.15
+attack = 1.0
+decay = 1300.0
+
+[[sounds]]
+name = "Foundry Clap"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 3.0
+mod_index = 10.0
+noise_level = 0.9
+attack = 2.0
+decay = 250.0
+
+[[sounds]]
+name = "Steel Rim"
+engine_type = "hybrid"
+freq = 2000.0
+noise_color = 0.2
+metallic = 1.0
+attack = 1.0
+decay = 80.0
+
+[[sounds]]
+name = "Iron Cowbell"
+engine_type = "fm"
+freq = 820.0
+mod_ratio = 0.7
+mod_index = 18.0
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Hammer Strike"
+engine_type = "hybrid"
+freq = 480.0
+noise_color = 0.4
+metallic = 0.95
+attack = 1.0
+decay = 250.0
+
+[[sounds]]
+name = "Furnace Hiss"
+engine_type = "fm"
+freq = 120.0
+mod_ratio = 0.1
+mod_index = 40.0
+noise_level = 0.85
+attack = 1.0
+decay = 220.0
+
+[[sounds]]
+name = "Pipe Clang"
+engine_type = "hybrid"
+freq = 1100.0
+noise_color = 0.1
+metallic = 1.0
+attack = 1.0
+decay = 600.0

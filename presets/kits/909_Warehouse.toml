@@ -1,0 +1,155 @@
+name = "909 Warehouse"
+description = "TR-909 techno kick, hybrid analog/sampled cymbals. Warehouse-ready."
+
+[[sounds]]
+name = "909 Kick"
+engine_type = "fm"
+freq = 60.0
+mod_ratio = 1.0
+mod_index = 4.0
+noise_level = 0.3
+attack = 1.0
+decay = 300.0
+
+[[sounds]]
+name = "909 Snare"
+engine_type = "hybrid"
+freq = 180.0
+noise_color = 0.6
+metallic = 0.4
+attack = 1.0
+decay = 220.0
+
+[[sounds]]
+name = "909 Closed Hat"
+engine_type = "granular"
+freq = 7000.0
+density = 0.9
+grain_size = 2.0
+jitter = 0.8
+attack = 1.0
+decay = 50.0
+
+[[sounds]]
+name = "909 Open Hat"
+engine_type = "granular"
+freq = 7000.0
+density = 0.95
+grain_size = 3.0
+jitter = 0.9
+attack = 1.0
+decay = 350.0
+
+[[sounds]]
+name = "909 Tom 1"
+engine_type = "fm"
+freq = 220.0
+mod_ratio = 1.0
+mod_index = 3.0
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "909 Tom 2"
+engine_type = "fm"
+freq = 170.0
+mod_ratio = 1.0
+mod_index = 3.0
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "909 Tom 3"
+engine_type = "fm"
+freq = 130.0
+mod_ratio = 1.0
+mod_index = 3.0
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "909 Tom 4"
+engine_type = "fm"
+freq = 100.0
+mod_ratio = 1.0
+mod_index = 3.0
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "909 Crash"
+engine_type = "granular"
+freq = 5500.0
+density = 1.0
+grain_size = 1.5
+jitter = 1.0
+attack = 1.0
+decay = 2000.0
+
+[[sounds]]
+name = "909 Ride"
+engine_type = "granular"
+freq = 4000.0
+density = 0.85
+grain_size = 4.0
+jitter = 0.6
+attack = 1.0
+decay = 1500.0
+
+[[sounds]]
+name = "909 Clap"
+engine_type = "fm"
+freq = 1200.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "909 Rim"
+engine_type = "fm"
+freq = 1200.0
+mod_ratio = 1.0
+mod_index = 6.0
+attack = 1.0
+decay = 25.0
+
+[[sounds]]
+name = "909 Cowbell"
+engine_type = "fm"
+freq = 750.0
+mod_ratio = 0.7
+mod_index = 8.0
+attack = 1.0
+decay = 250.0
+
+[[sounds]]
+name = "Ride Bell"
+engine_type = "granular"
+freq = 4800.0
+density = 0.6
+grain_size = 5.0
+jitter = 0.4
+attack = 1.0
+decay = 600.0
+
+[[sounds]]
+name = "Granular Shaker"
+engine_type = "granular"
+freq = 3200.0
+density = 0.7
+grain_size = 6.0
+jitter = 0.85
+attack = 1.0
+decay = 120.0
+
+[[sounds]]
+name = "Tom Slap"
+engine_type = "fm"
+freq = 280.0
+mod_ratio = 2.0
+mod_index = 5.0
+noise_level = 0.2
+attack = 1.0
+decay = 120.0
