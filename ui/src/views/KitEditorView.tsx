@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu, ArrowsClockwise, FloppyDisk, Waveform } from "@phosphor-icons/react"
 import { cn, ParamController, Button, FrequencyVisualizer, PredictiveGraph, Slider } from '../components/ui'
+import { smartFormat } from '../components/format'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
 
@@ -354,7 +355,7 @@ export default function KitEditorView({
                       min={param.min}
                       max={param.max}
                       step={param.max - param.min > 10 ? 1 : 0.01}
-                      format={v => param.unit ? `${v.toFixed(param.unit === 'Hz' ? 0 : 2)} ${param.unit}` : v.toFixed(2)}
+                      format={v => smartFormat(v, param.unit)}
                       onChange={v => updateParam(param.name as any, v)}
                       mods={displayMods}
                       onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}

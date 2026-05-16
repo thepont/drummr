@@ -59,39 +59,41 @@ export function Button({
   );
 }
 
-export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2), className, modValue }: { 
-  label: string, 
-  value: number, 
-  min: number, 
-  max: number, 
-  step: number, 
+export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2), className, modValue }: {
+  label: string,
+  value: number,
+  min: number,
+  max: number,
+  step: number,
   onChange: (v: number) => void,
   format?: (v: number) => string,
   className?: string,
   modValue?: number
 }) {
-  const modPos = modValue !== undefined 
-    ? ((modValue - min) / (max - min)) * 100 
+  const modPos = modValue !== undefined
+    ? ((modValue - min) / (max - min)) * 100
     : undefined;
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">{label}</span>
-        <span className="text-sm font-mono font-bold bg-muted px-2 py-0.5 rounded">{format(value)}</span>
+    <div className={cn("space-y-2", className)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{label}</span>
+        <span className="text-sm font-mono font-bold bg-muted px-2 py-1 rounded-md tabular-nums whitespace-nowrap">{format(value)}</span>
       </div>
       <div className="relative group/track">
-        <input 
-          type="range" 
+        <input
+          type="range"
+          aria-label={label}
           min={min} max={max} step={step}
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all"
+          className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         />
         {modPos !== undefined && (
-          <div 
+          <div
             data-testid="mod-indicator"
-            className="absolute top-1/2 -translate-y-1/2 h-3 w-1 bg-primary/40 rounded-full shadow-[0_0_8px_var(--color-primary)] transition-all duration-75 pointer-events-none border border-primary/20"
+            aria-label={`Modulated value: ${format(modValue!)}`}
+            className="absolute top-1/2 -translate-y-1/2 h-4 w-1 bg-primary/70 rounded-full shadow-[0_0_8px_var(--color-primary)] transition-all duration-75 pointer-events-none border border-primary"
             style={{ left: `${Math.max(0, Math.min(100, modPos))}%`, transform: 'translate(-50%, -50%)' }}
           />
         )}
