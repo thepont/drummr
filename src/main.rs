@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
     
     let persistence_tx = start_persistence_worker();
 
-    let bpm_engine = Arc::new(Mutex::new(drummr::dsp::bpm_engine::BpmEngine::new(sample_rate)));
+    let bpm_engine = Arc::new(Mutex::new(drummr::dsp::bpm_engine::BpmEngine::new()));
     let bpm_engine_comm = bpm_engine.clone();
     let bpm_engine_initial = bpm_engine.clone();
     let bpm_engine_ws = bpm_engine.clone();

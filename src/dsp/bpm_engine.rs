@@ -1,129 +1,163 @@
 use std::collections::VecDeque;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+const WINDOW_SECS: f32 = 6.0;
+const MAX_ONSETS: usize = 96;
+const MIN_LAG_SEC: f32 = 0.250;   // 240 BPM
+const MAX_LAG_SEC: f32 = 1.500;   // 40 BPM
+const LAG_STEP_SEC: f32 = 0.005;  // 5ms resolution
+const KERNEL_SIGMA_SEC: f32 = 0.020;
+const TACTUS_CENTER_BPM: f32 = 120.0;
+const TACTUS_SIGMA_OCT: f32 = 0.7;
+const SUBHARMONIC_PREFER: f32 = 0.85;
+const INACTIVITY_RESET_SEC: f32 = 10.0;
+const STABILITY_BAND_BPM: f32 = 4.0;
+
+#[derive(Clone, Copy)]
+struct Onset {
+    t: Instant,
+    weight: f32,
+}
 
 pub struct BpmEngine {
-    _sample_rate: f32,
-    
-    // Onset Detection (Audio)
-    energy_history: VecDeque<f32>,
-    history_len: usize,
-    flux_threshold: f32,
-    last_energy: f32,
-    
-    // Tempo Estimation (IOI)
-    onset_timestamps: VecDeque<Instant>,
-    max_onsets: usize,
+    onsets: VecDeque<Onset>,
     current_bpm: f32,
+    last_clamped_bpm: f32,
     pub is_stable: bool,
     consecutive_stable_hits: u32,
-    
-    // Stability
-    alpha: f32, // Smoothing factor
-    min_interval_sec: f32, // Minimum seconds between beats
 }
 
 impl BpmEngine {
-    pub fn new(sample_rate: f32) -> Self {
-        let history_ms = 10.0;
-        let history_len = (sample_rate * (history_ms / 1000.0)) as usize;
-        
+    pub fn new() -> Self {
         Self {
-            _sample_rate: sample_rate,
-            energy_history: VecDeque::from(vec![0.0; history_len]),
-            history_len,
-            flux_threshold: 1.5,
-            last_energy: 0.0,
-            
-            onset_timestamps: VecDeque::with_capacity(16),
-            max_onsets: 16,
+            onsets: VecDeque::with_capacity(MAX_ONSETS),
             current_bpm: 0.0,
+            last_clamped_bpm: 0.0,
             is_stable: false,
             consecutive_stable_hits: 0,
-            
-            alpha: 0.1, // Smooth transitions
-            min_interval_sec: 60.0 / 240.0, // 240 BPM cap (0.25s)
         }
     }
 
-    pub fn process_audio(&mut self, samples: &[f32]) {
-        for &s in samples {
-            let energy = s * s;
-            self.energy_history.pop_front();
-            self.energy_history.push_back(energy);
-            
-            let avg_energy: f32 = self.energy_history.iter().sum::<f32>() / self.history_len as f32;
-            let flux = (energy - self.last_energy).max(0.0);
-            
-            if flux > avg_energy * self.flux_threshold && avg_energy > 0.0001 {
-                self.register_onset();
-            }
-            self.last_energy = energy;
-        }
-    }
-
-    pub fn register_onset(&mut self) {
+    pub fn register_onset(&mut self, velocity: f32) {
         let now = Instant::now();
-        if let Some(&last) = self.onset_timestamps.back() {
-            if now.duration_since(last).as_secs_f32() < self.min_interval_sec {
-                return;
-            }
+        let weight = (velocity.max(0.0).min(1.0)).powf(1.5).max(0.05);
+
+        self.prune(now);
+        self.onsets.push_back(Onset { t: now, weight });
+        if self.onsets.len() > MAX_ONSETS {
+            self.onsets.pop_front();
         }
-        
-        println!("[BpmEngine] Registered Hit");
-        self.onset_timestamps.push_back(now);
-        if self.onset_timestamps.len() > self.max_onsets {
-            self.onset_timestamps.pop_front();
-        }
-        
+
+        println!("[BpmEngine] Hit  vel={:.2}  w={:.2}  n={}", velocity, weight, self.onsets.len());
         self.estimate_tempo();
     }
 
+    fn prune(&mut self, now: Instant) {
+        let cutoff = Duration::from_secs_f32(WINDOW_SECS);
+        while let Some(front) = self.onsets.front() {
+            if now.duration_since(front.t) > cutoff {
+                self.onsets.pop_front();
+            } else {
+                break;
+            }
+        }
+    }
+
     fn estimate_tempo(&mut self) {
-        if self.onset_timestamps.len() < 2 { // Lowered from 4 to 2 for faster response
+        if self.onsets.len() < 3 {
             return;
         }
-        
-        let mut intervals_sec: Vec<f32> = Vec::new();
-        for i in 1..self.onset_timestamps.len() {
-            intervals_sec.push(self.onset_timestamps[i].duration_since(self.onset_timestamps[i-1]).as_secs_f32());
+
+        let anchor = self.onsets.back().unwrap().t;
+        let times: Vec<(f32, f32)> = self.onsets.iter()
+            .map(|o| (-(anchor.duration_since(o.t).as_secs_f32()), o.weight))
+            .collect();
+
+        let two_sigma2 = 2.0 * KERNEL_SIGMA_SEC * KERNEL_SIGMA_SEC;
+        let mut best_lag = 0.0_f32;
+        let mut best_score = f32::NEG_INFINITY;
+        let mut scores: Vec<(f32, f32)> = Vec::new();
+
+        let mut lag = MIN_LAG_SEC;
+        while lag <= MAX_LAG_SEC {
+            let mut score = 0.0_f32;
+            for (i, &(ti, wi)) in times.iter().enumerate() {
+                let target = ti - lag;
+                for (j, &(tj, wj)) in times.iter().enumerate() {
+                    if i == j { continue; }
+                    let d = tj - target;
+                    if d.abs() > 4.0 * KERNEL_SIGMA_SEC { continue; }
+                    score += wi * wj * (-(d * d) / two_sigma2).exp();
+                }
+            }
+            let bpm = 60.0 / lag;
+            let log_ratio = (bpm / TACTUS_CENTER_BPM).ln() / std::f32::consts::LN_2;
+            let prior = (-(log_ratio * log_ratio) / (2.0 * TACTUS_SIGMA_OCT * TACTUS_SIGMA_OCT)).exp();
+            let weighted = score * prior;
+            scores.push((lag, weighted));
+            if weighted > best_score {
+                best_score = weighted;
+                best_lag = lag;
+            }
+            lag += LAG_STEP_SEC;
         }
-        
-        intervals_sec.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let median_interval = intervals_sec[intervals_sec.len() / 2];
-        
-        if median_interval <= 0.0 { return; }
-        let new_estimated_bpm = 60.0 / median_interval;
-        let clamped_bpm = new_estimated_bpm.clamp(40.0, 240.0);
-        
+
+        if best_score <= 0.0 {
+            return;
+        }
+
+        let chosen_lag = self.prefer_subharmonic(best_lag, best_score, &scores);
+        let clamped_bpm = (60.0 / chosen_lag).clamp(40.0, 240.0);
+
+        let stable_delta = (clamped_bpm - self.last_clamped_bpm).abs();
+        self.last_clamped_bpm = clamped_bpm;
+
         if self.current_bpm == 0.0 {
             self.current_bpm = clamped_bpm;
         } else {
-            // More relaxed variance (5%)
-            let variance = (clamped_bpm - self.current_bpm).abs() / self.current_bpm;
-            if variance < 0.05 {
-                self.consecutive_stable_hits += 1;
+            let alpha = if stable_delta < STABILITY_BAND_BPM { 0.35 } else { 0.15 };
+            self.current_bpm = self.current_bpm * (1.0 - alpha) + clamped_bpm * alpha;
+
+            if stable_delta < STABILITY_BAND_BPM {
+                self.consecutive_stable_hits = self.consecutive_stable_hits.saturating_add(1);
             } else {
                 self.consecutive_stable_hits = 0;
                 self.is_stable = false;
             }
-
-            if self.consecutive_stable_hits >= 2 { // Lowered from 4 to 2
+            if self.consecutive_stable_hits >= 2 {
                 self.is_stable = true;
             }
-
-            self.current_bpm = self.current_bpm * (1.0 - self.alpha) + clamped_bpm * self.alpha;
         }
-        println!("[BpmEngine] Estimated BPM: {:.2} (Stable: {})", self.current_bpm, self.is_stable);
+
+        println!("[BpmEngine] BPM {:.1} (raw {:.1}, lag {:.3}s, stable {})",
+                 self.current_bpm, clamped_bpm, chosen_lag, self.is_stable);
+    }
+
+    fn prefer_subharmonic(&self, peak_lag: f32, peak_score: f32, scores: &[(f32, f32)]) -> f32 {
+        let mut chosen = peak_lag;
+        for mult in [2.0_f32, 3.0_f32] {
+            let target = peak_lag * mult;
+            if target > MAX_LAG_SEC { continue; }
+            if let Some(&(lag, score)) = scores.iter().min_by(|a, b| {
+                (a.0 - target).abs().partial_cmp(&(b.0 - target).abs()).unwrap()
+            }) {
+                if score >= peak_score * SUBHARMONIC_PREFER {
+                    chosen = lag;
+                }
+            }
+        }
+        chosen
     }
 
     pub fn get_bpm(&mut self) -> f32 {
-        if let Some(&last) = self.onset_timestamps.back() {
-            if Instant::now().duration_since(last).as_secs_f32() > 10.0 { // Increased to 10s
+        if let Some(last) = self.onsets.back() {
+            if Instant::now().duration_since(last.t).as_secs_f32() > INACTIVITY_RESET_SEC {
                 println!("[BpmEngine] Resetting due to inactivity");
                 self.current_bpm = 0.0;
+                self.last_clamped_bpm = 0.0;
                 self.is_stable = false;
                 self.consecutive_stable_hits = 0;
-                self.onset_timestamps.clear();
+                self.onsets.clear();
             }
         }
         self.current_bpm
@@ -133,11 +167,30 @@ impl BpmEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread::sleep;
 
     #[test]
-    fn test_bpm_estimation_steady_midi() {
-        let sample_rate = 44100.0;
-        let mut engine = BpmEngine::new(sample_rate);
-        // ... (existing test logic)
+    fn test_uniform_quarters_at_120() {
+        let mut e = BpmEngine::new();
+        let interval = Duration::from_millis(500);
+        for _ in 0..12 {
+            e.register_onset(1.0);
+            sleep(interval);
+        }
+        let bpm = e.get_bpm();
+        assert!((bpm - 120.0).abs() < 8.0, "expected ~120, got {}", bpm);
+    }
+
+    #[test]
+    fn test_eighths_at_120_should_report_120_via_subharmonic() {
+        let mut e = BpmEngine::new();
+        let interval = Duration::from_millis(250);
+        for i in 0..20 {
+            let vel = if i % 2 == 0 { 1.0 } else { 0.4 };
+            e.register_onset(vel);
+            sleep(interval);
+        }
+        let bpm = e.get_bpm();
+        assert!(bpm < 180.0, "expected sub-180 (preferring 120 over 240), got {}", bpm);
     }
 }
