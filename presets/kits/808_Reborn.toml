@@ -113,10 +113,11 @@ decay = 30.0
 
 [[sounds]]
 name = "808 Cowbell"
-engine_type = "fm"
-freq = 800.0
-mod_ratio = 0.675
-mod_index = 8.0
+engine_type = "modal"
+freq = 540.0
+brightness = 0.7
+dampening = 0.4
+inharmonicity = 0.85
 attack = 1.0
 decay = 350.0
 

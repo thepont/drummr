@@ -40,47 +40,51 @@ decay = 380.0
 
 [[sounds]]
 name = "Anvil Tom 1"
-engine_type = "hybrid"
+engine_type = "modal"
 freq = 320.0
-noise_color = 0.3
-metallic = 0.98
+brightness = 0.75
+dampening = 0.2
+inharmonicity = 0.95
 attack = 1.0
 decay = 420.0
 
 [[sounds]]
 name = "Anvil Tom 2"
-engine_type = "hybrid"
+engine_type = "modal"
 freq = 260.0
-noise_color = 0.3
-metallic = 0.98
+brightness = 0.75
+dampening = 0.2
+inharmonicity = 0.95
 attack = 1.0
 decay = 460.0
 
 [[sounds]]
 name = "Anvil Tom 3"
-engine_type = "hybrid"
+engine_type = "modal"
 freq = 200.0
-noise_color = 0.3
-metallic = 0.95
+brightness = 0.75
+dampening = 0.2
+inharmonicity = 0.95
 attack = 1.0
 decay = 500.0
 
 [[sounds]]
 name = "Anvil Tom 4"
-engine_type = "hybrid"
+engine_type = "modal"
 freq = 150.0
-noise_color = 0.3
-metallic = 0.95
+brightness = 0.75
+dampening = 0.2
+inharmonicity = 0.95
 attack = 1.0
 decay = 540.0
 
 [[sounds]]
 name = "Bell of Doom"
-engine_type = "fm"
-freq = 4800.0
-mod_ratio = 5.0
-mod_index = 35.0
-noise_level = 0.2
+engine_type = "modal"
+freq = 320.0
+brightness = 0.9
+dampening = 0.05
+inharmonicity = 0.85
 attack = 1.0
 decay = 1800.0
 
@@ -115,10 +119,11 @@ decay = 80.0
 
 [[sounds]]
 name = "Iron Cowbell"
-engine_type = "fm"
-freq = 820.0
-mod_ratio = 0.7
-mod_index = 18.0
+engine_type = "modal"
+freq = 540.0
+brightness = 0.8
+dampening = 0.3
+inharmonicity = 0.9
 attack = 1.0
 decay = 380.0
 
