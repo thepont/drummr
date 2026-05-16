@@ -70,6 +70,19 @@ impl CommEngine {
         Ok(local_addr)
     }
 
+    /// Add an in-process subscriber that receives every subsequent broadcast.
+    /// Used by integration tests to capture broadcasts without standing up a
+    /// real WebSocket client. The returned receiver mirrors the channel the
+    /// real WS write-task drains, so test capture follows the same code path
+    /// as production.
+    pub fn subscribe(&self) -> mpsc::UnboundedReceiver<String> {
+        let (tx, rx) = mpsc::unbounded_channel::<String>();
+        if let Ok(mut s_lock) = self.senders.lock() {
+            s_lock.push(tx);
+        }
+        rx
+    }
+
     pub fn broadcast(&self, message: String) {
         if let Ok(mut senders) = self.senders.lock() {
             let count_before = senders.len();
