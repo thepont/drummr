@@ -171,6 +171,13 @@ async fn main() -> Result<()> {
             if let Ok(out_stream) = start_audio(device, consumer, cmd_consumer, shared_state.clone()) {
                 let name = device.name().unwrap_or_default();
                 println!("Active audio device: {} (system default: {})", name, default_name.as_deref().unwrap_or("<none>"));
+                // cpal::Stream is !Send + !Sync, so we cannot stash it in
+                // SharedState to drop later. Leak it consciously and track
+                // the count -- this is the first leak per session.
+                let prior = shared_state.audio_stream_leak_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                if prior > 0 {
+                    eprintln!("warning: leaked {} prior cpal::Stream(s); device {} may stay busy until process exit", prior, name);
+                }
                 std::mem::forget(out_stream);
                 comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
                 let mut s = Settings::load();

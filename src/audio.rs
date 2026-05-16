@@ -66,7 +66,7 @@ pub fn start_audio(
                 for sample in data.iter_mut() { *sample = 0.0; }
             }
         },
-        |_err| {},
+        |err| eprintln!("audio output stream error: {}", err),
         None
     )?;
     output_stream.play()?;

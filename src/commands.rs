@@ -418,8 +418,16 @@ pub async fn handle_command(
                 let mut e_cons_lock = event_consumer.lock().await;
                 let mut c_cons_lock = cmd_consumer.lock().await;
                 if let (Some(e_cons), Some(c_cons)) = (e_cons_lock.take(), c_cons_lock.take()) {
-                    if let Ok(out_stream) = start_audio(device, e_cons, c_cons, shared_state) {
+                    if let Ok(out_stream) = start_audio(device, e_cons, c_cons, shared_state.clone()) {
                         let name = device.name().unwrap_or_default();
+                        // cpal::Stream is !Send + !Sync so we can't stash the
+                        // previous stream in SharedState and drop it here.
+                        // SELECT_AUDIO unavoidably leaks the old stream until
+                        // process exit; track and warn so it's observable.
+                        let prior = shared_state.audio_stream_leak_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        if prior > 0 {
+                            eprintln!("warning: leaked {} prior cpal::Stream(s) via SELECT_AUDIO; previous device may stay busy until process exit", prior);
+                        }
                         std::mem::forget(out_stream);
                         comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
                         let mut settings = Settings::load();

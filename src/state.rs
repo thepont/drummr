@@ -11,6 +11,13 @@ pub struct SharedState {
     /// All SET_* commands mutate this directly; the persistence worker receives
     /// a clone. This eliminates the read-modify-write race against kit.toml.
     pub kit_snapshot: Arc<std::sync::Mutex<DrumKit>>,
+    /// Counts how many cpal::Stream handles have been intentionally leaked via
+    /// std::mem::forget. cpal's Stream is `!Send + !Sync` on every platform
+    /// (see `NotSendSyncAcrossAllPlatforms` in cpal::platform), so it cannot
+    /// be stored across an `await` or behind a Sync mutex inside SharedState.
+    /// Each call to SELECT_AUDIO unavoidably leaks the previous stream; we
+    /// log a warning past the first one so the leak is observable.
+    pub audio_stream_leak_count: AtomicU32,
 }
 
 impl SharedState {
@@ -20,6 +27,7 @@ impl SharedState {
             mod_values: [ZERO; 16 * 5],
             kit: Arc::new(std::sync::Mutex::new(kit)),
             kit_snapshot: Arc::new(std::sync::Mutex::new(kit_snapshot)),
+            audio_stream_leak_count: AtomicU32::new(0),
         }
     }
 
