@@ -7,6 +7,21 @@ use std::f32::consts::PI;
 /// Number of parallel modes in the resonator bank.
 const NUM_MODES: usize = 12;
 
+/// Empirical output trim applied at the end of `tick()`. The constant-skirt
+/// bandpass form puts modal output in the audible ballpark, but at the upper
+/// end of the parameter space (high freq + high brightness + low dampening)
+/// the pre-trim summed bank can peak at ~17. Probed worst case across
+/// f in {200..4000} Hz, brightness in {0.5..1.0}, dampening in {0.0..0.3}
+/// with a 1 s decay: trim of 0.03 brings worst-case peak to ~0.51 (-6 dBFS)
+/// and leaves moderate-setting output near -18 dBFS — comfortable headroom
+/// for the master soft-clip.
+const OUTPUT_TRIM: f32 = 0.03;
+
+/// Below this absolute sample magnitude the mode bank is considered quiet
+/// enough to treat as inactive (used to keep `is_active()` honest while the
+/// resonators ring past the AD envelope).
+const TAIL_ACTIVE_THRESHOLD: f32 = 1.0e-5;
+
 /// Mode ratios for a perfectly harmonic series. Index 0 = fundamental.
 const HARMONIC_RATIOS: [f32; NUM_MODES] = [
     1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
@@ -117,6 +132,11 @@ pub struct ModalEngine {
     exciter_velocity: f32,
     impulse_pending: bool,
 
+    /// Cached residual-energy flag for `is_active()`. Updated every `tick()`
+    /// so the mode-bank's ring-out keeps the voice reporting active past the
+    /// end of the AD envelope.
+    tail_active: bool,
+
     pub mod_engine: ModulationEngine,
 }
 
@@ -143,6 +163,7 @@ impl ModalEngine {
             exciter_total: 0,
             exciter_velocity: 0.0,
             impulse_pending: false,
+            tail_active: false,
             mod_engine: ModulationEngine::new(sample_rate),
         };
 
@@ -248,6 +269,7 @@ impl ModalEngine {
             self.exciter_remaining = self.exciter_total;
             self.exciter_velocity = velocity;
             self.impulse_pending = true;
+            self.tail_active = true;
         }
     }
 
@@ -255,10 +277,6 @@ impl ModalEngine {
         let env = self.amp_env.tick();
         self.mod_engine.env_value = env;
         self.mod_engine.tick();
-
-        // Mode bank still rings even after the AD envelope finishes. Treat as
-        // inactive only when both env is idle AND modes are quiet.
-        let env_active = self.amp_env.is_active();
 
         // Build the exciter sample. Linear ramp-down on the noise burst plus a
         // single-sample impulse on first tick after trigger.
@@ -295,12 +313,24 @@ impl ModalEngine {
             for m in self.modes.iter_mut() {
                 m.reset_state();
             }
+            self.tail_active = false;
             return 0.0;
         }
 
-        // Soft tanh-ish saturation to keep peaks bounded.
-        let _ = env_active;
-        out.clamp(-1.0, 1.0)
+        // Cache the mode-bank tail-energy flag for is_active(). Track the
+        // pre-envelope sum * OUTPUT_TRIM rather than the env-gated output:
+        // once the AD envelope hits Idle, `out` is forced to 0 regardless of
+        // the resonators' actual state, so an out-based check would always
+        // report inactive the moment the envelope finishes. The pre-env trim
+        // matches the audible scale the master bus sees while the env is
+        // open, so the threshold stays in audio-domain units.
+        self.tail_active = (sum * OUTPUT_TRIM).abs() > TAIL_ACTIVE_THRESHOLD;
+
+        // Trim to keep worst-case peak around -6 dBFS so the master soft-clip
+        // has headroom. See OUTPUT_TRIM doc-comment.
+        let trimmed = out * OUTPUT_TRIM;
+
+        trimmed.clamp(-1.0, 1.0)
     }
 
     pub fn set_param(&mut self, param: &str, value: f32) {
@@ -343,8 +373,14 @@ impl ModalEngine {
         }
     }
 
+    /// True while any of: the AD envelope is still running, the exciter noise
+    /// burst is still being emitted, or the mode bank still has audible
+    /// residual energy (cached by `tick()` as `tail_active`). The tail check
+    /// matters because the resonators keep ringing for a while after the AD
+    /// envelope completes — without it, callers like the WS broadcast loop
+    /// would stop polling modulation values mid-ringout.
     pub fn is_active(&self) -> bool {
-        self.amp_env.is_active() || self.exciter_remaining > 0
+        self.amp_env.is_active() || self.exciter_remaining > 0 || self.tail_active
     }
 }
 

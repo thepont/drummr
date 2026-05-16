@@ -146,6 +146,112 @@ fn test_modal_handles_zero_velocity() {
 }
 
 #[test]
+fn test_modal_peak_amplitude_has_headroom() {
+    // After the constant-skirt-gain bandpass change, high freq + high
+    // brightness + low dampening could push peak output to 1.0 (saturating
+    // the final clamp) and leave nothing for the master soft-clip.
+    // OUTPUT_TRIM should keep peak under 0.75 across the parameter space.
+    let freqs = [200.0_f32, 800.0, 2000.0, 4000.0];
+    let brightnesses = [0.5_f32, 0.9, 1.0];
+    let dampenings = [0.0_f32, 0.3];
+
+    for &freq in &freqs {
+        for &bright in &brightnesses {
+            for &damp in &dampenings {
+                let mut e = ModalEngine::new(SR);
+                e.set_param("decay", 1000.0);
+                e.set_param("attack", 1.0);
+                e.set_param("freq", freq);
+                e.set_param("brightness", bright);
+                e.set_param("dampening", damp);
+                e.trigger(1.0);
+
+                // One full envelope cycle (~1s decay) plus a little tail.
+                let n = (SR * 1.2) as usize;
+                let mut peak = 0.0f32;
+                for _ in 0..n {
+                    let y = e.tick();
+                    assert!(
+                        y.is_finite(),
+                        "non-finite sample at f={} bright={} damp={}",
+                        freq, bright, damp
+                    );
+                    peak = peak.max(y.abs());
+                }
+
+                assert!(
+                    peak < 0.75,
+                    "peak {} >= 0.75 at f={} bright={} damp={} (would leave no headroom)",
+                    peak, freq, bright, damp
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn test_modal_is_active_honours_tail() {
+    // Long decay so the AD envelope plus mode-bank ring-out are both audible.
+    let mut e = ModalEngine::new(SR);
+    e.set_param("decay", 1000.0);
+    e.set_param("attack", 1.0);
+    e.set_param("dampening", 0.0); // longest possible mode-bank ring
+    e.trigger(1.0);
+
+    assert!(e.is_active(), "engine should be active immediately after trigger");
+
+    // Advance ~1.5x the decay time. The AD envelope (attack 1ms + decay 1s)
+    // should be fully complete by 1.5s, but the bandpass mode bank will keep
+    // ringing for a while longer (Q is large for the configured decay).
+    let post_env = (SR * 1.5) as usize;
+    for _ in 0..post_env {
+        let _ = e.tick();
+    }
+
+    // Envelope is now done, but is_active() must still report true while the
+    // mode bank rings.
+    assert!(
+        e.is_active(),
+        "is_active() returned false while mode bank should still be ringing"
+    );
+
+    // Run a generous amount more and confirm we eventually settle to inactive.
+    let mut became_inactive = false;
+    for _ in 0..(SR as usize * 6) {
+        let _ = e.tick();
+        if !e.is_active() {
+            became_inactive = true;
+            break;
+        }
+    }
+    assert!(became_inactive, "engine never became inactive after extended decay");
+}
+
+#[test]
+fn test_modal_eventually_inactive() {
+    // Sanity: even worst-case parameters must let the voice fully settle.
+    // Catches any infinite-ring regression in the tail-active logic.
+    let mut e = ModalEngine::new(SR);
+    e.set_param("decay", 1000.0);
+    e.set_param("attack", 1.0);
+    e.set_param("dampening", 0.0);
+    e.set_param("brightness", 1.0);
+    e.set_param("freq", 2000.0);
+    e.trigger(1.0);
+
+    // 4 seconds of samples — well past the 1s decay and any plausible ring.
+    let n = (SR as usize) * 4;
+    for _ in 0..n {
+        let _ = e.tick();
+    }
+
+    assert!(
+        !e.is_active(),
+        "modal voice still reports active after 4 seconds (decay was 1s)"
+    );
+}
+
+#[test]
 fn test_modal_repeated_triggers() {
     let mut e = ModalEngine::new(SR);
     for _ in 0..5 {
