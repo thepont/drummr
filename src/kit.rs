@@ -328,6 +328,10 @@ impl KitEngine {
         if note < 128 {
             if let Some(slot) = self.midi_map[note as usize] {
                 if let Some(voice) = &mut self.voices[slot] {
+                    // Clear stale decimator state before the new hit so the
+                    // leading edge isn't coloured by the previous voice's tail
+                    // held inside the sample-rate reducer.
+                    self.postfx[slot].reset();
                     voice.trigger(velocity);
                 }
             }

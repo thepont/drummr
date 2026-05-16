@@ -30,6 +30,15 @@ impl PostFx {
         }
     }
 
+    /// Clear the decimator hold state. Called on voice trigger so a new hit
+    /// doesn't begin with stale samples from the previous voice's tail (which
+    /// would otherwise leak through the zero-order hold until the next refresh
+    /// boundary).
+    pub fn reset(&mut self) {
+        self.hold_counter = 0;
+        self.held_sample = 0.0;
+    }
+
     /// Convenience routing for SET_BITS / SET_RATE WS commands and any
     /// future param-by-name calls.
     pub fn set_param(&mut self, name: &str, value: f32) {

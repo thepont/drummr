@@ -114,6 +114,106 @@ fn test_postfx_extreme_settings_finite() {
 }
 
 #[test]
+fn test_postfx_reset_clears_hold() {
+    let mut fx = PostFx::new();
+    fx.set_rate(4.0);
+
+    // Prime the zero-order hold with 0.5 across the 4-sample window.
+    let inputs = [0.5, 0.5, 0.5, 0.5];
+    let mut outs = [0.0f32; 4];
+    for i in 0..4 {
+        outs[i] = fx.process(inputs[i]);
+    }
+    for (i, o) in outs.iter().enumerate() {
+        assert!(
+            (o - 0.5).abs() < 1e-6,
+            "ZOH should hold 0.5 at index {}, got {}",
+            i,
+            o
+        );
+    }
+
+    // Without reset, the decimator would still emit the held 0.5 for the
+    // remainder of the current 4-sample window. After reset, hold_counter
+    // returns to 0 so the very next input refreshes the held sample.
+    fx.reset();
+    let y = fx.process(0.1);
+    assert!(
+        (y - 0.1).abs() < 1e-6,
+        "after reset, first sample should refresh to new input 0.1, got {}",
+        y
+    );
+}
+
+#[test]
+fn test_kit_engine_trigger_resets_postfx() {
+    // Build a voice with a short decay so it goes inactive quickly, then
+    // confirm that re-triggering doesn't leak the previous voice's held
+    // sample through the per-slot PostFx zero-order hold.
+    fn build_kit() -> KitEngine {
+        let mut kit = KitEngine::new(SR);
+        let mut v = FmVoice::new(SR);
+        v.frequency.base_value = 220.0;
+        v.mod_ratio.base_value = 1.0;
+        v.mod_index.base_value = 3.0;
+        v.attack = 1.0;
+        v.decay = 20.0; // short decay so the voice deactivates well within our sample budget
+        kit.voices[0] = Some(Voice::Fm(v));
+        kit.midi_map[36] = Some(0);
+        kit
+    }
+
+    let mut kit = build_kit();
+    // rate=4 means up to 3 samples of stale audio could leak through after
+    // the voice goes silent if the decimator isn't reset on re-trigger.
+    kit.set_postfx(0, "rate", 4.0);
+
+    kit.trigger(36, 1.0);
+
+    // Run until the voice goes inactive (capped to avoid infinite loops on
+    // bugs). Record the last non-zero output before the tail goes to 0.
+    let mut last_nonzero: f32 = 0.0;
+    for _ in 0..50_000 {
+        let y = kit.tick();
+        if y.abs() > 1e-6 {
+            last_nonzero = y;
+        }
+        // Stop once the voice itself has gone inactive AND the PostFx hold
+        // has cycled past its held sample. We just need enough silence to
+        // ensure the voice is dead before re-trigger.
+        if let Some(Voice::Fm(ref fm)) = kit.voices[0] {
+            if !fm.is_active() {
+                break;
+            }
+        }
+    }
+
+    // Sanity: we actually heard something from the first trigger.
+    assert!(
+        last_nonzero.abs() > 1e-6,
+        "first trigger produced no audible signal; test setup is wrong"
+    );
+
+    // Without the reset, KitEngine::tick now feeds 0.0 (voice inactive) into
+    // PostFx, but the decimator could still re-emit `last_nonzero` until its
+    // window expires. Re-triggering with reset means the very first sample
+    // after re-trigger must NOT equal that held tail value.
+    kit.trigger(36, 1.0);
+    let first_after = kit.tick();
+
+    // With reset, hold_counter == 0 at trigger time, so the next process()
+    // call refreshes the held sample to the current voice output (which for
+    // a freshly-attacking FM voice with attack=1ms is some non-stale value,
+    // typically near zero or starting up the envelope).
+    assert!(
+        (first_after - last_nonzero).abs() > 1e-6,
+        "first sample after re-trigger ({}) equals stale held tail ({}); PostFx was not reset",
+        first_after,
+        last_nonzero
+    );
+}
+
+#[test]
 fn test_kit_engine_applies_postfx_per_slot() {
     // Construct a KitEngine and manually populate slot 0 with an FM voice so
     // we exercise the per-slot postfx pipeline through KitEngine::tick.
