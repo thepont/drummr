@@ -1,1 +1,9 @@
 /target
+/kit.toml.tmp
+/mapping.toml.tmp
+/settings.toml
+/ui/settings.toml
+/ui/node_modules/
+/ui/dist/
+/.DS_Store
+**/.DS_Store
