@@ -30,6 +30,7 @@ pub struct GranularEngine {
     // Internal State
     amp_env: AdEnvelope,
     rng: Xorshift,
+    velocity: f32,
     pub mod_engine: ModulationEngine,
 }
 
@@ -53,6 +54,7 @@ impl GranularEngine {
             decay: 200.0,
             amp_env: AdEnvelope::new(sample_rate),
             rng: Xorshift::new(0x5678),
+            velocity: 1.0,
             mod_engine: ModulationEngine::new(sample_rate),
         }
     }
@@ -108,6 +110,7 @@ impl GranularEngine {
         ]
     }
     pub fn trigger(&mut self, velocity: f32) {
+        self.velocity = velocity;
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
             self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
@@ -163,7 +166,7 @@ impl GranularEngine {
             }
         }
 
-        mixed * env * 0.5
+        mixed * env * self.velocity * 0.5
     }
 
     pub fn set_param(&mut self, param: &str, value: f32) {

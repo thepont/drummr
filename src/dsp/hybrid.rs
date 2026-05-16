@@ -6,19 +6,20 @@ use crate::dsp::utils::{SINE_LUT, Xorshift};
 pub struct HybridEngine {
     sample_rate: f32,
     phases: [f32; 3],
-    
+
     // Parameters
     pub frequency: ModulatableParam,
     pub noise_color: ModulatableParam,
     pub metallic: ModulatableParam,
-    
+
     pub attack: f32,
     pub decay: f32,
-    
+
     // Internal State
     amp_env: AdEnvelope,
     rng: Xorshift,
     last_noise: f32, // For one-pole filter
+    velocity: f32,
     pub mod_engine: ModulationEngine,
 }
 
@@ -35,6 +36,7 @@ impl HybridEngine {
             amp_env: AdEnvelope::new(sample_rate),
             rng: Xorshift::new(0x9ABC),
             last_noise: 0.0,
+            velocity: 1.0,
             mod_engine: ModulationEngine::new(sample_rate),
         }
     }
@@ -84,6 +86,7 @@ impl HybridEngine {
     }
 
     pub fn trigger(&mut self, velocity: f32) {
+        self.velocity = velocity;
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
             self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
@@ -121,7 +124,7 @@ impl HybridEngine {
         self.last_noise = lp_out;
 
         let mixed = (osc_out * (1.0 - metallic)) + (lp_out * metallic);
-        (mixed * env).clamp(-1.0, 1.0)
+        (mixed * env * self.velocity).clamp(-1.0, 1.0)
     }
 
     pub fn set_param(&mut self, param: &str, value: f32) {
