@@ -1,0 +1,168 @@
+name = "Servo Choir"
+description = "Robotic / machinic percussion. Hybrid + FM mid-band hits, granular shimmer, aggressive bitcrush on accents only."
+
+[[sounds]]
+name = "Servo Kick"
+engine_type = "fm"
+freq = 90.0
+mod_ratio = 1.0
+mod_index = 8.0
+noise_level = 0.4
+attack = 1.0
+decay = 220.0
+
+[[sounds]]
+name = "Actuator Snare"
+engine_type = "hybrid"
+freq = 320.0
+noise_color = 0.5
+metallic = 0.6
+attack = 1.0
+decay = 180.0
+
+[[sounds]]
+name = "Relay Hat Closed"
+engine_type = "hybrid"
+freq = 7200.0
+noise_color = 0.7
+metallic = 0.85
+attack = 1.0
+decay = 45.0
+
+[[sounds]]
+name = "Relay Hat Open"
+engine_type = "granular"
+freq = 7200.0
+density = 0.8
+grain_size = 2.5
+jitter = 0.55
+attack = 1.0
+decay = 280.0
+
+[[sounds]]
+name = "Gearbox Tom 1"
+engine_type = "modal"
+freq = 280.0
+brightness = 0.6
+dampening = 0.25
+inharmonicity = 0.5
+attack = 1.0
+decay = 380.0
+
+[[sounds]]
+name = "Gearbox Tom 2"
+engine_type = "modal"
+freq = 220.0
+brightness = 0.6
+dampening = 0.25
+inharmonicity = 0.5
+attack = 1.0
+decay = 420.0
+
+[[sounds]]
+name = "Gearbox Tom 3"
+engine_type = "modal"
+freq = 170.0
+brightness = 0.6
+dampening = 0.25
+inharmonicity = 0.5
+attack = 1.0
+decay = 460.0
+
+[[sounds]]
+name = "Gearbox Tom 4"
+engine_type = "modal"
+freq = 130.0
+brightness = 0.6
+dampening = 0.25
+inharmonicity = 0.5
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "Sparking Crash"
+engine_type = "hybrid"
+freq = 5800.0
+noise_color = 0.7
+metallic = 0.8
+attack = 1.0
+decay = 1100.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Servo Ride"
+engine_type = "modal"
+freq = 2800.0
+brightness = 0.75
+dampening = 0.15
+inharmonicity = 0.55
+attack = 1.0
+decay = 1000.0
+
+[[sounds]]
+name = "Pneumatic Clap"
+engine_type = "fm"
+freq = 1400.0
+mod_ratio = 2.5
+mod_index = 9.0
+noise_level = 0.85
+attack = 2.0
+decay = 240.0
+
+[[sounds]]
+name = "Solenoid Rim"
+engine_type = "hybrid"
+freq = 1900.0
+noise_color = 0.3
+metallic = 0.9
+attack = 1.0
+decay = 70.0
+
+[[sounds]]
+name = "Robot Cowbell"
+engine_type = "modal"
+freq = 580.0
+brightness = 0.75
+dampening = 0.28
+inharmonicity = 0.55
+attack = 1.0
+decay = 360.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Clockwork Tick"
+engine_type = "fm"
+freq = 2400.0
+mod_ratio = 4.0
+mod_index = 5.0
+noise_level = 0.1
+attack = 1.0
+decay = 40.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Servo Whir"
+engine_type = "granular"
+freq = 1600.0
+density = 0.85
+grain_size = 8.0
+jitter = 0.3
+attack = 1.0
+decay = 180.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Hydraulic Bark"
+engine_type = "fm"
+freq = 800.0
+mod_ratio = 1.5
+mod_index = 12.0
+noise_level = 0.5
+attack = 1.0
+decay = 140.0
+bits = 5.0
+rate = 3.0
