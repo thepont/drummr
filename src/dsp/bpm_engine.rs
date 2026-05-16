@@ -39,7 +39,10 @@ impl BpmEngine {
     }
 
     pub fn register_onset(&mut self, velocity: f32) {
-        let now = Instant::now();
+        self.register_onset_at_impl(Instant::now(), velocity);
+    }
+
+    fn register_onset_at_impl(&mut self, now: Instant, velocity: f32) {
         let weight = (velocity.max(0.0).min(1.0)).powf(1.5).max(0.05);
 
         self.prune(now);
@@ -50,6 +53,13 @@ impl BpmEngine {
 
         println!("[BpmEngine] Hit  vel={:.2}  w={:.2}  n={}", velocity, weight, self.onsets.len());
         self.estimate_tempo();
+    }
+
+    /// Test-only helper: record an onset at a synthetic time. Available when
+    /// the `test-helpers` feature is enabled or in unit tests.
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub fn register_onset_at(&mut self, t: Instant, velocity: f32) {
+        self.register_onset_at_impl(t, velocity);
     }
 
     fn prune(&mut self, now: Instant) {
@@ -150,8 +160,12 @@ impl BpmEngine {
     }
 
     pub fn get_bpm(&mut self) -> f32 {
+        self.get_bpm_at_impl(Instant::now())
+    }
+
+    fn get_bpm_at_impl(&mut self, now: Instant) -> f32 {
         if let Some(last) = self.onsets.back() {
-            if Instant::now().duration_since(last.t).as_secs_f32() > INACTIVITY_RESET_SEC {
+            if now.duration_since(last.t).as_secs_f32() > INACTIVITY_RESET_SEC {
                 println!("[BpmEngine] Resetting due to inactivity");
                 self.current_bpm = 0.0;
                 self.last_clamped_bpm = 0.0;
@@ -161,6 +175,13 @@ impl BpmEngine {
             }
         }
         self.current_bpm
+    }
+
+    /// Test-only helper: query the BPM as of a synthetic time. Available when
+    /// the `test-helpers` feature is enabled or in unit tests.
+    #[cfg(any(test, feature = "test-helpers"))]
+    pub fn get_bpm_at(&mut self, now: Instant) -> f32 {
+        self.get_bpm_at_impl(now)
     }
 }
 
