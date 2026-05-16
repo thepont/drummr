@@ -1,16 +1,16 @@
-use drummr::dsp::modulation::ModSource;
-use drummr::midi::MidiEngine;
+use anyhow::Result;
+use cpal::traits::{DeviceTrait, HostTrait};
 use drummr::comm::CommEngine;
+use drummr::dsp::modulation::ModSource;
+use drummr::kit::{DrumKit, DrumMapping, DrumSound, KitEngine};
+use drummr::midi::MidiEngine;
 use drummr::settings::Settings;
-use drummr::kit::{KitEngine, DrumKit, DrumMapping, DrumSound};
+use rtrb::RingBuffer;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
-use cpal::traits::{HostTrait, DeviceTrait};
-use anyhow::Result;
-use rtrb::RingBuffer;
 
-use drummr::state::{SharedState, AudioCommand, MidiEvent};
 use drummr::persistence::{PersistenceCommand, start_persistence_worker};
+use drummr::state::{AudioCommand, MidiEvent, SharedState};
 
 pub use drummr::app_utils::{load_kit, load_mappings, start_midi};
 
@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
     let (midi_tx, mut midi_rx) = mpsc::unbounded_channel();
     let midi_engine = Arc::new(Mutex::new(MidiEngine::new()));
     let comm_engine = Arc::new(CommEngine::new());
-    
+
     let (midi_producer, midi_consumer) = RingBuffer::<MidiEvent>::new(1024);
     let midi_producer = Arc::new(std::sync::Mutex::new(midi_producer));
     let event_consumer_wrapped = Arc::new(Mutex::new(Some(midi_consumer)));
@@ -54,8 +54,7 @@ async fn main() -> Result<()> {
     // sender is cloned into every `start_audio` call (initial + SELECT_AUDIO +
     // the recovery task itself), and the receiver is consumed by the recovery
     // task spawned below.
-    let (audio_error_tx, mut audio_error_rx) =
-        tokio::sync::mpsc::unbounded_channel::<()>();
+    let (audio_error_tx, mut audio_error_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
 
     let shared_state = Arc::new(SharedState::new(
         initial_kit,
@@ -64,7 +63,7 @@ async fn main() -> Result<()> {
     ));
     let shared_state_audio = shared_state.clone();
     let shared_state_comm = shared_state.clone();
-    
+
     let persistence_tx = start_persistence_worker();
 
     let bpm_engine = Arc::new(Mutex::new(drummr::dsp::bpm_engine::BpmEngine::new()));
@@ -72,11 +71,14 @@ async fn main() -> Result<()> {
     let bpm_engine_initial = bpm_engine.clone();
     let bpm_engine_ws = bpm_engine.clone();
 
-    let sync_engine = Arc::new(drummr::sync::SyncEngine::new(bpm_engine.clone(), comm_engine.clone()));
+    let sync_engine = Arc::new(drummr::sync::SyncEngine::new(
+        bpm_engine.clone(),
+        comm_engine.clone(),
+    ));
     let sync_engine_ws = sync_engine.clone();
 
     println!("Starting drummr engine...");
-    
+
     let comm_clone_loop = comm_engine.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(40));
@@ -92,7 +94,10 @@ async fn main() -> Result<()> {
                 }
                 values.push(slot_vals);
             }
-            let msg = format!("MOD_STATES:{}", serde_json::to_string(&values).unwrap_or_default());
+            let msg = format!(
+                "MOD_STATES:{}",
+                serde_json::to_string(&values).unwrap_or_default()
+            );
             comm_clone_loop.broadcast(msg);
         }
     });
@@ -110,37 +115,40 @@ async fn main() -> Result<()> {
         }
     });
 
-    comm_engine.start("127.0.0.1:8080", move |text| {
-        let midi = midi_clone.clone();
-        let comm = comm_clone.clone();
-        let m_tx = midi_tx_clone.clone();
-        let m_prod = midi_producer_clone.clone();
-        let e_cons = event_consumer_clone.clone();
-        let c_cons = cmd_consumer_clone.clone();
-        let c_prod = cmd_prod_clone.clone();
-        let ss_audio = shared_state_audio.clone();
-        let p_tx = persistence_tx.clone();
-        let bpm = bpm_engine_ws.clone();
-        let sync = sync_engine_ws.clone();
+    comm_engine
+        .start("127.0.0.1:8080", move |text| {
+            let midi = midi_clone.clone();
+            let comm = comm_clone.clone();
+            let m_tx = midi_tx_clone.clone();
+            let m_prod = midi_producer_clone.clone();
+            let e_cons = event_consumer_clone.clone();
+            let c_cons = cmd_consumer_clone.clone();
+            let c_prod = cmd_prod_clone.clone();
+            let ss_audio = shared_state_audio.clone();
+            let p_tx = persistence_tx.clone();
+            let bpm = bpm_engine_ws.clone();
+            let sync = sync_engine_ws.clone();
 
-        async move {
-            drummr::commands::handle_command(
-                text,
-                midi,
-                comm,
-                m_tx,
-                m_prod,
-                c_prod,
-                ss_audio,
-                p_tx,
-                sample_rate,
-                e_cons,
-                c_cons,
-                bpm,
-                sync,
-            ).await;
-        }
-    }).await?;
+            async move {
+                drummr::commands::handle_command(
+                    text,
+                    midi,
+                    comm,
+                    m_tx,
+                    m_prod,
+                    c_prod,
+                    ss_audio,
+                    p_tx,
+                    sample_rate,
+                    e_cons,
+                    c_cons,
+                    bpm,
+                    sync,
+                )
+                .await;
+            }
+        })
+        .await?;
 
     let settings = Settings::load();
     match MidiEngine::list_ports() {
@@ -150,9 +158,22 @@ async fn main() -> Result<()> {
         }
         Ok(ports) => {
             println!("MIDI: available ports: {}", ports.join(", "));
-            let index = settings.last_midi_port.as_ref().and_then(|name| ports.iter().position(|p| p == name)).unwrap_or(0);
+            let index = settings
+                .last_midi_port
+                .as_ref()
+                .and_then(|name| ports.iter().position(|p| p == name))
+                .unwrap_or(0);
             let attempted = ports.get(index).cloned().unwrap_or_default();
-            match start_midi(midi_engine.clone(), comm_engine.clone(), midi_tx.clone(), midi_producer.clone(), index, bpm_engine_initial).await {
+            match start_midi(
+                midi_engine.clone(),
+                comm_engine.clone(),
+                midi_tx.clone(),
+                midi_producer.clone(),
+                index,
+                bpm_engine_initial,
+            )
+            .await
+            {
                 Ok(()) => {}
                 Err(e) => {
                     eprintln!("MIDI: failed to open '{}': {}", attempted, e);
@@ -168,13 +189,36 @@ async fn main() -> Result<()> {
 
     let host = cpal::default_host();
     let devices_vec: Vec<_> = host.output_devices()?.collect();
-    let device_names: Vec<String> = devices_vec.iter().map(|d| d.name().unwrap_or_default()).collect();
-    println!("Audio: available output devices: {}", device_names.join(", "));
+    let device_names: Vec<String> = devices_vec
+        .iter()
+        .map(|d| d.name().unwrap_or_default())
+        .collect();
+    println!(
+        "Audio: available output devices: {}",
+        device_names.join(", ")
+    );
 
     let default_name = host.default_output_device().and_then(|d| d.name().ok());
-    let audio_index = devices_vec.iter().position(|d| d.name().ok().as_ref().map(|n| n.contains("Model 12")).unwrap_or(false))
-        .or_else(|| settings.last_audio_device.as_ref().and_then(|name| device_names.iter().position(|n| n == name)))
-        .or_else(|| default_name.as_ref().and_then(|name| device_names.iter().position(|n| n == name)))
+    let audio_index = devices_vec
+        .iter()
+        .position(|d| {
+            d.name()
+                .ok()
+                .as_ref()
+                .map(|n| n.contains("Model 12"))
+                .unwrap_or(false)
+        })
+        .or_else(|| {
+            settings
+                .last_audio_device
+                .as_ref()
+                .and_then(|name| device_names.iter().position(|n| n == name))
+        })
+        .or_else(|| {
+            default_name
+                .as_ref()
+                .and_then(|name| device_names.iter().position(|n| n == name))
+        })
         .unwrap_or(0);
 
     if let Some(device) = devices_vec.get(audio_index) {
@@ -189,13 +233,22 @@ async fn main() -> Result<()> {
                 audio_error_tx.clone(),
             ) {
                 let name = device.name().unwrap_or_default();
-                println!("Active audio device: {} (system default: {})", name, default_name.as_deref().unwrap_or("<none>"));
+                println!(
+                    "Active audio device: {} (system default: {})",
+                    name,
+                    default_name.as_deref().unwrap_or("<none>")
+                );
                 // cpal::Stream is !Send + !Sync, so we cannot stash it in
                 // SharedState to drop later. Leak it consciously and track
                 // the count -- this is the first leak per session.
-                let prior = shared_state.audio_stream_leak_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let prior = shared_state
+                    .audio_stream_leak_count
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 if prior > 0 {
-                    eprintln!("warning: leaked {} prior cpal::Stream(s); device {} may stay busy until process exit", prior, name);
+                    eprintln!(
+                        "warning: leaked {} prior cpal::Stream(s); device {} may stay busy until process exit",
+                        prior, name
+                    );
                 }
                 std::mem::forget(out_stream);
                 comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
@@ -270,10 +323,8 @@ async fn main() -> Result<()> {
             // with the stream), so the old Producers are pushing into a
             // ring that nothing drains. Swap fresh Producers into the shared
             // Arc<Mutex<>>s so MIDI / WS code keeps working unchanged.
-            let (new_midi_prod, new_midi_cons) =
-                rtrb::RingBuffer::<MidiEvent>::new(1024);
-            let (new_cmd_prod, new_cmd_cons) =
-                rtrb::RingBuffer::<AudioCommand>::new(1024);
+            let (new_midi_prod, new_midi_cons) = rtrb::RingBuffer::<MidiEvent>::new(1024);
+            let (new_cmd_prod, new_cmd_cons) = rtrb::RingBuffer::<AudioCommand>::new(1024);
             if let Ok(mut p) = midi_producer_rec.lock() {
                 *p = new_midi_prod;
             }

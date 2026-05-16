@@ -1,6 +1,6 @@
+use crate::kit::{DrumKit, KitEngine};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
-use crate::kit::{KitEngine, DrumKit};
 
 pub type MidiEvent = [u8; 3];
 
@@ -57,7 +57,7 @@ impl SharedState {
         }
         values
     }
-    
+
     /// Helper to get values in the format the UI expects (2D Vec)
     pub fn get_values_nested(&self) -> Vec<Vec<f32>> {
         let flat = self.get_values();

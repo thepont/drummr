@@ -29,7 +29,7 @@ use drummr::persistence::PersistenceCommand;
 use drummr::state::{AudioCommand, MidiEvent, SharedState};
 use drummr::sync::SyncEngine;
 use rtrb::{Consumer, Producer, RingBuffer};
-use tokio::sync::{mpsc, Mutex as TokioMutex};
+use tokio::sync::{Mutex as TokioMutex, mpsc};
 
 // Serialise tests that mutate the process-wide cwd (LOAD_KIT / SAVE_KIT_AS
 // read/write relative paths).
@@ -154,8 +154,7 @@ fn build_harness() -> TestHarness {
     // code path that does `audio_error_tx.send(())` from inside command
     // handlers would observe a SendError. Box::leak is fine here: the harness
     // exists for the lifetime of one test process.
-    let (audio_error_tx, audio_error_rx) =
-        tokio::sync::mpsc::unbounded_channel::<()>();
+    let (audio_error_tx, audio_error_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
     Box::leak(Box::new(audio_error_rx));
     let shared_state = Arc::new(SharedState::new(kit_engine, snapshot, audio_error_tx));
     let comm_engine = Arc::new(CommEngine::new());
@@ -548,7 +547,9 @@ async fn test_save_kit_as_writes_preset() {
 
     // Persistence channel should have received a SaveKit too.
     let pcmds = drain_persistence(&mut h);
-    assert!(pcmds
-        .iter()
-        .any(|p| matches!(p, PersistenceCommand::SaveKit(k) if k.name == "test_save")));
+    assert!(
+        pcmds
+            .iter()
+            .any(|p| matches!(p, PersistenceCommand::SaveKit(k) if k.name == "test_save"))
+    );
 }

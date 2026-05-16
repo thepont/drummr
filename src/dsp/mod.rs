@@ -1,12 +1,12 @@
+pub mod bpm_engine;
 pub mod envelope;
 pub mod fm;
 pub mod granular;
 pub mod hybrid;
 pub mod modal;
+pub mod modulation;
+pub mod modulation_engine;
 pub mod noise;
 pub mod phys;
 pub mod postfx;
-pub mod modulation;
-pub mod modulation_engine;
 pub mod utils;
-pub mod bpm_engine;

@@ -92,7 +92,11 @@ mod tests {
         let mut fx = PostFx::new();
         for _ in 0..100 {
             let y = fx.process(0.5);
-            assert!((y - 0.5).abs() < 1e-6, "default PostFx should pass signal through unchanged, got {}", y);
+            assert!(
+                (y - 0.5).abs() < 1e-6,
+                "default PostFx should pass signal through unchanged, got {}",
+                y
+            );
         }
     }
 
@@ -107,10 +111,17 @@ mod tests {
         let levels = 16.0f32;
         let unipolar = (0.5_f32 * 0.5) + 0.5;
         let expected = ((unipolar * levels).floor() / levels - 0.5) * 2.0;
-        assert!((y - expected).abs() < 1e-6, "bitcrush output {} != expected {}", y, expected);
+        assert!(
+            (y - expected).abs() < 1e-6,
+            "bitcrush output {} != expected {}",
+            y,
+            expected
+        );
         // Sanity: quantized signal must be on the discrete grid.
         let stepped = (y * 0.5 + 0.5) * levels;
-        assert!((stepped - stepped.round()).abs() < 1e-3 || (stepped - stepped.floor()).abs() < 1e-3);
+        assert!(
+            (stepped - stepped.round()).abs() < 1e-3 || (stepped - stepped.floor()).abs() < 1e-3
+        );
     }
 
     #[test]
@@ -123,10 +134,18 @@ mod tests {
             outs[i] = fx.process(inputs[i]);
         }
         for o in &outs {
-            assert!((o - 0.1).abs() < 1e-6, "decimator should hold 0.1 across 4 ticks, got {:?}", outs);
+            assert!(
+                (o - 0.1).abs() < 1e-6,
+                "decimator should hold 0.1 across 4 ticks, got {:?}",
+                outs
+            );
         }
         // After 4 ticks, the next call should refresh to the new input.
         let next = fx.process(0.9);
-        assert!((next - 0.9).abs() < 1e-6, "expected refresh to 0.9 after hold period, got {}", next);
+        assert!(
+            (next - 0.9).abs() < 1e-6,
+            "expected refresh to 0.9 after hold period, got {}",
+            next
+        );
     }
 }

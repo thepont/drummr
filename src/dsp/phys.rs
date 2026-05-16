@@ -1,5 +1,5 @@
 use crate::dsp::envelope::AdEnvelope;
-use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
+use crate::dsp::modulation::{ModAmount, ModSource, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
 
 use crate::dsp::utils::Xorshift;
@@ -9,16 +9,16 @@ pub struct PhysEngine {
     delay_line: Vec<f32>,
     write_pos: usize,
     current_l: usize, // Locked delay length during playback
-    
+
     // Parameters
     pub frequency: ModulatableParam,
     pub brightness: ModulatableParam, // Probabilistic blend factor 'b' (0.5 to 1.0)
-    pub dampening: ModulatableParam,   // Low-pass filter coefficient in the feedback loop
-    
+    pub dampening: ModulatableParam,  // Low-pass filter coefficient in the feedback loop
+
     pub attack: f32,
     pub decay: f32,
     pub pitch_bend: f32,
-    
+
     // Internal State
     amp_env: AdEnvelope,
     pitch_env: f32,
@@ -36,15 +36,15 @@ impl PhysEngine {
             delay_line: vec![0.0; 8192], // Increased for safety
             write_pos: 0,
             current_l: 100,
-            
+
             frequency: ModulatableParam::new(100.0),
             brightness: ModulatableParam::new(0.5),
             dampening: ModulatableParam::new(0.5),
-            
+
             attack: 1.0,
             decay: 200.0,
             pitch_bend: 200.0,
-            
+
             amp_env: AdEnvelope::new(sample_rate),
             pitch_env: 0.0,
             pitch_decay_coef: (-1.0 / (0.05 * sample_rate)).exp(), // 50ms decay constant
@@ -56,7 +56,9 @@ impl PhysEngine {
 }
 
 impl PhysEngine {
-    pub fn name(&self) -> &str { "Physical Modeling" }
+    pub fn name(&self) -> &str {
+        "Physical Modeling"
+    }
 
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
@@ -108,26 +110,29 @@ impl PhysEngine {
     pub fn trigger(&mut self, velocity: f32) {
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
-            self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
+            self.amp_env
+                .set_params(self.attack / 1000.0, self.decay / 1000.0);
             self.amp_env.trigger();
             self.pitch_env = 1.0;
-            
+
             // Initial frequency calculation with full pitch bend
             let current_freq = self.mod_engine.calculate_mod(&self.frequency) + self.pitch_bend;
             let l = (self.sample_rate / current_freq).round() as usize;
             self.current_l = l.clamp(2, self.delay_line.len() - 1);
-            
+
             // Increase excitation energy
             let excitation_amp = velocity * 2.0;
-            
+
             // Clear buffer
-            for x in self.delay_line.iter_mut() { *x = 0.0; }
+            for x in self.delay_line.iter_mut() {
+                *x = 0.0;
+            }
 
             // Fill the buffer from the START with noise
             for i in 0..self.current_l {
                 self.delay_line[i] = self.rng.next_f32_bipolar() * excitation_amp;
             }
-            
+
             self.write_pos = self.current_l % self.delay_line.len();
             self.last_y = 0.0;
         }
@@ -138,7 +143,9 @@ impl PhysEngine {
         self.mod_engine.env_value = env;
         self.mod_engine.tick();
 
-        if env <= 0.0 && !self.amp_env.is_active() { return 0.0; }
+        if env <= 0.0 && !self.amp_env.is_active() {
+            return 0.0;
+        }
 
         // Update pitch drop
         self.pitch_env *= self.pitch_decay_coef;
@@ -147,25 +154,28 @@ impl PhysEngine {
         let l = (self.sample_rate / current_freq).round() as usize;
         self.current_l = l.clamp(2, self.delay_line.len() - 1);
 
-        let brightness = self.mod_engine.calculate_mod(&self.brightness).clamp(0.0, 1.0);
-        let dampening = self.mod_engine.calculate_mod(&self.dampening).clamp(0.0, 1.0);
+        let brightness = self
+            .mod_engine
+            .calculate_mod(&self.brightness)
+            .clamp(0.0, 1.0);
+        let dampening = self
+            .mod_engine
+            .calculate_mod(&self.dampening)
+            .clamp(0.0, 1.0);
 
         // Read from the delay line
-        let read_pos = (self.write_pos + self.delay_line.len() - self.current_l) % self.delay_line.len();
+        let read_pos =
+            (self.write_pos + self.delay_line.len() - self.current_l) % self.delay_line.len();
         let read_pos_prev = (read_pos + self.delay_line.len() - 1) % self.delay_line.len();
-        
+
         let x_l = self.delay_line[read_pos];
         let x_l_prev = self.delay_line[read_pos_prev];
 
         // Karplus-Strong filtered feedback
         let avg = 0.5 * (x_l + x_l_prev);
-        
+
         let prob = self.rng.next_f32();
-        let mut y = if prob < brightness {
-            avg
-        } else {
-            -avg
-        };
+        let mut y = if prob < brightness { avg } else { -avg };
 
         // Dampening (One-pole LP filter in loop)
         y = self.last_y + dampening * (y - self.last_y);

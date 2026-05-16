@@ -1,6 +1,6 @@
+use drummr::dsp::fm::FmVoice;
 use drummr::dsp::postfx::PostFx;
 use drummr::kit::{KitEngine, Voice};
-use drummr::dsp::fm::FmVoice;
 
 const SR: f32 = 48000.0;
 
@@ -103,7 +103,12 @@ fn test_postfx_extreme_settings_finite() {
         let t = i as f32 / SR;
         let x = (std::f32::consts::TAU * freq * t).sin();
         let y = fx.process(x);
-        assert!(y.is_finite(), "extreme PostFx produced non-finite at {}: {}", i, y);
+        assert!(
+            y.is_finite(),
+            "extreme PostFx produced non-finite at {}: {}",
+            i,
+            y
+        );
         assert!(
             y >= -1.0 - 1e-3 && y <= 1.0 + 1e-3,
             "extreme PostFx output out of range at {}: {}",
@@ -247,7 +252,12 @@ fn test_kit_engine_applies_postfx_per_slot() {
     }
 
     for (i, y) in crushed_out.iter().enumerate() {
-        assert!(y.is_finite(), "crushed kit produced non-finite at {}: {}", i, y);
+        assert!(
+            y.is_finite(),
+            "crushed kit produced non-finite at {}: {}",
+            i,
+            y
+        );
         assert!(y.abs() <= 1.0 + 1e-3);
     }
     for y in &clean_out {

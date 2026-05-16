@@ -1,5 +1,5 @@
 use crate::dsp::envelope::AdEnvelope;
-use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
+use crate::dsp::modulation::{ModAmount, ModSource, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
 use crate::dsp::utils::{SINE_LUT, Xorshift};
 
@@ -43,7 +43,9 @@ impl HybridEngine {
 }
 
 impl HybridEngine {
-    pub fn name(&self) -> &str { "Hybrid" }
+    pub fn name(&self) -> &str {
+        "Hybrid"
+    }
 
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
@@ -89,7 +91,8 @@ impl HybridEngine {
         self.velocity = velocity;
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
-            self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
+            self.amp_env
+                .set_params(self.attack / 1000.0, self.decay / 1000.0);
             self.amp_env.trigger();
             self.phases = [0.0; 3];
             self.last_noise = 0.0;
@@ -101,11 +104,19 @@ impl HybridEngine {
         self.mod_engine.env_value = env;
         self.mod_engine.tick();
 
-        if env <= 0.0 && !self.amp_env.is_active() { return 0.0; }
+        if env <= 0.0 && !self.amp_env.is_active() {
+            return 0.0;
+        }
 
         let current_freq = self.mod_engine.calculate_mod(&self.frequency);
-        let noise_color = self.mod_engine.calculate_mod(&self.noise_color).clamp(0.01, 1.0);
-        let metallic = self.mod_engine.calculate_mod(&self.metallic).clamp(0.0, 1.0);
+        let noise_color = self
+            .mod_engine
+            .calculate_mod(&self.noise_color)
+            .clamp(0.01, 1.0);
+        let metallic = self
+            .mod_engine
+            .calculate_mod(&self.metallic)
+            .clamp(0.0, 1.0);
 
         // Sub-oscillators for body using LUT
         let ratios = [1.0, 1.52, 2.11];
@@ -127,7 +138,7 @@ impl HybridEngine {
         // and the filtered noise contribute at every metallic setting.
         // The old `osc*(1-m) + noise*m` zeroed the pitched bank at m=1.0,
         // making the `freq` parameter a placebo for high-metallic voices.
-        let osc_weight = 1.0 - metallic * 0.85;   // metallic=1 -> 0.15 osc
+        let osc_weight = 1.0 - metallic * 0.85; // metallic=1 -> 0.15 osc
         let noise_weight = 0.15 + metallic * 0.85; // metallic=0 -> 0.15 noise, =1 -> 1.0
         let mixed = (osc_out * osc_weight) + (lp_out * noise_weight);
         (mixed * env * self.velocity).clamp(-1.0, 1.0)

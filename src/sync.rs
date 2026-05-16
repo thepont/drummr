@@ -1,10 +1,10 @@
-use midir::{MidiOutput, MidiOutputConnection};
+use crate::dsp::bpm_engine::BpmEngine;
 use midir::os::unix::VirtualOutput;
+use midir::{MidiOutput, MidiOutputConnection};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-use crate::dsp::bpm_engine::BpmEngine;
+use tokio::sync::Mutex;
 
 pub struct SyncEngine {
     is_running: Arc<std::sync::Mutex<bool>>,
@@ -16,10 +16,13 @@ pub struct SyncEngine {
 }
 
 impl SyncEngine {
-    pub fn new(bpm_engine: Arc<Mutex<BpmEngine>>, comm_engine: Arc<crate::comm::CommEngine>) -> Self {
+    pub fn new(
+        bpm_engine: Arc<Mutex<BpmEngine>>,
+        comm_engine: Arc<crate::comm::CommEngine>,
+    ) -> Self {
         let midi_out = MidiOutput::new("drummr-sync").expect("Failed to create MIDI output");
         let conn = midi_out.create_virtual("drummr Sync Out").ok();
-        
+
         if conn.is_none() {
             eprintln!("[SyncEngine] WARNING: Could not create virtual port. Is ALSA/JACK running?");
         }
@@ -54,15 +57,17 @@ impl SyncEngine {
         let bpm_engine_shared = self.bpm_engine.clone();
         let comm_shared = self.comm_engine.clone();
         let conn_shared = self._connection.clone();
-        
+
         if let Ok(mut running) = is_running_shared.lock() {
-            if *running { return; }
+            if *running {
+                return;
+            }
             *running = true;
         }
-        
+
         println!("[SyncEngine] Starting Master Clock Thread...");
         comm_shared.broadcast("SYNC_STATUS:Running".to_string());
-        
+
         thread::spawn(move || {
             let mut sync_active = false;
             let mut next_tick = Instant::now();
@@ -106,10 +111,10 @@ impl SyncEngine {
                         }
                     }
                 }
-                
+
                 thread::sleep(Duration::from_micros(500));
             }
-            
+
             if let Ok(mut conn_lock) = conn_shared.lock() {
                 if let Some(conn) = conn_lock.as_mut() {
                     let _ = conn.send(&[0xFC]); // MIDI Stop
@@ -125,7 +130,7 @@ impl SyncEngine {
             *running = false;
         }
     }
-    
+
     pub fn is_running(&self) -> bool {
         if let Ok(running) = self.is_running.lock() {
             *running

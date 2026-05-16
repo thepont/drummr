@@ -9,7 +9,7 @@
 //! does not touch these relative paths).
 
 use drummr::kit::{DrumKit, DrumMapping, DrumSound};
-use drummr::persistence::{start_persistence_worker, PersistenceCommand};
+use drummr::persistence::{PersistenceCommand, start_persistence_worker};
 use std::path::Path;
 use std::sync::Mutex;
 use std::thread;
@@ -197,8 +197,7 @@ fn test_save_sound_preset_creates_directory() {
     );
     assert!(Path::new("presets/sounds").is_dir());
 
-    let content =
-        std::fs::read_to_string("presets/sounds/auto_dir.toml").expect("read preset");
+    let content = std::fs::read_to_string("presets/sounds/auto_dir.toml").expect("read preset");
     let parsed: DrumSound = toml::from_str(&content).expect("parse preset");
     assert_eq!(parsed.freq, 220.0);
     assert_eq!(parsed.bits, Some(8.0));

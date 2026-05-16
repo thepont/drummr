@@ -37,21 +37,21 @@ fn band_energy(samples: &[f32], sample_rate: f32, freq: f32) -> f32 {
 fn test_hybrid_engine_output() {
     let sample_rate = 44100.0;
     let mut engine = HybridEngine::new(sample_rate);
-    
+
     // Set basic parameters
     engine.set_param("freq", 500.0);
     engine.set_param("noise_color", 0.5);
     engine.set_param("metallic", 0.8);
     engine.set_param("attack", 1.0);
     engine.set_param("decay", 100.0);
-    
+
     // Trigger
     engine.trigger(1.0);
-    
+
     // Check output
     let mut max_abs = 0.0f32;
     let mut non_zero_count = 0;
-    
+
     // Run for 50ms
     for _ in 0..(0.05 * sample_rate) as usize {
         let out = engine.tick();
@@ -60,8 +60,11 @@ fn test_hybrid_engine_output() {
         }
         max_abs = max_abs.max(out.abs());
     }
-    
-    println!("Hybrid - Non-zero: {}, Max Amp: {}", non_zero_count, max_abs);
+
+    println!(
+        "Hybrid - Non-zero: {}, Max Amp: {}",
+        non_zero_count, max_abs
+    );
     assert!(non_zero_count > 100, "HybridEngine is too silent!");
     assert!(max_abs > 0.1, "HybridEngine output is too weak!");
 }
@@ -96,8 +99,16 @@ fn test_freq_audible_at_metallic_1() {
     // Sanity: both should be audible.
     let low_peak = peak(&low_samples);
     let high_peak = peak(&high_samples);
-    assert!(low_peak > 0.01, "low-freq output is silent: peak={}", low_peak);
-    assert!(high_peak > 0.01, "high-freq output is silent: peak={}", high_peak);
+    assert!(
+        low_peak > 0.01,
+        "low-freq output is silent: peak={}",
+        low_peak
+    );
+    assert!(
+        high_peak > 0.01,
+        "high-freq output is silent: peak={}",
+        high_peak
+    );
 
     // Spectral check: energy near the fundamental should differ
     // substantially between the two engines. With the bug, both engines
@@ -187,10 +198,25 @@ fn test_metallic_sweep_smoothly_changes_timbre() {
     let d_5_1 = diff_meaningful(&s5, &s1);
     let d_0_1 = diff_meaningful(&s0, &s1);
 
-    println!("rms diffs: 0->0.5={} 0.5->1={} 0->1={}", d_0_5, d_5_1, d_0_1);
-    assert!(d_0_5 > 0.01, "metallic 0.0 vs 0.5 too similar: rms_diff={}", d_0_5);
-    assert!(d_5_1 > 0.01, "metallic 0.5 vs 1.0 too similar: rms_diff={}", d_5_1);
-    assert!(d_0_1 > 0.01, "metallic 0.0 vs 1.0 too similar: rms_diff={}", d_0_1);
+    println!(
+        "rms diffs: 0->0.5={} 0.5->1={} 0->1={}",
+        d_0_5, d_5_1, d_0_1
+    );
+    assert!(
+        d_0_5 > 0.01,
+        "metallic 0.0 vs 0.5 too similar: rms_diff={}",
+        d_0_5
+    );
+    assert!(
+        d_5_1 > 0.01,
+        "metallic 0.5 vs 1.0 too similar: rms_diff={}",
+        d_5_1
+    );
+    assert!(
+        d_0_1 > 0.01,
+        "metallic 0.0 vs 1.0 too similar: rms_diff={}",
+        d_0_1
+    );
 }
 
 /// Sanity check that the fix didn't break the noise-free end of the

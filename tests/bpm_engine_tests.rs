@@ -180,11 +180,7 @@ fn test_kick_snare_kick_snare_at_120() {
         t += step;
     }
     let bpm = e.get_bpm_at(last);
-    assert!(
-        (bpm - 120.0).abs() < 10.0,
-        "expected ~120, got {}",
-        bpm
-    );
+    assert!((bpm - 120.0).abs() < 10.0, "expected ~120, got {}", bpm);
 }
 
 #[test]
@@ -204,11 +200,7 @@ fn test_groove_with_hat_eighths_at_100() {
         t += eighth;
     }
     let bpm = e.get_bpm_at(last);
-    assert!(
-        (bpm - 100.0).abs() < 15.0,
-        "expected ~100 ±15, got {}",
-        bpm
-    );
+    assert!((bpm - 100.0).abs() < 15.0, "expected ~100 ±15, got {}", bpm);
 }
 
 // ---------- Stability flag ----------

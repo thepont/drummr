@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 
 const WINDOW_SECS: f32 = 6.0;
 const MAX_ONSETS: usize = 96;
-const MIN_LAG_SEC: f32 = 0.250;   // 240 BPM
-const MAX_LAG_SEC: f32 = 1.500;   // 40 BPM
-const LAG_STEP_SEC: f32 = 0.005;  // 5ms resolution
+const MIN_LAG_SEC: f32 = 0.250; // 240 BPM
+const MAX_LAG_SEC: f32 = 1.500; // 40 BPM
+const LAG_STEP_SEC: f32 = 0.005; // 5ms resolution
 const KERNEL_SIGMA_SEC: f32 = 0.020;
 const TACTUS_CENTER_BPM: f32 = 120.0;
 const TACTUS_SIGMA_OCT: f32 = 0.7;
@@ -51,7 +51,12 @@ impl BpmEngine {
             self.onsets.pop_front();
         }
 
-        println!("[BpmEngine] Hit  vel={:.2}  w={:.2}  n={}", velocity, weight, self.onsets.len());
+        println!(
+            "[BpmEngine] Hit  vel={:.2}  w={:.2}  n={}",
+            velocity,
+            weight,
+            self.onsets.len()
+        );
         self.estimate_tempo();
     }
 
@@ -79,7 +84,9 @@ impl BpmEngine {
         }
 
         let anchor = self.onsets.back().unwrap().t;
-        let times: Vec<(f32, f32)> = self.onsets.iter()
+        let times: Vec<(f32, f32)> = self
+            .onsets
+            .iter()
             .map(|o| (-(anchor.duration_since(o.t).as_secs_f32()), o.weight))
             .collect();
 
@@ -94,15 +101,20 @@ impl BpmEngine {
             for (i, &(ti, wi)) in times.iter().enumerate() {
                 let target = ti - lag;
                 for (j, &(tj, wj)) in times.iter().enumerate() {
-                    if i == j { continue; }
+                    if i == j {
+                        continue;
+                    }
                     let d = tj - target;
-                    if d.abs() > 4.0 * KERNEL_SIGMA_SEC { continue; }
+                    if d.abs() > 4.0 * KERNEL_SIGMA_SEC {
+                        continue;
+                    }
                     score += wi * wj * (-(d * d) / two_sigma2).exp();
                 }
             }
             let bpm = 60.0 / lag;
             let log_ratio = (bpm / TACTUS_CENTER_BPM).ln() / std::f32::consts::LN_2;
-            let prior = (-(log_ratio * log_ratio) / (2.0 * TACTUS_SIGMA_OCT * TACTUS_SIGMA_OCT)).exp();
+            let prior =
+                (-(log_ratio * log_ratio) / (2.0 * TACTUS_SIGMA_OCT * TACTUS_SIGMA_OCT)).exp();
             let weighted = score * prior;
             scores.push((lag, weighted));
             if weighted > best_score {
@@ -125,7 +137,11 @@ impl BpmEngine {
         if self.current_bpm == 0.0 {
             self.current_bpm = clamped_bpm;
         } else {
-            let alpha = if stable_delta < STABILITY_BAND_BPM { 0.35 } else { 0.15 };
+            let alpha = if stable_delta < STABILITY_BAND_BPM {
+                0.35
+            } else {
+                0.15
+            };
             self.current_bpm = self.current_bpm * (1.0 - alpha) + clamped_bpm * alpha;
 
             if stable_delta < STABILITY_BAND_BPM {
@@ -139,17 +155,24 @@ impl BpmEngine {
             }
         }
 
-        println!("[BpmEngine] BPM {:.1} (raw {:.1}, lag {:.3}s, stable {})",
-                 self.current_bpm, clamped_bpm, chosen_lag, self.is_stable);
+        println!(
+            "[BpmEngine] BPM {:.1} (raw {:.1}, lag {:.3}s, stable {})",
+            self.current_bpm, clamped_bpm, chosen_lag, self.is_stable
+        );
     }
 
     fn prefer_subharmonic(&self, peak_lag: f32, peak_score: f32, scores: &[(f32, f32)]) -> f32 {
         let mut chosen = peak_lag;
         for mult in [2.0_f32, 3.0_f32] {
             let target = peak_lag * mult;
-            if target > MAX_LAG_SEC { continue; }
+            if target > MAX_LAG_SEC {
+                continue;
+            }
             if let Some(&(lag, score)) = scores.iter().min_by(|a, b| {
-                (a.0 - target).abs().partial_cmp(&(b.0 - target).abs()).unwrap()
+                (a.0 - target)
+                    .abs()
+                    .partial_cmp(&(b.0 - target).abs())
+                    .unwrap()
             }) {
                 if score >= peak_score * SUBHARMONIC_PREFER {
                     chosen = lag;
@@ -212,6 +235,10 @@ mod tests {
             sleep(interval);
         }
         let bpm = e.get_bpm();
-        assert!(bpm < 180.0, "expected sub-180 (preferring 120 over 240), got {}", bpm);
+        assert!(
+            bpm < 180.0,
+            "expected sub-180 (preferring 120 over 240), got {}",
+            bpm
+        );
     }
 }

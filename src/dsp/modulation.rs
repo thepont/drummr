@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum ModSource {
@@ -17,7 +17,10 @@ pub struct ModAmount {
 
 impl Default for ModAmount {
     fn default() -> Self {
-        Self { source: ModSource::None, depth: 0.0 }
+        Self {
+            source: ModSource::None,
+            depth: 0.0,
+        }
     }
 }
 
@@ -58,12 +61,15 @@ mod tests {
     #[test]
     fn test_serialization() {
         let mut param = ModulatableParam::new(0.5);
-        param.mod_slots.push(ModAmount { source: ModSource::Envelope, depth: 0.8 });
-        
+        param.mod_slots.push(ModAmount {
+            source: ModSource::Envelope,
+            depth: 0.8,
+        });
+
         let json = serde_json::to_string(&param).unwrap();
         assert!(json.contains("Envelope"));
         assert!(json.contains("0.8"));
-        
+
         let decoded: ModulatableParam = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.base_value, 0.5);
         assert_eq!(decoded.mod_slots[0].source, ModSource::Envelope);

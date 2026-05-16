@@ -10,7 +10,10 @@ fn run_collect(engine: &mut ModalEngine, n: usize) -> Vec<f32> {
 fn test_modal_activates_on_trigger() {
     let mut e = ModalEngine::new(SR);
     e.trigger(1.0);
-    assert!(e.is_active(), "engine should report active immediately after trigger");
+    assert!(
+        e.is_active(),
+        "engine should report active immediately after trigger"
+    );
 
     let samples = run_collect(&mut e, 1000);
     let mut any_nonzero = false;
@@ -20,7 +23,10 @@ fn test_modal_activates_on_trigger() {
             any_nonzero = true;
         }
     }
-    assert!(any_nonzero, "modal engine produced no audio over 1000 samples");
+    assert!(
+        any_nonzero,
+        "modal engine produced no audio over 1000 samples"
+    );
 }
 
 #[test]
@@ -36,8 +42,14 @@ fn test_modal_decays_to_inactive() {
     let samples = run_collect(&mut e, total);
 
     let half = samples.len() / 2;
-    let peak_first: f32 = samples[..half].iter().map(|s| s.abs()).fold(0.0f32, f32::max);
-    let peak_second: f32 = samples[half..].iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+    let peak_first: f32 = samples[..half]
+        .iter()
+        .map(|s| s.abs())
+        .fold(0.0f32, f32::max);
+    let peak_second: f32 = samples[half..]
+        .iter()
+        .map(|s| s.abs())
+        .fold(0.0f32, f32::max);
 
     assert!(peak_first.is_finite() && peak_second.is_finite());
     assert!(
@@ -103,11 +115,13 @@ fn test_modal_inharmonicity_extremes() {
         let mut e = ModalEngine::new(SR);
         e.set_param("inharmonicity", inharm);
         e.trigger(1.0);
-        let samples: Vec<f32> = (0..500).map(|_| {
-            let y = e.tick();
-            assert!(y.is_finite(), "non-finite sample at inharm={}", inharm);
-            y
-        }).collect();
+        let samples: Vec<f32> = (0..500)
+            .map(|_| {
+                let y = e.tick();
+                assert!(y.is_finite(), "non-finite sample at inharm={}", inharm);
+                y
+            })
+            .collect();
         let n = samples.len().min(100);
         let sum_sq: f32 = samples[..n].iter().map(|s| s * s).sum();
         (sum_sq / n as f32).sqrt()
@@ -117,7 +131,10 @@ fn test_modal_inharmonicity_extremes() {
     let rms_inharmonic = rms_for(1.0);
 
     let max_rms = rms_harmonic.max(rms_inharmonic);
-    assert!(max_rms > 0.0, "expected non-zero RMS in at least one extreme");
+    assert!(
+        max_rms > 0.0,
+        "expected non-zero RMS in at least one extreme"
+    );
     let diff = (rms_harmonic - rms_inharmonic).abs();
     assert!(
         diff / max_rms > 0.05,
@@ -182,7 +199,9 @@ fn test_modal_typical_kit_voices_are_audible() {
         assert!(
             peak >= 0.056,
             "{}: peak {:.4} ({:.1} dBFS) is too quiet to be audible",
-            label, peak, 20.0 * peak.log10()
+            label,
+            peak,
+            20.0 * peak.log10()
         );
     }
 }
@@ -207,8 +226,23 @@ fn test_modal_extreme_corners_clamp_safely() {
         let n = (SR * (dec / 1000.0 + 0.5)) as usize;
         for _ in 0..n {
             let y = e.tick();
-            assert!(y.is_finite(), "non-finite at f={} b={} d={} dec={}", freq, bright, damp, dec);
-            assert!(y.abs() <= 1.0001, "exceeded clamp: {} at f={} b={} d={} dec={}", y, freq, bright, damp, dec);
+            assert!(
+                y.is_finite(),
+                "non-finite at f={} b={} d={} dec={}",
+                freq,
+                bright,
+                damp,
+                dec
+            );
+            assert!(
+                y.abs() <= 1.0001,
+                "exceeded clamp: {} at f={} b={} d={} dec={}",
+                y,
+                freq,
+                bright,
+                damp,
+                dec
+            );
         }
     }
 }
@@ -222,7 +256,10 @@ fn test_modal_is_active_honours_tail() {
     e.set_param("dampening", 0.0); // longest possible mode-bank ring
     e.trigger(1.0);
 
-    assert!(e.is_active(), "engine should be active immediately after trigger");
+    assert!(
+        e.is_active(),
+        "engine should be active immediately after trigger"
+    );
 
     // Advance ~1.5x the decay time. The AD envelope (attack 1ms + decay 1s)
     // should be fully complete by 1.5s, but the bandpass mode bank will keep
@@ -248,7 +285,10 @@ fn test_modal_is_active_honours_tail() {
             break;
         }
     }
-    assert!(became_inactive, "engine never became inactive after extended decay");
+    assert!(
+        became_inactive,
+        "engine never became inactive after extended decay"
+    );
 }
 
 #[test]

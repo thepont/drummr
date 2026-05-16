@@ -13,7 +13,7 @@ impl NoiseVoice {
     pub fn new(sample_rate: f32) -> Self {
         let mut amp_env = AdEnvelope::new(sample_rate);
         amp_env.set_params(1.0, 50.0);
-        
+
         Self {
             sample_rate,
             amp_env,
@@ -47,8 +47,12 @@ impl NoiseVoice {
 
     pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
-            "attack" => self.amp_env.set_params(value / 1000.0, self.amp_env.decay_sec),
-            "decay" => self.amp_env.set_params(self.amp_env.attack_sec, value / 1000.0),
+            "attack" => self
+                .amp_env
+                .set_params(value / 1000.0, self.amp_env.decay_sec),
+            "decay" => self
+                .amp_env
+                .set_params(self.amp_env.attack_sec, value / 1000.0),
             _ => {}
         }
     }

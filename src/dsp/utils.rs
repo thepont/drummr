@@ -22,10 +22,10 @@ impl FastSine {
         let p_scaled = p * TABLE_SIZE as f32;
         let idx = p_scaled as usize;
         let fract = p_scaled - idx as f32;
-        
+
         let v1 = self.table[idx];
         let v2 = self.table[idx + 1];
-        
+
         v1 + (v2 - v1) * fract
     }
 }
@@ -36,7 +36,9 @@ pub struct Xorshift {
 
 impl Xorshift {
     pub fn new(seed: u32) -> Self {
-        Self { state: if seed == 0 { 0xACE1 } else { seed } }
+        Self {
+            state: if seed == 0 { 0xACE1 } else { seed },
+        }
     }
 
     #[inline(always)]
@@ -65,15 +67,17 @@ mod tests {
     fn test_sine_accuracy() {
         let fs = FastSine::new();
         let mut max_err = 0.0f32;
-        
+
         for i in 0..10000 {
             let phase = i as f32 / 10000.0;
             let actual = fs.sin(phase);
             let expected = (phase * 2.0 * PI).sin();
             let err = (actual - expected).abs();
-            if err > max_err { max_err = err; }
+            if err > max_err {
+                max_err = err;
+            }
         }
-        
+
         // Linear interpolation with 2048 samples should be very accurate
         assert!(max_err < 0.0001, "Max error was {}", max_err);
     }

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 use crate::dsp::fm::FmVoice;
 use crate::dsp::noise::NoiseVoice;
 use crate::dsp::postfx::PostFx;
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ParamSchema {
@@ -65,7 +65,7 @@ impl Voice {
             Voice::Granular(v) => v.set_mod(param, source, depth),
             Voice::Hybrid(v) => v.set_mod(param, source, depth),
             Voice::Modal(v) => v.set_mod(param, source, depth),
-            Voice::Noise(_) => {},
+            Voice::Noise(_) => {}
         }
     }
 
@@ -76,7 +76,7 @@ impl Voice {
             Voice::Granular(v) => v.mod_engine.set_lfo(index, freq),
             Voice::Hybrid(v) => v.mod_engine.set_lfo(index, freq),
             Voice::Modal(v) => v.mod_engine.set_lfo(index, freq),
-            Voice::Noise(_) => {},
+            Voice::Noise(_) => {}
         }
     }
 
@@ -149,7 +149,7 @@ pub struct ModEntry {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumSound {
     pub name: String,
-    pub engine_type: Option<String>, 
+    pub engine_type: Option<String>,
     pub freq: f32,
     pub mod_ratio: Option<f32>,
     pub mod_index: Option<f32>,
@@ -184,10 +184,22 @@ impl KitEngine {
     pub fn new(sample_rate: f32) -> Self {
         const NO_VOICE: Option<Voice> = None;
         let postfx = [
-            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
-            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
-            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
-            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
+            PostFx::new(),
         ];
         Self {
             voices: [NO_VOICE; 16],
@@ -201,7 +213,9 @@ impl KitEngine {
         let mut engine = Self::new(sample_rate);
 
         for (idx, sound) in config.sounds.into_iter().enumerate() {
-            if idx >= 16 { break; }
+            if idx >= 16 {
+                break;
+            }
             let engine_type = sound.engine_type.as_deref().unwrap_or("fm");
             let mut voice: Voice = match engine_type {
                 "phys" => {
@@ -261,8 +275,12 @@ impl KitEngine {
                     voice.set_mod(&m.param, m.source, m.depth);
                 }
             }
-            if let Some(f) = sound.lfo1_freq { voice.set_lfo(1, f); }
-            if let Some(f) = sound.lfo2_freq { voice.set_lfo(2, f); }
+            if let Some(f) = sound.lfo1_freq {
+                voice.set_lfo(1, f);
+            }
+            if let Some(f) = sound.lfo2_freq {
+                voice.set_lfo(2, f);
+            }
 
             engine.voices[idx] = Some(voice);
             engine.postfx[idx].set_bits(sound.bits.unwrap_or(16.0));

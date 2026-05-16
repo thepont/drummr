@@ -1,6 +1,6 @@
-use drummr::kit::{DrumKit, DrumSound};
 use drummr::dsp::fm::FmVoice;
 use drummr::dsp::phys::PhysEngine;
+use drummr::kit::{DrumKit, DrumSound};
 use std::fs;
 use std::thread;
 
@@ -35,7 +35,7 @@ fn test_concurrent_kit_updates_race_condition() {
             mods: None,
         }],
     };
-    
+
     let toml_str = toml::to_string(&initial_kit).unwrap();
     fs::write(kit_path, toml_str).unwrap();
 
@@ -59,30 +59,35 @@ fn test_concurrent_kit_updates_race_condition() {
         handles.push(handle);
     }
 
-    for h in handles { h.join().unwrap(); }
+    for h in handles {
+        h.join().unwrap();
+    }
 
     // 3. Verify integrity
     let final_content = fs::read_to_string(kit_path).unwrap();
     let result: Result<DrumKit, _> = toml::from_str(&final_content);
-    
+
     // Cleanup
     let _ = fs::remove_file(kit_path);
 
     // This is expected to fail or show corruption if the race condition is hit
-    assert!(result.is_ok(), "Kit TOML was corrupted during concurrent updates");
+    assert!(
+        result.is_ok(),
+        "Kit TOML was corrupted during concurrent updates"
+    );
 }
 
 #[test]
 fn test_fm_voice_nan_resilience() {
     let mut voice = FmVoice::new(44100.0);
-    
+
     // Inject NaN into base value
     voice.frequency.base_value = std::f32::NAN;
     voice.trigger(1.0);
-    
+
     for _ in 0..100 {
         let sample = voice.tick();
-        // Since base_value is NaN, total_mod is finite (0.0), 
+        // Since base_value is NaN, total_mod is finite (0.0),
         // result = NaN + 0.0 = NaN -> should return fallback (base_value).
         // BUT if base_value ITSELF is NaN, the engine might still output NaN.
         // A better test is if modulation source becomes NaN.
@@ -93,29 +98,41 @@ fn test_fm_voice_nan_resilience() {
 #[test]
 fn test_phys_engine_inf_resilience() {
     let mut engine = PhysEngine::new(44100.0);
-    
+
     // Inject Infinity into brightness
     engine.brightness.base_value = std::f32::INFINITY;
     engine.trigger(1.0);
-    
+
     for _ in 0..100 {
         let sample = engine.tick();
-        assert!(!sample.is_infinite() && !sample.is_nan(), "Phys Engine propagated Infinity/NaN to output");
+        assert!(
+            !sample.is_infinite() && !sample.is_nan(),
+            "Phys Engine propagated Infinity/NaN to output"
+        );
     }
 }
 
 #[test]
 fn test_soft_clipper_overflow_resilience() {
     use drummr::audio::soft_clip;
-    
+
     let test_values = [1.1, 1.5, 2.0, 10.0, -1.1, -1.5, -2.0, -10.0, 100.0, -100.0];
-    
+
     for &val in test_values.iter() {
         let clipped = soft_clip(val);
-        assert!(clipped.is_finite(), "Soft clipper produced non-finite value for {}", val);
+        assert!(
+            clipped.is_finite(),
+            "Soft clipper produced non-finite value for {}",
+            val
+        );
         // Tanh(x) is always in (-1, 1)
-        assert!(clipped.abs() <= 1.0, "Soft clipper failed to limit value {} (got {})", val, clipped);
-        
+        assert!(
+            clipped.abs() <= 1.0,
+            "Soft clipper failed to limit value {} (got {})",
+            val,
+            clipped
+        );
+
         // Ensure it is actually "soft" - for val > 1.0, it should be less than val
         if val > 0.0 {
             assert!(clipped < val);
@@ -123,7 +140,7 @@ fn test_soft_clipper_overflow_resilience() {
             assert!(clipped > val);
         }
     }
-    
+
     // Test that it doesn't wrap (like some integer overflows)
     assert!(soft_clip(10.0) > 0.9);
     assert!(soft_clip(-10.0) < -0.9);

@@ -1,8 +1,8 @@
+use crate::state::{AudioCommand, MidiEvent, SharedState};
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rtrb::Consumer;
 use std::sync::Arc;
-use crate::state::{SharedState, AudioCommand, MidiEvent};
 
 pub fn start_audio(
     device: &cpal::Device,
@@ -22,15 +22,21 @@ pub fn start_audio(
             if let Ok(mut kit) = shared_state.kit.try_lock() {
                 while let Ok(cmd) = cmd_rx.pop() {
                     match cmd {
-                        AudioCommand::SetParam(slot, param, val) => { kit.set_param(slot, &param, val); }
+                        AudioCommand::SetParam(slot, param, val) => {
+                            kit.set_param(slot, &param, val);
+                        }
                         AudioCommand::SetMod(slot, param, source, depth) => {
                             if let Some(voice_opt) = kit.voices.get_mut(slot) {
-                                if let Some(voice) = voice_opt { voice.set_mod(&param, source, depth); }
+                                if let Some(voice) = voice_opt {
+                                    voice.set_mod(&param, source, depth);
+                                }
                             }
                         }
                         AudioCommand::SetLfo(slot, index, freq) => {
                             if let Some(voice_opt) = kit.voices.get_mut(slot) {
-                                if let Some(voice) = voice_opt { voice.set_lfo(index, freq); }
+                                if let Some(voice) = voice_opt {
+                                    voice.set_lfo(index, freq);
+                                }
                             }
                         }
                         AudioCommand::SetPostFx(slot, param, val) => {
@@ -64,10 +70,14 @@ pub fn start_audio(
 
                 for frame in data.chunks_mut(channels) {
                     let out = soft_clip(kit.tick() * 0.7);
-                    for sample in frame.iter_mut() { *sample = out; }
+                    for sample in frame.iter_mut() {
+                        *sample = out;
+                    }
                 }
             } else {
-                for sample in data.iter_mut() { *sample = 0.0; }
+                for sample in data.iter_mut() {
+                    *sample = 0.0;
+                }
             }
         },
         move |err| {
@@ -78,7 +88,7 @@ pub fn start_audio(
             // error callback (runs on the audio thread).
             let _ = error_tx.send(());
         },
-        None
+        None,
     )?;
     output_stream.play()?;
 
@@ -92,7 +102,8 @@ pub fn soft_clip(x: f32) -> f32 {
 
 pub fn get_default_audio_device() -> Result<cpal::Device> {
     let host = cpal::default_host();
-    let device = host.default_output_device()
+    let device = host
+        .default_output_device()
         .ok_or_else(|| anyhow::anyhow!("No default output device found"))?;
     Ok(device)
 }

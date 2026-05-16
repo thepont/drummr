@@ -7,7 +7,7 @@ pub struct FmVoice {
     sample_rate: f32,
     carrier_phase: f32,
     mod_phase: f32,
-    
+
     // Parameters
     pub frequency: ModulatableParam,
     pub mod_ratio: ModulatableParam,
@@ -15,15 +15,15 @@ pub struct FmVoice {
     pub noise_level: ModulatableParam,
     pub attack: f32,
     pub decay: f32,
-    
+
     // Envelopes
     pub amp_env: AdEnvelope,
     pub pitch_env: AdEnvelope,
     pub pitch_bend: f32,
-    
+
     // Modulation Engine
     pub mod_engine: ModulationEngine,
-    
+
     // Runtime state
     velocity: f32,
     rng: Xorshift,
@@ -60,7 +60,8 @@ impl FmVoice {
         if velocity > 0.0 {
             self.carrier_phase = 0.0;
             self.mod_phase = 0.0;
-            self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
+            self.amp_env
+                .set_params(self.attack / 1000.0, self.decay / 1000.0);
             self.amp_env.trigger();
             self.pitch_env.trigger();
         }
@@ -68,7 +69,7 @@ impl FmVoice {
 
     pub fn tick(&mut self) -> f32 {
         let amp = self.amp_env.tick();
-        
+
         // Update modulation engine BEFORE calculation
         self.mod_engine.env_value = amp;
         self.mod_engine.tick();
@@ -104,7 +105,11 @@ impl FmVoice {
 
         // Multiply by velocity for volume
         let out = (carrier_out + noise_out) * amp * self.velocity;
-        if out.is_finite() { out.clamp(-1.0, 1.0) } else { 0.0 }
+        if out.is_finite() {
+            out.clamp(-1.0, 1.0)
+        } else {
+            0.0
+        }
     }
 
     pub fn is_active(&self) -> bool {
@@ -113,12 +118,48 @@ impl FmVoice {
 
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
-            crate::kit::ParamSchema { name: "freq".to_string(), min: 20.0, max: 12000.0, default: 440.0, unit: "Hz".to_string() },
-            crate::kit::ParamSchema { name: "mod_ratio".to_string(), min: 0.0, max: 10.0, default: 1.0, unit: "ratio".to_string() },
-            crate::kit::ParamSchema { name: "mod_index".to_string(), min: 0.0, max: 50.0, default: 1.0, unit: "index".to_string() },
-            crate::kit::ParamSchema { name: "noise_level".to_string(), min: 0.0, max: 1.0, default: 0.0, unit: "level".to_string() },
-            crate::kit::ParamSchema { name: "attack".to_string(), min: 1.0, max: 1000.0, default: 1.0, unit: "ms".to_string() },
-            crate::kit::ParamSchema { name: "decay".to_string(), min: 1.0, max: 2000.0, default: 200.0, unit: "ms".to_string() },
+            crate::kit::ParamSchema {
+                name: "freq".to_string(),
+                min: 20.0,
+                max: 12000.0,
+                default: 440.0,
+                unit: "Hz".to_string(),
+            },
+            crate::kit::ParamSchema {
+                name: "mod_ratio".to_string(),
+                min: 0.0,
+                max: 10.0,
+                default: 1.0,
+                unit: "ratio".to_string(),
+            },
+            crate::kit::ParamSchema {
+                name: "mod_index".to_string(),
+                min: 0.0,
+                max: 50.0,
+                default: 1.0,
+                unit: "index".to_string(),
+            },
+            crate::kit::ParamSchema {
+                name: "noise_level".to_string(),
+                min: 0.0,
+                max: 1.0,
+                default: 0.0,
+                unit: "level".to_string(),
+            },
+            crate::kit::ParamSchema {
+                name: "attack".to_string(),
+                min: 1.0,
+                max: 1000.0,
+                default: 1.0,
+                unit: "ms".to_string(),
+            },
+            crate::kit::ParamSchema {
+                name: "decay".to_string(),
+                min: 1.0,
+                max: 2000.0,
+                default: 200.0,
+                unit: "ms".to_string(),
+            },
         ]
     }
 
@@ -166,13 +207,13 @@ mod tests {
     #[test]
     fn test_fm_voice_velocity() {
         let mut voice = FmVoice::new(44100.0);
-        
+
         voice.trigger(0.5);
         let out_half = voice.tick().abs();
-        
+
         voice.trigger(1.0);
         let out_full = voice.tick().abs();
-        
+
         assert!(out_full > out_half);
     }
 }

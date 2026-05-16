@@ -1,5 +1,5 @@
 use crate::dsp::envelope::AdEnvelope;
-use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
+use crate::dsp::modulation::{ModAmount, ModSource, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
 use crate::dsp::utils::Xorshift;
 use std::f32::consts::PI;
@@ -143,9 +143,18 @@ pub struct ModalEngine {
 impl ModalEngine {
     pub fn new(sample_rate: f32) -> Self {
         let modes = [
-            Mode::new(), Mode::new(), Mode::new(), Mode::new(),
-            Mode::new(), Mode::new(), Mode::new(), Mode::new(),
-            Mode::new(), Mode::new(), Mode::new(), Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
+            Mode::new(),
         ];
 
         let mut me = Self {
@@ -204,7 +213,9 @@ impl ModalEngine {
 }
 
 impl ModalEngine {
-    pub fn name(&self) -> &str { "Modal" }
+    pub fn name(&self) -> &str {
+        "Modal"
+    }
 
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
@@ -256,7 +267,8 @@ impl ModalEngine {
     pub fn trigger(&mut self, velocity: f32) {
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
-            self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
+            self.amp_env
+                .set_params(self.attack / 1000.0, self.decay / 1000.0);
             self.amp_env.trigger();
             self.rebuild_modes();
 
@@ -291,7 +303,10 @@ impl ModalEngine {
             self.impulse_pending = false;
         }
 
-        let brightness = self.mod_engine.calculate_mod(&self.brightness).clamp(0.0, 1.0);
+        let brightness = self
+            .mod_engine
+            .calculate_mod(&self.brightness)
+            .clamp(0.0, 1.0);
 
         // Sum the parallel bandpass bank. Higher modes are attenuated by a
         // brightness-controlled rolloff: brightness=0 keeps only the
@@ -392,7 +407,10 @@ mod tests {
     fn test_modal_engine_runs_clean() {
         let mut e = ModalEngine::new(48000.0);
         e.trigger(1.0);
-        assert!(e.is_active(), "engine should be active immediately after trigger");
+        assert!(
+            e.is_active(),
+            "engine should be active immediately after trigger"
+        );
 
         let mut any_nonzero = false;
         for _ in 0..1000 {
@@ -402,7 +420,10 @@ mod tests {
                 any_nonzero = true;
             }
         }
-        assert!(any_nonzero, "modal engine produced no audio output over 1000 samples");
+        assert!(
+            any_nonzero,
+            "modal engine produced no audio output over 1000 samples"
+        );
     }
 
     #[test]

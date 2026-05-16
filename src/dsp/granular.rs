@@ -1,5 +1,5 @@
 use crate::dsp::envelope::AdEnvelope;
-use crate::dsp::modulation::{ModSource, ModAmount, ModulatableParam};
+use crate::dsp::modulation::{ModAmount, ModSource, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
 use arrayvec::ArrayVec;
 
@@ -17,16 +17,16 @@ pub struct GranularEngine {
     sample_rate: f32,
     noise_buffer: Vec<f32>,
     grains: ArrayVec<Grain, 32>,
-    
+
     // Parameters
     pub frequency: ModulatableParam,
     pub density: ModulatableParam,
     pub grain_size: ModulatableParam,
     pub jitter: ModulatableParam,
-    
+
     pub attack: f32,
     pub decay: f32,
-    
+
     // Internal State
     amp_env: AdEnvelope,
     rng: Xorshift,
@@ -61,7 +61,9 @@ impl GranularEngine {
 }
 
 impl GranularEngine {
-    pub fn name(&self) -> &str { "Granular" }
+    pub fn name(&self) -> &str {
+        "Granular"
+    }
 
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
@@ -113,7 +115,8 @@ impl GranularEngine {
         self.velocity = velocity;
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
-            self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
+            self.amp_env
+                .set_params(self.attack / 1000.0, self.decay / 1000.0);
             self.amp_env.trigger();
             self.grains.clear();
         }
@@ -124,7 +127,9 @@ impl GranularEngine {
         self.mod_engine.env_value = env;
         self.mod_engine.tick();
 
-        if env <= 0.0 && !self.amp_env.is_active() { return 0.0; }
+        if env <= 0.0 && !self.amp_env.is_active() {
+            return 0.0;
+        }
 
         let current_freq = self.mod_engine.calculate_mod(&self.frequency);
         let density = self.mod_engine.calculate_mod(&self.density).clamp(0.0, 1.0);
@@ -138,7 +143,7 @@ impl GranularEngine {
                 let g_freq = (current_freq + jitter_off).max(10.0);
                 let g_size_samples = (grain_size / 1000.0 * self.sample_rate) as f32;
                 let g_pos = self.rng.next_f32() * (self.noise_buffer.len() as f32);
-                
+
                 let _ = self.grains.try_push(Grain {
                     pos: g_pos,
                     inc: g_freq / self.sample_rate,
@@ -155,10 +160,10 @@ impl GranularEngine {
             let g = &mut self.grains[i];
             let idx = (g.pos as usize) % self.noise_buffer.len();
             mixed += self.noise_buffer[idx] * g.life;
-            
+
             g.pos += g.inc;
             g.life -= g.decay;
-            
+
             if g.life <= 0.0 {
                 self.grains.swap_remove(i);
             } else {

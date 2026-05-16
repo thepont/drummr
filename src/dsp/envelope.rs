@@ -35,8 +35,16 @@ impl AdEnvelope {
         let attack_samples = attack_sec * self.sample_rate;
         let decay_samples = decay_sec * self.sample_rate;
 
-        self.attack_inc = if attack_samples > 0.0 { 1.0 / attack_samples } else { 1.0 };
-        self.decay_inc = if decay_samples > 0.0 { 1.0 / decay_samples } else { 1.0 };
+        self.attack_inc = if attack_samples > 0.0 {
+            1.0 / attack_samples
+        } else {
+            1.0
+        };
+        self.decay_inc = if decay_samples > 0.0 {
+            1.0 / decay_samples
+        } else {
+            1.0
+        };
     }
 
     pub fn trigger(&mut self) {

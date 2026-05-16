@@ -1,19 +1,19 @@
-use std::sync::Arc;
-use tokio::sync::{Mutex, mpsc};
-use crate::midi::MidiEngine;
 use crate::comm::CommEngine;
+use crate::kit::{DrumKit, DrumMapping, KitEngine};
+use crate::midi::MidiEngine;
 use crate::settings::Settings;
-use crate::kit::{KitEngine, DrumKit, DrumMapping};
-use rtrb::Producer;
-use wmidi::MidiMessage;
 use crate::state::MidiEvent;
 use anyhow::Result;
+use rtrb::Producer;
+use std::sync::Arc;
+use tokio::sync::{Mutex, mpsc};
+use wmidi::MidiMessage;
 
 use crate::dsp::bpm_engine::BpmEngine;
 
 pub async fn start_midi(
-    midi_engine: Arc<Mutex<MidiEngine>>, 
-    comm_engine: Arc<CommEngine>, 
+    midi_engine: Arc<Mutex<MidiEngine>>,
+    comm_engine: Arc<CommEngine>,
     midi_tx: mpsc::UnboundedSender<String>,
     raw_midi_producer: Arc<std::sync::Mutex<Producer<MidiEvent>>>,
     index: usize,
@@ -21,31 +21,29 @@ pub async fn start_midi(
 ) -> Result<()> {
     let mut midi = midi_engine.lock().await;
     let bpm_clone = bpm_engine.clone();
-    let res = midi.start(index, move |msg| {
-        match msg {
-            MidiMessage::NoteOn(_chan, note, vel) => {
-                let n_u8: u8 = note.into();
-                let v_u8: u8 = vel.into();
+    let res = midi.start(index, move |msg| match msg {
+        MidiMessage::NoteOn(_chan, note, vel) => {
+            let n_u8: u8 = note.into();
+            let v_u8: u8 = vel.into();
 
-                if v_u8 > 0 {
-                    let mut bpm = bpm_clone.blocking_lock();
-                    bpm.register_onset(v_u8 as f32 / 127.0);
-                }
+            if v_u8 > 0 {
+                let mut bpm = bpm_clone.blocking_lock();
+                bpm.register_onset(v_u8 as f32 / 127.0);
+            }
 
-                if let Ok(mut p) = raw_midi_producer.lock() {
-                    let _ = p.push([0x90, n_u8, v_u8]);
-                }
-                let _ = midi_tx.send(format!("MIDI: {},{}", n_u8, v_u8));
-            },
-            MidiMessage::NoteOff(_chan, note, _vel) => {
-                let n_u8: u8 = note.into();
-                if let Ok(mut p) = raw_midi_producer.lock() {
-                    let _ = p.push([0x80, n_u8, 0]);
-                }
-                let _ = midi_tx.send(format!("MIDI: {},0", n_u8));
-            },
-            _ => {}
+            if let Ok(mut p) = raw_midi_producer.lock() {
+                let _ = p.push([0x90, n_u8, v_u8]);
+            }
+            let _ = midi_tx.send(format!("MIDI: {},{}", n_u8, v_u8));
         }
+        MidiMessage::NoteOff(_chan, note, _vel) => {
+            let n_u8: u8 = note.into();
+            if let Ok(mut p) = raw_midi_producer.lock() {
+                let _ = p.push([0x80, n_u8, 0]);
+            }
+            let _ = midi_tx.send(format!("MIDI: {},0", n_u8));
+        }
+        _ => {}
     });
 
     match res {
@@ -56,8 +54,8 @@ pub async fn start_midi(
             settings.last_midi_port = Some(port_name);
             let _ = settings.save();
             Ok(())
-        },
-        Err(e) => Err(anyhow::anyhow!("MIDI start failed: {}", e))
+        }
+        Err(e) => Err(anyhow::anyhow!("MIDI start failed: {}", e)),
     }
 }
 
@@ -100,6 +98,10 @@ pub fn load_kit<P: AsRef<std::path::Path>>(path: P, sample_rate: f32) -> (KitEng
             return (engine, config);
         }
     }
-    let empty = DrumKit { name: String::new(), description: None, sounds: vec![] };
+    let empty = DrumKit {
+        name: String::new(),
+        description: None,
+        sounds: vec![],
+    };
     (KitEngine::new(sample_rate), empty)
 }

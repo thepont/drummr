@@ -1,7 +1,7 @@
+use crate::kit::{DrumKit, DrumMapping, DrumSound};
 use std::fs;
 use std::thread;
 use tokio::sync::mpsc;
-use crate::kit::{DrumKit, DrumMapping, DrumSound};
 
 pub enum PersistenceCommand {
     SaveKit(DrumKit),
@@ -15,19 +15,20 @@ pub fn start_persistence_worker() -> mpsc::UnboundedSender<PersistenceCommand> {
     thread::spawn(move || {
         while let Some(cmd) = rx.blocking_recv() {
             match cmd {
-                PersistenceCommand::SaveKit(kit) => {
-                    match toml::to_string_pretty(&kit) {
-                        Ok(toml_str) => {
-                            let tmp_path = "kit.toml.tmp";
-                            if let Err(e) = fs::write(tmp_path, &toml_str) {
-                                eprintln!("persistence: failed to write {}: {}", tmp_path, e);
-                            } else if let Err(e) = fs::rename(tmp_path, "kit.toml") {
-                                eprintln!("persistence: failed to rename {} -> kit.toml: {}", tmp_path, e);
-                            }
+                PersistenceCommand::SaveKit(kit) => match toml::to_string_pretty(&kit) {
+                    Ok(toml_str) => {
+                        let tmp_path = "kit.toml.tmp";
+                        if let Err(e) = fs::write(tmp_path, &toml_str) {
+                            eprintln!("persistence: failed to write {}: {}", tmp_path, e);
+                        } else if let Err(e) = fs::rename(tmp_path, "kit.toml") {
+                            eprintln!(
+                                "persistence: failed to rename {} -> kit.toml: {}",
+                                tmp_path, e
+                            );
                         }
-                        Err(e) => eprintln!("persistence: failed to serialize kit: {}", e),
                     }
-                }
+                    Err(e) => eprintln!("persistence: failed to serialize kit: {}", e),
+                },
                 PersistenceCommand::SaveMapping(mappings) => {
                     match toml::to_string_pretty(&mappings) {
                         Ok(toml_str) => {
@@ -35,7 +36,10 @@ pub fn start_persistence_worker() -> mpsc::UnboundedSender<PersistenceCommand> {
                             if let Err(e) = fs::write(tmp_path, &toml_str) {
                                 eprintln!("persistence: failed to write {}: {}", tmp_path, e);
                             } else if let Err(e) = fs::rename(tmp_path, "mapping.toml") {
-                                eprintln!("persistence: failed to rename {} -> mapping.toml: {}", tmp_path, e);
+                                eprintln!(
+                                    "persistence: failed to rename {} -> mapping.toml: {}",
+                                    tmp_path, e
+                                );
                             }
                         }
                         Err(e) => eprintln!("persistence: failed to serialize mapping: {}", e),
@@ -53,7 +57,10 @@ pub fn start_persistence_worker() -> mpsc::UnboundedSender<PersistenceCommand> {
                                 eprintln!("persistence: failed to write {}: {}", path, e);
                             }
                         }
-                        Err(e) => eprintln!("persistence: failed to serialize sound preset '{}': {}", name, e),
+                        Err(e) => eprintln!(
+                            "persistence: failed to serialize sound preset '{}': {}",
+                            name, e
+                        ),
                     }
                 }
             }
