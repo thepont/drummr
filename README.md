@@ -51,6 +51,13 @@ npm run dev
 
 The backend anchors all paths to `CARGO_MANIFEST_DIR` at startup, so `cargo run` from anywhere finds the same data.
 
-## Credits / Licenses
+## Credits / Acknowledgements
 
 - **Groove MIDI Dataset** (`presets/midi/*.mid`) — Gillick, J., Roberts, A., Engel, J., Eck, D., & Bamman, D. (2019). *Learning to Groove with Inverse Sequence Transformations*. ICML. Licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/legalcode). See `presets/midi/LICENSE-MIDI.md` for full attribution.
+- **Phosphor Icons** (via [`@phosphor-icons/react`](https://github.com/phosphor-icons/react)) — UI iconography. Licensed under MIT.
+
+## License
+
+The source code in this repository is currently **unlicensed** pending a decision by the author — i.e. all rights are reserved, and no permission is granted to copy, modify, or redistribute it. A formal open-source license may be added in the future.
+
+The bundled MIDI files under `presets/midi/` are a separate matter: they originate from the Groove MIDI Dataset and are distributed here under **CC BY 4.0** per `presets/midi/LICENSE-MIDI.md`.
