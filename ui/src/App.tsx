@@ -55,6 +55,9 @@ export default function App() {
         socket.send('LIST_AUDIO');
         socket.send('LIST_KITS');
         socket.send('GET_SYNC_STATUS');
+        socket.send('GET_KIT');
+        socket.send('GET_MAPPING');
+        socket.send('LIST_SOUND_PRESETS');
         setWs(socket);
       };
 
@@ -88,6 +91,11 @@ export default function App() {
           try {
             const kit = JSON.parse(data.replace('KIT: ', ''));
             setSounds(kit);
+            if (Array.isArray(kit) && socket.readyState === WebSocket.OPEN) {
+              kit.forEach((slot: any, i: number) => {
+                if (slot) socket.send('GET_SCHEMA:' + i);
+              });
+            }
           } catch (e) { console.error(e); }
         } else if (data.startsWith('SOUND_PRESETS:')) {
           setSoundPresets(data.replace('SOUND_PRESETS:', '').split(',').filter(Boolean));

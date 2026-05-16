@@ -179,7 +179,7 @@ function LibraryItem({ label, icon, onClick, disabled }: { label: string, icon: 
       )}>
         {icon}
       </div>
-      <span className="text-sm font-medium truncate">{label}</span>
+      <span className="text-sm font-medium truncate" title={label}>{label}</span>
       <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
         <Play size={12} weight="fill" className="text-primary" />
       </div>

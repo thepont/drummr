@@ -159,9 +159,6 @@ export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }:
             updateRoleNote(learningSlot, note);
           }
         }
-      } else if (data.startsWith('KIT: ')) {
-        // When the kit changes, we need to refresh the mapping to get the new sound names
-        ws.send('GET_MAPPING');
       } else if (data.startsWith('MAPPING: ')) {
         if (!hasChanges) {
           try {
