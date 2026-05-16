@@ -1,0 +1,145 @@
+name = "Kitchen Sink Symphony"
+description = "Ceramic, glass, water, metal — the kitchen as percussion. Inharmonic mid-band hits, tight transients."
+
+[[sounds]]
+name = "Wet Drip Kick"
+engine_type = "fm"
+freq = 70.0
+mod_ratio = 0.7
+mod_index = 2.0
+noise_level = 0.1
+attack = 1.0
+decay = 350.0
+
+[[sounds]]
+name = "Knife-on-Bottle"
+engine_type = "hybrid"
+freq = 380.0
+noise_color = 0.4
+metallic = 0.85
+attack = 1.0
+decay = 90.0
+
+[[sounds]]
+name = "Sizzle Hat"
+engine_type = "granular"
+freq = 6500.0
+density = 0.95
+grain_size = 3.0
+jitter = 0.9
+attack = 1.0
+decay = 45.0
+
+[[sounds]]
+name = "Frying Pan Lid"
+engine_type = "granular"
+freq = 6500.0
+density = 0.9
+grain_size = 4.0
+jitter = 0.85
+attack = 1.0
+decay = 320.0
+
+[[sounds]]
+name = "Wooden Spoon"
+engine_type = "phys"
+freq = 240.0
+brightness = 0.3
+dampening = 0.65
+attack = 2.0
+decay = 320.0
+
+[[sounds]]
+name = "Wooden Spoon Lower"
+engine_type = "phys"
+freq = 180.0
+brightness = 0.3
+dampening = 0.65
+attack = 2.0
+decay = 380.0
+
+[[sounds]]
+name = "Pot Boom"
+engine_type = "phys"
+freq = 120.0
+brightness = 0.5
+dampening = 0.5
+attack = 2.0
+decay = 450.0
+
+[[sounds]]
+name = "Big Pot"
+engine_type = "phys"
+freq = 85.0
+brightness = 0.4
+dampening = 0.55
+attack = 2.0
+decay = 550.0
+
+[[sounds]]
+name = "Plate Stack"
+engine_type = "hybrid"
+freq = 5500.0
+noise_color = 0.85
+metallic = 1.0
+attack = 1.0
+decay = 1400.0
+
+[[sounds]]
+name = "Wine Glass Edge"
+engine_type = "phys"
+freq = 4200.0
+brightness = 0.95
+dampening = 0.15
+attack = 1.0
+decay = 1100.0
+
+[[sounds]]
+name = "Ceramic Click"
+engine_type = "noise"
+freq = 0.0
+attack = 4.0
+decay = 180.0
+
+[[sounds]]
+name = "Glass Tap"
+engine_type = "fm"
+freq = 2200.0
+mod_ratio = 5.0
+mod_index = 4.0
+attack = 1.0
+decay = 35.0
+
+[[sounds]]
+name = "Mug Tap"
+engine_type = "fm"
+freq = 650.0
+mod_ratio = 0.8
+mod_index = 6.0
+attack = 1.0
+decay = 280.0
+
+[[sounds]]
+name = "Water Drop"
+engine_type = "fm"
+freq = 900.0
+mod_ratio = 1.5
+mod_index = 8.0
+attack = 1.0
+decay = 60.0
+
+[[sounds]]
+name = "Whisk Brush"
+engine_type = "noise"
+freq = 0.0
+attack = 1.0
+decay = 120.0
+
+[[sounds]]
+name = "Faucet Squeak"
+engine_type = "fm"
+freq = 1700.0
+mod_ratio = 4.0
+mod_index = 12.0
+attack = 1.0
+decay = 200.0

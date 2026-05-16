@@ -1,0 +1,151 @@
+name = "Garden at 3 AM"
+description = "Forest field-recordings turned percussion. Crickets, twigs, owls, frog throats. Organic and mostly unpitched."
+
+[[sounds]]
+name = "Hollow Log"
+engine_type = "phys"
+freq = 55.0
+brightness = 0.25
+dampening = 0.55
+attack = 2.0
+decay = 460.0
+
+[[sounds]]
+name = "Twig Snap"
+engine_type = "phys"
+freq = 320.0
+brightness = 0.85
+dampening = 0.55
+attack = 1.0
+decay = 110.0
+
+[[sounds]]
+name = "Cricket"
+engine_type = "granular"
+freq = 6000.0
+density = 0.85
+grain_size = 8.0
+jitter = 0.7
+attack = 1.0
+decay = 80.0
+
+[[sounds]]
+name = "Cricket Chorus"
+engine_type = "granular"
+freq = 6000.0
+density = 0.9
+grain_size = 10.0
+jitter = 0.75
+attack = 2.0
+decay = 300.0
+
+[[sounds]]
+name = "Frog Throat Hi"
+engine_type = "fm"
+freq = 320.0
+mod_ratio = 1.4
+mod_index = 9.0
+noise_level = 0.2
+attack = 2.0
+decay = 280.0
+
+[[sounds]]
+name = "Frog Mid"
+engine_type = "fm"
+freq = 240.0
+mod_ratio = 1.4
+mod_index = 9.0
+noise_level = 0.2
+attack = 2.0
+decay = 320.0
+
+[[sounds]]
+name = "Frog Lo"
+engine_type = "fm"
+freq = 170.0
+mod_ratio = 1.4
+mod_index = 9.0
+noise_level = 0.2
+attack = 2.0
+decay = 360.0
+
+[[sounds]]
+name = "Bullfrog"
+engine_type = "fm"
+freq = 110.0
+mod_ratio = 1.5
+mod_index = 10.0
+noise_level = 0.25
+attack = 2.0
+decay = 420.0
+
+[[sounds]]
+name = "Branch Snap"
+engine_type = "hybrid"
+freq = 4000.0
+noise_color = 0.85
+metallic = 0.4
+attack = 1.0
+decay = 900.0
+
+[[sounds]]
+name = "Leaf Rustle"
+engine_type = "granular"
+freq = 5500.0
+density = 0.4
+grain_size = 20.0
+jitter = 1.0
+attack = 5.0
+decay = 1500.0
+
+[[sounds]]
+name = "Owl Wing Beat"
+engine_type = "noise"
+freq = 0.0
+attack = 8.0
+decay = 240.0
+
+[[sounds]]
+name = "Pebble Click"
+engine_type = "phys"
+freq = 2200.0
+brightness = 0.8
+dampening = 0.6
+attack = 1.0
+decay = 28.0
+
+[[sounds]]
+name = "Owl Hoot"
+engine_type = "fm"
+freq = 420.0
+mod_ratio = 0.9
+mod_index = 6.0
+noise_level = 0.1
+attack = 20.0
+decay = 600.0
+
+[[sounds]]
+name = "Wind Gust"
+engine_type = "noise"
+freq = 0.0
+attack = 80.0
+decay = 800.0
+
+[[sounds]]
+name = "Distant Coyote"
+engine_type = "fm"
+freq = 520.0
+mod_ratio = 2.0
+mod_index = 11.0
+attack = 15.0
+decay = 600.0
+
+[[sounds]]
+name = "Frog Croak Quiet"
+engine_type = "fm"
+freq = 150.0
+mod_ratio = 1.5
+mod_index = 7.0
+noise_level = 0.15
+attack = 3.0
+decay = 180.0

@@ -1,0 +1,148 @@
+name = "Glass Forest"
+description = "Crystalline pitched percussion built from tuned glass and ice. Pitch-stable hits — playable melodically."
+
+[[sounds]]
+name = "Iceberg"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 0.5
+mod_index = 3.0
+noise_level = 0.08
+attack = 1.0
+decay = 420.0
+
+[[sounds]]
+name = "Wine Glass"
+engine_type = "phys"
+freq = 750.0
+brightness = 0.9
+dampening = 0.18
+attack = 1.0
+decay = 240.0
+
+[[sounds]]
+name = "Hailstone"
+engine_type = "granular"
+freq = 7500.0
+density = 0.95
+grain_size = 2.0
+jitter = 0.5
+attack = 1.0
+decay = 50.0
+
+[[sounds]]
+name = "Sleet Patter"
+engine_type = "granular"
+freq = 7500.0
+density = 0.9
+grain_size = 3.0
+jitter = 0.65
+attack = 1.0
+decay = 260.0
+
+[[sounds]]
+name = "Frozen Bell"
+engine_type = "phys"
+freq = 600.0
+brightness = 0.95
+dampening = 0.2
+attack = 1.0
+decay = 600.0
+
+[[sounds]]
+name = "Mid Glass"
+engine_type = "phys"
+freq = 500.0
+brightness = 0.95
+dampening = 0.2
+attack = 1.0
+decay = 650.0
+
+[[sounds]]
+name = "Low Glass"
+engine_type = "phys"
+freq = 400.0
+brightness = 0.95
+dampening = 0.2
+attack = 1.0
+decay = 700.0
+
+[[sounds]]
+name = "Deep Crystal"
+engine_type = "phys"
+freq = 320.0
+brightness = 0.9
+dampening = 0.25
+attack = 1.0
+decay = 750.0
+
+[[sounds]]
+name = "Shatter"
+engine_type = "hybrid"
+freq = 6500.0
+noise_color = 0.9
+metallic = 1.0
+attack = 1.0
+decay = 1800.0
+
+[[sounds]]
+name = "Glass Bowl"
+engine_type = "hybrid"
+freq = 3800.0
+noise_color = 0.5
+metallic = 1.0
+attack = 1.0
+decay = 2000.0
+
+[[sounds]]
+name = "Ice Crack"
+engine_type = "noise"
+freq = 0.0
+attack = 2.0
+decay = 220.0
+
+[[sounds]]
+name = "Glass Click"
+engine_type = "phys"
+freq = 2800.0
+brightness = 1.0
+dampening = 0.5
+attack = 1.0
+decay = 30.0
+
+[[sounds]]
+name = "Singing Bowl"
+engine_type = "hybrid"
+freq = 850.0
+noise_color = 0.2
+metallic = 1.0
+attack = 2.0
+decay = 1500.0
+
+[[sounds]]
+name = "Wind Chime Hi"
+engine_type = "phys"
+freq = 4500.0
+brightness = 1.0
+dampening = 0.1
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "Wind Chime Lo"
+engine_type = "phys"
+freq = 2200.0
+brightness = 1.0
+dampening = 0.1
+attack = 1.0
+decay = 650.0
+
+[[sounds]]
+name = "Snow Crunch"
+engine_type = "granular"
+freq = 5500.0
+density = 0.7
+grain_size = 5.0
+jitter = 0.9
+attack = 2.0
+decay = 150.0

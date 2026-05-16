@@ -1,0 +1,146 @@
+name = "Office After Hours"
+description = "Fluorescent-lit ASMR percussion. Paper, plastic, hardware mechanism — dry and transient-heavy."
+
+[[sounds]]
+name = "Stapler Ka-Chunk"
+engine_type = "fm"
+freq = 85.0
+mod_ratio = 1.0
+mod_index = 4.0
+noise_level = 0.15
+attack = 1.0
+decay = 180.0
+
+[[sounds]]
+name = "Paper-Tear"
+engine_type = "noise"
+freq = 0.0
+attack = 1.0
+decay = 140.0
+
+[[sounds]]
+name = "Typewriter Strike"
+engine_type = "granular"
+freq = 5000.0
+density = 0.4
+grain_size = 2.0
+jitter = 0.6
+attack = 1.0
+decay = 50.0
+
+[[sounds]]
+name = "Typewriter Long"
+engine_type = "granular"
+freq = 5000.0
+density = 0.5
+grain_size = 3.0
+jitter = 0.7
+attack = 1.0
+decay = 180.0
+
+[[sounds]]
+name = "Drawer Slam"
+engine_type = "hybrid"
+freq = 200.0
+noise_color = 0.3
+metallic = 0.4
+attack = 2.0
+decay = 300.0
+
+[[sounds]]
+name = "Drawer Mid"
+engine_type = "hybrid"
+freq = 150.0
+noise_color = 0.3
+metallic = 0.4
+attack = 2.0
+decay = 350.0
+
+[[sounds]]
+name = "Filing Cabinet"
+engine_type = "hybrid"
+freq = 110.0
+noise_color = 0.4
+metallic = 0.5
+attack = 2.0
+decay = 420.0
+
+[[sounds]]
+name = "Big Desk Hit"
+engine_type = "hybrid"
+freq = 80.0
+noise_color = 0.4
+metallic = 0.3
+attack = 2.0
+decay = 480.0
+
+[[sounds]]
+name = "Phone Smash"
+engine_type = "hybrid"
+freq = 4500.0
+noise_color = 0.9
+metallic = 0.95
+attack = 1.0
+decay = 1200.0
+
+[[sounds]]
+name = "Pen-Tap Loop"
+engine_type = "phys"
+freq = 3000.0
+brightness = 0.9
+dampening = 0.25
+attack = 1.0
+decay = 800.0
+
+[[sounds]]
+name = "Folder Slap"
+engine_type = "noise"
+freq = 0.0
+attack = 6.0
+decay = 200.0
+
+[[sounds]]
+name = "Pen Click"
+engine_type = "phys"
+freq = 2500.0
+brightness = 0.85
+dampening = 0.7
+attack = 1.0
+decay = 25.0
+
+[[sounds]]
+name = "Phone Bell"
+engine_type = "fm"
+freq = 900.0
+mod_ratio = 0.7
+mod_index = 10.0
+attack = 1.0
+decay = 350.0
+
+[[sounds]]
+name = "Keyboard Tap"
+engine_type = "fm"
+freq = 1800.0
+mod_ratio = 3.0
+mod_index = 5.0
+attack = 1.0
+decay = 40.0
+
+[[sounds]]
+name = "Highlighter Squeak"
+engine_type = "fm"
+freq = 2500.0
+mod_ratio = 4.0
+mod_index = 15.0
+attack = 1.0
+decay = 80.0
+
+[[sounds]]
+name = "Paper Crumple"
+engine_type = "granular"
+freq = 4000.0
+density = 0.6
+grain_size = 8.0
+jitter = 0.95
+attack = 2.0
+decay = 300.0
