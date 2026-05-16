@@ -415,15 +415,39 @@ pub async fn handle_command(
         if let Ok(devices) = host.output_devices() {
             let devices_vec: Vec<_> = devices.collect();
             if let Some(device) = devices_vec.get(index) {
-                let mut e_cons_lock = event_consumer.lock().await;
-                let mut c_cons_lock = cmd_consumer.lock().await;
-                if let (Some(e_cons), Some(c_cons)) = (e_cons_lock.take(), c_cons_lock.take()) {
-                    // Reuse the same hot-swap-recovery error channel that the
-                    // initial stream uses, so a SELECT_AUDIO target which is
-                    // later unplugged still triggers the recovery task.
-                    let error_tx = shared_state.audio_error_tx.clone();
-                    if let Ok(out_stream) = start_audio(device, e_cons, c_cons, shared_state.clone(), error_tx) {
-                        let name = device.name().unwrap_or_default();
+                // The original consumer halves were already `take()`n during
+                // the initial start in `main.rs`. After that, the Option<...>
+                // wrappers are `None` forever. To support repeated device
+                // switches we recreate the ring buffers here -- same approach
+                // as the hot-swap recovery task in `main.rs`. The old Consumer
+                // halves remain owned by the previous (leaked) stream callback
+                // and stop draining; the swap below points MIDI/WS producers
+                // at the fresh ring before the new stream starts pulling.
+                let (new_midi_prod, new_midi_cons) =
+                    rtrb::RingBuffer::<MidiEvent>::new(1024);
+                let (new_cmd_prod, new_cmd_cons) =
+                    rtrb::RingBuffer::<AudioCommand>::new(1024);
+
+                // Reuse the same hot-swap-recovery error channel so a
+                // SELECT_AUDIO target later unplugged still triggers recovery.
+                let error_tx = shared_state.audio_error_tx.clone();
+                // cpal::Stream is !Send + !Sync, so it must not be held
+                // across any await point (the WS dispatcher closure spans
+                // awaits). Build, swap, mem::forget all synchronously here.
+                let name = device.name().unwrap_or_default();
+                let started = match start_audio(
+                    device,
+                    new_midi_cons,
+                    new_cmd_cons,
+                    shared_state.clone(),
+                    error_tx,
+                ) {
+                    Ok(out_stream) => {
+                        // Only swap producers AFTER start_audio succeeds, so a
+                        // failed device pick doesn't strand the live producers.
+                        if let Ok(mut p) = midi_producer.lock() { *p = new_midi_prod; }
+                        if let Ok(mut p) = cmd_producer.lock() { *p = new_cmd_prod; }
+
                         // cpal::Stream is !Send + !Sync so we can't stash the
                         // previous stream in SharedState and drop it here.
                         // SELECT_AUDIO unavoidably leaks the old stream until
@@ -433,12 +457,26 @@ pub async fn handle_command(
                             eprintln!("warning: leaked {} prior cpal::Stream(s) via SELECT_AUDIO; previous device may stay busy until process exit", prior);
                         }
                         std::mem::forget(out_stream);
-                        comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
-                        let mut settings = Settings::load();
-                        settings.last_audio_device = Some(name);
-                        let _ = settings.save();
+                        true
                     }
+                    Err(e) => {
+                        eprintln!("SELECT_AUDIO: start_audio({}) failed: {}", name, e);
+                        false
+                    }
+                };
+
+                if started {
+                    comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
+                    let mut settings = Settings::load();
+                    settings.last_audio_device = Some(name.clone());
+                    let _ = settings.save();
                 }
+                // The stale Option<Consumer> wrappers in `event_consumer` /
+                // `cmd_consumer` are never re-used after the initial start; we
+                // intentionally leave them alone to avoid touching `Mutex` awaits
+                // while a `cpal::Stream` is on the stack.
+                let _ = event_consumer; // silence unused-capture lint
+                let _ = cmd_consumer;
             }
         }
     } else if text.starts_with("TEST_TRIGGER:") {
