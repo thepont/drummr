@@ -40,8 +40,8 @@ async fn main() -> Result<()> {
 
     // Use a fixed sample rate for now or fetch it from a default device
     let sample_rate = 48000.0;
-    let initial_kit = load_kit("kit.toml", sample_rate);
-    let shared_state = Arc::new(SharedState::new(initial_kit));
+    let (initial_kit, initial_snapshot) = load_kit("kit.toml", sample_rate);
+    let shared_state = Arc::new(SharedState::new(initial_kit, initial_snapshot));
     let shared_state_audio = shared_state.clone();
     let shared_state_comm = shared_state.clone();
     
@@ -123,29 +123,52 @@ async fn main() -> Result<()> {
     }).await?;
 
     let settings = Settings::load();
-    if let Ok(ports) = MidiEngine::list_ports() {
-        let index = settings.last_midi_port.as_ref().and_then(|name| ports.iter().position(|p| p == name)).unwrap_or(0);
-        if !ports.is_empty() { 
-            let _ = start_midi(midi_engine.clone(), comm_engine.clone(), midi_tx.clone(), midi_producer.clone(), index, bpm_engine_initial).await; 
+    match MidiEngine::list_ports() {
+        Ok(ports) if ports.is_empty() => {
+            println!("MIDI: no input ports found");
+            comm_engine.broadcast("PORT: (none)".to_string());
+        }
+        Ok(ports) => {
+            println!("MIDI: available ports: {}", ports.join(", "));
+            let index = settings.last_midi_port.as_ref().and_then(|name| ports.iter().position(|p| p == name)).unwrap_or(0);
+            let attempted = ports.get(index).cloned().unwrap_or_default();
+            match start_midi(midi_engine.clone(), comm_engine.clone(), midi_tx.clone(), midi_producer.clone(), index, bpm_engine_initial).await {
+                Ok(()) => {}
+                Err(e) => {
+                    eprintln!("MIDI: failed to open '{}': {}", attempted, e);
+                    comm_engine.broadcast(format!("PORT: (failed: {})", attempted));
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("MIDI: list_ports failed: {}", e);
+            comm_engine.broadcast("PORT: (unavailable)".to_string());
         }
     }
 
     let host = cpal::default_host();
     let devices_vec: Vec<_> = host.output_devices()?.collect();
+    let device_names: Vec<String> = devices_vec.iter().map(|d| d.name().unwrap_or_default()).collect();
+    println!("Audio: available output devices: {}", device_names.join(", "));
+
+    let default_name = host.default_output_device().and_then(|d| d.name().ok());
     let audio_index = devices_vec.iter().position(|d| d.name().ok().as_ref().map(|n| n.contains("Model 12")).unwrap_or(false))
-        .or_else(|| settings.last_audio_device.as_ref().and_then(|name| devices_vec.iter().position(|d| d.name().ok().as_ref() == Some(name))))
+        .or_else(|| settings.last_audio_device.as_ref().and_then(|name| device_names.iter().position(|n| n == name)))
+        .or_else(|| default_name.as_ref().and_then(|name| device_names.iter().position(|n| n == name)))
         .unwrap_or(0);
-    
+
     if let Some(device) = devices_vec.get(audio_index) {
         let mut cons_lock = event_consumer_wrapped.lock().await;
         let mut c_cons_lock = cmd_consumer_wrapped.lock().await;
         if let (Some(consumer), Some(cmd_consumer)) = (cons_lock.take(), c_cons_lock.take()) {
-            if let Ok((out_stream, in_stream)) = start_audio(device, consumer, cmd_consumer, shared_state.clone(), bpm_engine.clone()) {
+            if let Ok(out_stream) = start_audio(device, consumer, cmd_consumer, shared_state.clone()) {
                 let name = device.name().unwrap_or_default();
-                println!("Active audio device: {}", name);
+                println!("Active audio device: {} (system default: {})", name, default_name.as_deref().unwrap_or("<none>"));
                 std::mem::forget(out_stream);
-                if let Some(s) = in_stream { std::mem::forget(s); }
                 comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
+                let mut s = Settings::load();
+                s.last_audio_device = Some(name);
+                let _ = s.save();
             }
         }
     }

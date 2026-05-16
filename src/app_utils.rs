@@ -26,10 +26,11 @@ pub async fn start_midi(
             MidiMessage::NoteOn(_chan, note, vel) => {
                 let n_u8: u8 = note.into();
                 let v_u8: u8 = vel.into();
-                
-                // Register onset for BPM calculation - use blocking lock in MIDI thread
-                let mut bpm = bpm_clone.blocking_lock();
-                bpm.register_onset();
+
+                if v_u8 > 0 {
+                    let mut bpm = bpm_clone.blocking_lock();
+                    bpm.register_onset(v_u8 as f32 / 127.0);
+                }
 
                 if let Ok(mut p) = raw_midi_producer.lock() {
                     let _ = p.push([0x90, n_u8, v_u8]);
@@ -87,13 +88,18 @@ pub fn load_mappings() -> Vec<DrumMapping> {
     ]
 }
 
-pub fn load_kit<P: AsRef<std::path::Path>>(path: P, sample_rate: f32) -> KitEngine {
+/// Loads the kit from disk and returns both the runtime `KitEngine` and the
+/// authoritative `DrumKit` snapshot. If the file is missing or malformed,
+/// both fall back to an empty kit.
+pub fn load_kit<P: AsRef<std::path::Path>>(path: P, sample_rate: f32) -> (KitEngine, DrumKit) {
     let mappings = load_mappings();
     if let Ok(content) = std::fs::read_to_string(&path) {
         if let Ok(config) = toml::from_str::<DrumKit>(&content) {
             println!("Loaded kit from {:?}: {}", path.as_ref(), config.name);
-            return KitEngine::from_config(config, sample_rate, mappings);
+            let engine = KitEngine::from_config(config.clone(), sample_rate, mappings);
+            return (engine, config);
         }
     }
-    KitEngine::new(sample_rate)
+    let empty = DrumKit { name: String::new(), description: None, sounds: vec![] };
+    (KitEngine::new(sample_rate), empty)
 }

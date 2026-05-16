@@ -1,20 +1,25 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
-use crate::kit::KitEngine;
+use crate::kit::{KitEngine, DrumKit};
 
 pub type MidiEvent = [u8; 3];
 
 pub struct SharedState {
     mod_values: [AtomicU32; 16 * 5], // [slot * 5 + source]
     pub kit: Arc<std::sync::Mutex<KitEngine>>,
+    /// Authoritative in-memory snapshot of the current kit's serializable state.
+    /// All SET_* commands mutate this directly; the persistence worker receives
+    /// a clone. This eliminates the read-modify-write race against kit.toml.
+    pub kit_snapshot: Arc<std::sync::Mutex<DrumKit>>,
 }
 
 impl SharedState {
-    pub fn new(kit: KitEngine) -> Self {
+    pub fn new(kit: KitEngine, kit_snapshot: DrumKit) -> Self {
         const ZERO: AtomicU32 = AtomicU32::new(0);
-        Self { 
+        Self {
             mod_values: [ZERO; 16 * 5],
             kit: Arc::new(std::sync::Mutex::new(kit)),
+            kit_snapshot: Arc::new(std::sync::Mutex::new(kit_snapshot)),
         }
     }
 

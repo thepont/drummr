@@ -13,6 +13,34 @@ use rtrb::Producer;
 
 use crate::app_utils::{load_mappings, start_midi};
 
+/// Serialize a DrumKit snapshot into the JSON shape the UI expects for `KIT:` broadcasts.
+fn kit_to_json(config: &DrumKit) -> String {
+    let kit_data: Vec<_> = config.sounds.iter().enumerate().map(|(idx, s)| {
+        serde_json::json!({
+            "id": idx,
+            "name": s.name,
+            "engine_type": s.engine_type.as_deref().unwrap_or("fm"),
+            "freq": s.freq,
+            "mod_ratio": s.mod_ratio.unwrap_or(1.0),
+            "mod_index": s.mod_index.unwrap_or(1.0),
+            "noise_level": s.noise_level.unwrap_or(0.0),
+            "brightness": s.brightness.unwrap_or(0.5),
+            "dampening": s.dampening.unwrap_or(0.5),
+            "density": s.density.unwrap_or(0.5),
+            "grain_size": s.grain_size.unwrap_or(50.0),
+            "jitter": s.jitter.unwrap_or(0.2),
+            "noise_color": s.noise_color.unwrap_or(0.5),
+            "metallic": s.metallic.unwrap_or(0.5),
+            "attack": s.attack,
+            "decay": s.decay,
+            "lfo1_freq": s.lfo1_freq.unwrap_or(1.0),
+            "lfo2_freq": s.lfo2_freq.unwrap_or(1.0),
+            "mods": s.mods
+        })
+    }).collect();
+    serde_json::to_string(&kit_data).unwrap_or_default()
+}
+
 pub async fn handle_command(
     text: String,
     midi_engine: Arc<Mutex<MidiEngine>>,
@@ -43,37 +71,14 @@ pub async fn handle_command(
             comm_engine.broadcast(format!("LIST_AUDIO: {}", names.join(",")));
             let settings = Settings::load();
             if let Some(dev) = settings.last_audio_device {
-                comm_engine.broadcast(format!("AUDIO_DEVICE: {}", dev));
+                if names.iter().any(|n| n == &dev) {
+                    comm_engine.broadcast(format!("AUDIO_DEVICE: {}", dev));
+                }
             }
         }
     } else if text == "GET_KIT" {
-        if let Ok(content) = std::fs::read_to_string("kit.toml") {
-            if let Ok(config) = toml::from_str::<DrumKit>(&content) {
-                let kit_data: Vec<_> = config.sounds.iter().enumerate().map(|(idx, s)| {
-                    serde_json::json!({ 
-                        "id": idx, 
-                        "name": s.name, 
-                        "engine_type": s.engine_type.as_deref().unwrap_or("fm"), 
-                        "freq": s.freq, 
-                        "mod_ratio": s.mod_ratio.unwrap_or(1.0), 
-                        "mod_index": s.mod_index.unwrap_or(1.0), 
-                        "noise_level": s.noise_level.unwrap_or(0.0), 
-                        "brightness": s.brightness.unwrap_or(0.5), 
-                        "dampening": s.dampening.unwrap_or(0.5), 
-                        "density": s.density.unwrap_or(0.5), 
-                        "grain_size": s.grain_size.unwrap_or(50.0), 
-                        "jitter": s.jitter.unwrap_or(0.2), 
-                        "noise_color": s.noise_color.unwrap_or(0.5), 
-                        "metallic": s.metallic.unwrap_or(0.5), 
-                        "attack": s.attack, 
-                        "decay": s.decay, 
-                        "lfo1_freq": s.lfo1_freq.unwrap_or(1.0),
-                        "lfo2_freq": s.lfo2_freq.unwrap_or(1.0),
-                        "mods": s.mods 
-                    })
-                }).collect();
-                comm_engine.broadcast(format!("KIT: {}", serde_json::to_string(&kit_data).unwrap_or_default()));
-            }
+        if let Ok(snapshot) = shared_state.kit_snapshot.lock() {
+            comm_engine.broadcast(format!("KIT: {}", kit_to_json(&snapshot)));
         }
     } else if text.starts_with("GET_SCHEMA:") {
         let slot: usize = text.replace("GET_SCHEMA:", "").parse().unwrap_or(0);
@@ -86,13 +91,11 @@ pub async fn handle_command(
         }
     } else if text == "GET_MAPPING" {
         let mappings = load_mappings();
-        let mut sound_names = Vec::new();
-        
-        if let Ok(content) = std::fs::read_to_string("kit.toml") {
-            if let Ok(config) = toml::from_str::<DrumKit>(&content) {
-                sound_names = config.sounds.iter().map(|s| s.name.clone()).collect();
-            }
-        }
+        let sound_names: Vec<String> = if let Ok(snapshot) = shared_state.kit_snapshot.lock() {
+            snapshot.sounds.iter().map(|s| s.name.clone()).collect()
+        } else {
+            Vec::new()
+        };
 
         let ui_roles: Vec<_> = mappings.iter().map(|m| {
             let sound_name = sound_names.get(m.slot).cloned().unwrap_or_else(|| format!("Empty Slot {}", m.slot));
@@ -115,11 +118,9 @@ pub async fn handle_command(
                 mappings.push(DrumMapping { note, slot });
             }
             let _ = persistence_tx.send(PersistenceCommand::SaveMapping(mappings.clone()));
-            if let Ok(content) = std::fs::read_to_string("kit.toml") {
-                if let Ok(config) = toml::from_str::<DrumKit>(&content) {
-                    let new_kit = KitEngine::from_config(config, sample_rate, mappings);
-                    if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
-                }
+            if let Ok(snapshot) = shared_state.kit_snapshot.lock() {
+                let new_kit = KitEngine::from_config(snapshot.clone(), sample_rate, mappings);
+                if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
             }
         }
     } else if text.starts_with("SAVE_MAPPING:") {
@@ -132,11 +133,9 @@ pub async fn handle_command(
                 }
             }).collect();
             let _ = persistence_tx.send(PersistenceCommand::SaveMapping(mappings.clone()));
-            if let Ok(content) = std::fs::read_to_string("kit.toml") {
-                if let Ok(config) = toml::from_str::<DrumKit>(&content) {
-                    let new_kit = KitEngine::from_config(config, sample_rate, mappings);
-                    if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
-                }
+            if let Ok(snapshot) = shared_state.kit_snapshot.lock() {
+                let new_kit = KitEngine::from_config(snapshot.clone(), sample_rate, mappings);
+                if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
             }
         }
     } else if text == "LIST_SOUND_PRESETS" {
@@ -150,17 +149,14 @@ pub async fn handle_command(
         if parts.len() == 3 {
             let preset_name = parts[1];
             let slot: usize = parts[2].parse().unwrap_or(0);
-            if let Ok(content) = std::fs::read_to_string("kit.toml") {
-                if let Ok(config) = toml::from_str::<DrumKit>(&content) {
-                    if let Some(sound) = config.sounds.get(slot) {
-                        let _ = persistence_tx.send(PersistenceCommand::SaveSoundPreset(preset_name.to_string(), sound.clone()));
-                        // Update sound presets list for UI
-                        if let Ok(entries) = std::fs::read_dir("presets/sounds") {
-                            let presets: Vec<_> = entries.filter_map(|e| e.ok()).filter_map(|e| e.file_name().into_string().ok())
-                                .filter(|n| n.ends_with(".toml")).map(|n| n.replace(".toml", "")).collect();
-                            comm_engine.broadcast(format!("SOUND_PRESETS:{}", presets.join(",")));
-                        }
-                    }
+            let sound = shared_state.kit_snapshot.lock().ok().and_then(|s| s.sounds.get(slot).cloned());
+            if let Some(sound) = sound {
+                let _ = persistence_tx.send(PersistenceCommand::SaveSoundPreset(preset_name.to_string(), sound));
+                // Update sound presets list for UI
+                if let Ok(entries) = std::fs::read_dir("presets/sounds") {
+                    let presets: Vec<_> = entries.filter_map(|e| e.ok()).filter_map(|e| e.file_name().into_string().ok())
+                        .filter(|n| n.ends_with(".toml")).map(|n| n.replace(".toml", "")).collect();
+                    comm_engine.broadcast(format!("SOUND_PRESETS:{}", presets.join(",")));
                 }
             }
         }
@@ -171,41 +167,25 @@ pub async fn handle_command(
             let slot: usize = parts[2].parse().unwrap_or(0);
             if let Ok(preset_content) = std::fs::read_to_string(format!("presets/sounds/{}.toml", preset_name)) {
                 if let Ok(preset_sound) = toml::from_str::<DrumSound>(&preset_content) {
-                    if let Ok(content) = std::fs::read_to_string("kit.toml") {
-                        if let Ok(mut config) = toml::from_str::<DrumKit>(&content) {
-                            if let Some(sound) = config.sounds.get_mut(slot) {
-                                let old_name = sound.name.clone();
-                                *sound = preset_sound;
-                                sound.name = old_name;
-                                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
-                                let new_kit = KitEngine::from_config(config.clone(), sample_rate, load_mappings());
-                                if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
-                                let kit_data: Vec<_> = config.sounds.iter().enumerate().map(|(idx, s)| {
-                                    serde_json::json!({ 
-                                        "id": idx, 
-                                        "name": s.name, 
-                                        "engine_type": s.engine_type.as_deref().unwrap_or("fm"), 
-                                        "freq": s.freq, 
-                                        "mod_ratio": s.mod_ratio.unwrap_or(1.0), 
-                                        "mod_index": s.mod_index.unwrap_or(1.0), 
-                                        "noise_level": s.noise_level.unwrap_or(0.0), 
-                                        "brightness": s.brightness.unwrap_or(0.5), 
-                                        "dampening": s.dampening.unwrap_or(0.5), 
-                                        "density": s.density.unwrap_or(0.5), 
-                                        "grain_size": s.grain_size.unwrap_or(50.0), 
-                                        "jitter": s.jitter.unwrap_or(0.2), 
-                                        "noise_color": s.noise_color.unwrap_or(0.5), 
-                                        "metallic": s.metallic.unwrap_or(0.5), 
-                                        "attack": s.attack, 
-                                        "decay": s.decay, 
-                                        "lfo1_freq": s.lfo1_freq.unwrap_or(1.0),
-                                        "lfo2_freq": s.lfo2_freq.unwrap_or(1.0),
-                                        "mods": s.mods 
-                                    })
-                                }).collect();
-                                comm_engine.broadcast(format!("KIT: {}", serde_json::to_string(&kit_data).unwrap_or_default()));
-                            }
+                    // Apply the preset to the authoritative in-memory snapshot.
+                    let updated = if let Ok(mut snapshot) = shared_state.kit_snapshot.lock() {
+                        if let Some(sound) = snapshot.sounds.get_mut(slot) {
+                            let old_name = sound.name.clone();
+                            *sound = preset_sound;
+                            sound.name = old_name;
+                            Some(snapshot.clone())
+                        } else {
+                            None
                         }
+                    } else {
+                        None
+                    };
+
+                    if let Some(config) = updated {
+                        let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
+                        let new_kit = KitEngine::from_config(config.clone(), sample_rate, load_mappings());
+                        if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
+                        comm_engine.broadcast(format!("KIT: {}", kit_to_json(&config)));
                     }
                 }
             }
@@ -218,18 +198,23 @@ pub async fn handle_command(
         }
     } else if text.starts_with("SAVE_KIT_AS:") {
         let kit_name = text.replace("SAVE_KIT_AS:", "");
-        if let Ok(content) = std::fs::read_to_string("kit.toml") {
-            if let Ok(mut config) = toml::from_str::<DrumKit>(&content) {
-                config.name = kit_name.clone();
-                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
-                if let Ok(toml_str) = toml::to_string_pretty(&config) {
-                    let _ = std::fs::write(format!("presets/kits/{}.toml", kit_name), toml_str);
-                }
-                if let Ok(entries) = std::fs::read_dir("presets/kits") {
-                    let kits: Vec<_> = entries.filter_map(|e| e.ok()).filter_map(|e| e.file_name().into_string().ok())
-                        .filter(|n| n.ends_with(".toml")).map(|n| n.replace(".toml", "")).collect();
-                    comm_engine.broadcast(format!("KIT_LIST:{}", kits.join(",")));
-                }
+        // Pull the snapshot, retitle it, and persist both the canonical kit.toml
+        // and a copy under presets/kits/.
+        let config = if let Ok(mut snapshot) = shared_state.kit_snapshot.lock() {
+            snapshot.name = kit_name.clone();
+            Some(snapshot.clone())
+        } else {
+            None
+        };
+        if let Some(config) = config {
+            let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
+            if let Ok(toml_str) = toml::to_string_pretty(&config) {
+                let _ = std::fs::write(format!("presets/kits/{}.toml", kit_name), toml_str);
+            }
+            if let Ok(entries) = std::fs::read_dir("presets/kits") {
+                let kits: Vec<_> = entries.filter_map(|e| e.ok()).filter_map(|e| e.file_name().into_string().ok())
+                    .filter(|n| n.ends_with(".toml")).map(|n| n.replace(".toml", "")).collect();
+                comm_engine.broadcast(format!("KIT_LIST:{}", kits.join(",")));
             }
         }
     } else if text.starts_with("LOAD_KIT:") {
@@ -239,31 +224,8 @@ pub async fn handle_command(
                 let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
                 let new_kit = KitEngine::from_config(config.clone(), sample_rate, load_mappings());
                 if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
-                
-                let kit_data: Vec<_> = config.sounds.iter().enumerate().map(|(idx, s)| {
-                    serde_json::json!({ 
-                        "id": idx, 
-                        "name": s.name, 
-                        "engine_type": s.engine_type.as_deref().unwrap_or("fm"), 
-                        "freq": s.freq, 
-                        "mod_ratio": s.mod_ratio.unwrap_or(1.0), 
-                        "mod_index": s.mod_index.unwrap_or(1.0), 
-                        "noise_level": s.noise_level.unwrap_or(0.0), 
-                        "brightness": s.brightness.unwrap_or(0.5), 
-                        "dampening": s.dampening.unwrap_or(0.5), 
-                        "density": s.density.unwrap_or(0.5), 
-                        "grain_size": s.grain_size.unwrap_or(50.0), 
-                        "jitter": s.jitter.unwrap_or(0.2), 
-                        "noise_color": s.noise_color.unwrap_or(0.5), 
-                        "metallic": s.metallic.unwrap_or(0.5), 
-                        "attack": s.attack, 
-                        "decay": s.decay, 
-                        "lfo1_freq": s.lfo1_freq.unwrap_or(1.0),
-                        "lfo2_freq": s.lfo2_freq.unwrap_or(1.0),
-                        "mods": s.mods 
-                    })
-                }).collect();
-                comm_engine.broadcast(format!("KIT: {}", serde_json::to_string(&kit_data).unwrap_or_default()));
+                if let Ok(mut snap) = shared_state.kit_snapshot.lock() { *snap = config.clone(); }
+                comm_engine.broadcast(format!("KIT: {}", kit_to_json(&config)));
             }
         }
     } else if text.starts_with("SET_PARAM:") {
@@ -273,38 +235,45 @@ pub async fn handle_command(
             let param = parts[2];
             let value: f32 = parts[3].parse().unwrap_or(0.0);
             if let Ok(mut p) = cmd_producer.lock() { let _ = p.push(AudioCommand::SetParam(slot, param.to_string(), value)); }
-            if let Ok(content) = std::fs::read_to_string("kit.toml") {
-                if let Ok(mut config) = toml::from_str::<DrumKit>(&content) {
-                    if let Some(sound) = config.sounds.get_mut(slot) {
-                        match param {
-                            "engine_type" => { 
-                                sound.engine_type = Some(parts[3].to_string());
-                                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
-                                let new_kit = KitEngine::from_config(config.clone(), sample_rate, load_mappings());
-                                if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
-                            },
-                            "freq" => sound.freq = value,
-                            "mod_ratio" => sound.mod_ratio = Some(value),
-                            "mod_index" => sound.mod_index = Some(value),
-                            "noise_level" => sound.noise_level = Some(value),
-                            "brightness" => sound.brightness = Some(value),
-                            "dampening" => sound.dampening = Some(value),
-                            "density" => sound.density = Some(value),
-                            "grain_size" => sound.grain_size = Some(value),
-                            "jitter" => sound.jitter = Some(value),
-                            "noise_color" => sound.noise_color = Some(value),
-                            "metallic" => sound.metallic = Some(value),
-                            "attack" => sound.attack = value,
-                            "decay" => sound.decay = value,
-                            "lfo1_freq" => sound.lfo1_freq = Some(value),
-                            "lfo2_freq" => sound.lfo2_freq = Some(value),
-                            _ => {}
-                        }
-                        if param != "engine_type" {
-                            let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
-                        }
+
+            // Mutate the in-memory snapshot under one lock; emit the change to
+            // the persistence worker outside the lock.
+            let mut engine_changed = false;
+            let snapshot_clone = if let Ok(mut snapshot) = shared_state.kit_snapshot.lock() {
+                if let Some(sound) = snapshot.sounds.get_mut(slot) {
+                    match param {
+                        "engine_type" => { sound.engine_type = Some(parts[3].to_string()); engine_changed = true; },
+                        "freq" => sound.freq = value,
+                        "mod_ratio" => sound.mod_ratio = Some(value),
+                        "mod_index" => sound.mod_index = Some(value),
+                        "noise_level" => sound.noise_level = Some(value),
+                        "brightness" => sound.brightness = Some(value),
+                        "dampening" => sound.dampening = Some(value),
+                        "density" => sound.density = Some(value),
+                        "grain_size" => sound.grain_size = Some(value),
+                        "jitter" => sound.jitter = Some(value),
+                        "noise_color" => sound.noise_color = Some(value),
+                        "metallic" => sound.metallic = Some(value),
+                        "attack" => sound.attack = value,
+                        "decay" => sound.decay = value,
+                        "lfo1_freq" => sound.lfo1_freq = Some(value),
+                        "lfo2_freq" => sound.lfo2_freq = Some(value),
+                        _ => {}
                     }
+                    Some(snapshot.clone())
+                } else {
+                    None
                 }
+            } else {
+                None
+            };
+
+            if let Some(config) = snapshot_clone {
+                if engine_changed {
+                    let new_kit = KitEngine::from_config(config.clone(), sample_rate, load_mappings());
+                    if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
+                }
+                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config));
             }
         }
     } else if text.starts_with("SET_MOD:") {
@@ -323,24 +292,30 @@ pub async fn handle_command(
                 _ => crate::dsp::modulation::ModSource::None,
             };
 
-            if let Ok(mut p) = cmd_producer.lock() { 
-                let _ = p.push(AudioCommand::SetMod(slot, param.to_string(), source, depth)); 
+            if let Ok(mut p) = cmd_producer.lock() {
+                let _ = p.push(AudioCommand::SetMod(slot, param.to_string(), source, depth));
             }
 
-            if let Ok(content) = std::fs::read_to_string("kit.toml") {
-                if let Ok(mut config) = toml::from_str::<DrumKit>(&content) {
-                    if let Some(sound) = config.sounds.get_mut(slot) {
-                        let mut mods = sound.mods.clone().unwrap_or_default();
-                        if let Some(m) = mods.iter_mut().find(|m| m.param == param && m.source == source) {
-                            m.depth = depth;
-                        } else if source != crate::dsp::modulation::ModSource::None {
-                            mods.push(crate::kit::ModEntry { param: param.to_string(), source, depth });
-                        }
-                        mods.retain(|m| m.source != crate::dsp::modulation::ModSource::None);
-                        sound.mods = Some(mods);
-                        let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
+            let snapshot_clone = if let Ok(mut snapshot) = shared_state.kit_snapshot.lock() {
+                if let Some(sound) = snapshot.sounds.get_mut(slot) {
+                    let mut mods = sound.mods.clone().unwrap_or_default();
+                    if let Some(m) = mods.iter_mut().find(|m| m.param == param && m.source == source) {
+                        m.depth = depth;
+                    } else if source != crate::dsp::modulation::ModSource::None {
+                        mods.push(crate::kit::ModEntry { param: param.to_string(), source, depth });
                     }
+                    mods.retain(|m| m.source != crate::dsp::modulation::ModSource::None);
+                    sound.mods = Some(mods);
+                    Some(snapshot.clone())
+                } else {
+                    None
                 }
+            } else {
+                None
+            };
+
+            if let Some(config) = snapshot_clone {
+                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config));
             }
         }
     } else if text.starts_with("SET_LFO:") {
@@ -349,17 +324,24 @@ pub async fn handle_command(
             let slot: usize = parts[1].parse().unwrap_or(0);
             let index: usize = parts[2].parse().unwrap_or(1);
             let freq: f32 = parts[3].parse().unwrap_or(1.0);
-            if let Ok(mut p) = cmd_producer.lock() { 
-                let _ = p.push(AudioCommand::SetLfo(slot, index, freq)); 
+            if let Ok(mut p) = cmd_producer.lock() {
+                let _ = p.push(AudioCommand::SetLfo(slot, index, freq));
             }
-            if let Ok(content) = std::fs::read_to_string("kit.toml") {
-                if let Ok(mut config) = toml::from_str::<DrumKit>(&content) {
-                    if let Some(sound) = config.sounds.get_mut(slot) {
-                        if index == 1 { sound.lfo1_freq = Some(freq); }
-                        else if index == 2 { sound.lfo2_freq = Some(freq); }
-                        let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
-                    }
+
+            let snapshot_clone = if let Ok(mut snapshot) = shared_state.kit_snapshot.lock() {
+                if let Some(sound) = snapshot.sounds.get_mut(slot) {
+                    if index == 1 { sound.lfo1_freq = Some(freq); }
+                    else if index == 2 { sound.lfo2_freq = Some(freq); }
+                    Some(snapshot.clone())
+                } else {
+                    None
                 }
+            } else {
+                None
+            };
+
+            if let Some(config) = snapshot_clone {
+                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config));
             }
         }
     } else if text.starts_with("SELECT_MIDI:") {
@@ -386,10 +368,9 @@ pub async fn handle_command(
                 let mut e_cons_lock = event_consumer.lock().await;
                 let mut c_cons_lock = cmd_consumer.lock().await;
                 if let (Some(e_cons), Some(c_cons)) = (e_cons_lock.take(), c_cons_lock.take()) {
-                    if let Ok((out_stream, in_stream)) = start_audio(device, e_cons, c_cons, shared_state, bpm_engine) {
+                    if let Ok(out_stream) = start_audio(device, e_cons, c_cons, shared_state) {
                         let name = device.name().unwrap_or_default();
-                        std::mem::forget(out_stream); 
-                        if let Some(s) = in_stream { std::mem::forget(s); }
+                        std::mem::forget(out_stream);
                         comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
                         let mut settings = Settings::load();
                         settings.last_audio_device = Some(name);
