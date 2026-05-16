@@ -47,5 +47,10 @@ npm run dev
 - `mapping.toml` — MIDI note → slot mapping.
 - `settings.toml` — last-chosen audio output and MIDI input device (gitignored; machine-local).
 - `presets/kits/*.toml` — kit library shown in the UI Library sidebar.
+- `presets/midi/*.mid` — curated CC-BY 4.0 drum tracks used by the **Preview Kit** feature to audition the active kit in a real musical context (see `presets/midi/LICENSE-MIDI.md` for attribution).
 
 The backend anchors all paths to `CARGO_MANIFEST_DIR` at startup, so `cargo run` from anywhere finds the same data.
+
+## Credits / Licenses
+
+- **Groove MIDI Dataset** (`presets/midi/*.mid`) — Gillick, J., Roberts, A., Engel, J., Eck, D., & Bamman, D. (2019). *Learning to Groove with Inverse Sequence Transformations*. ICML. Licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/legalcode). See `presets/midi/LICENSE-MIDI.md` for full attribution.
