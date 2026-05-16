@@ -41,42 +41,42 @@ decay = 400.0
 [[sounds]]
 name = "Pew Tom 1"
 engine_type = "modal"
-freq = 300.0
-brightness = 0.35
-dampening = 0.45
-inharmonicity = 0.5
+freq = 320.0
+brightness = 0.55
+dampening = 0.3
+inharmonicity = 0.35
 attack = 1.0
-decay = 350.0
+decay = 260.0
 
 [[sounds]]
 name = "Pew Tom 2"
 engine_type = "modal"
-freq = 240.0
-brightness = 0.35
+freq = 230.0
+brightness = 0.4
 dampening = 0.45
 inharmonicity = 0.5
 attack = 1.0
-decay = 350.0
+decay = 360.0
 
 [[sounds]]
 name = "Pew Tom 3"
 engine_type = "modal"
-freq = 180.0
-brightness = 0.35
-dampening = 0.45
-inharmonicity = 0.5
-attack = 1.0
-decay = 350.0
+freq = 165.0
+brightness = 0.3
+dampening = 0.55
+inharmonicity = 0.65
+attack = 2.0
+decay = 460.0
 
 [[sounds]]
 name = "Pew Tom 4"
 engine_type = "modal"
-freq = 130.0
-brightness = 0.35
-dampening = 0.45
-inharmonicity = 0.5
-attack = 1.0
-decay = 350.0
+freq = 110.0
+brightness = 0.2
+dampening = 0.65
+inharmonicity = 0.8
+attack = 3.0
+decay = 560.0
 
 [[sounds]]
 name = "Hex Crash"

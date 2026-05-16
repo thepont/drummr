@@ -43,38 +43,38 @@ decay = 260.0
 [[sounds]]
 name = "Frozen Bell"
 engine_type = "phys"
-freq = 600.0
-brightness = 0.95
-dampening = 0.2
+freq = 660.0
+brightness = 1.0
+dampening = 0.12
 attack = 1.0
-decay = 600.0
+decay = 520.0
 
 [[sounds]]
 name = "Mid Glass"
 engine_type = "phys"
-freq = 500.0
-brightness = 0.95
-dampening = 0.2
-attack = 1.0
-decay = 650.0
+freq = 470.0
+brightness = 0.78
+dampening = 0.28
+attack = 2.0
+decay = 720.0
 
 [[sounds]]
 name = "Low Glass"
 engine_type = "phys"
-freq = 400.0
-brightness = 0.95
-dampening = 0.2
-attack = 1.0
-decay = 700.0
+freq = 340.0
+brightness = 0.58
+dampening = 0.42
+attack = 3.0
+decay = 900.0
 
 [[sounds]]
 name = "Deep Crystal"
 engine_type = "phys"
-freq = 320.0
-brightness = 0.9
-dampening = 0.25
-attack = 1.0
-decay = 750.0
+freq = 240.0
+brightness = 0.4
+dampening = 0.55
+attack = 4.0
+decay = 1100.0
 
 [[sounds]]
 name = "Shatter"

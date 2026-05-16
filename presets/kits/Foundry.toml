@@ -45,42 +45,42 @@ rate = 3.0
 [[sounds]]
 name = "Anvil Tom 1"
 engine_type = "modal"
-freq = 320.0
-brightness = 0.75
-dampening = 0.2
-inharmonicity = 0.95
+freq = 340.0
+brightness = 0.88
+dampening = 0.12
+inharmonicity = 0.98
 attack = 1.0
-decay = 420.0
+decay = 380.0
 
 [[sounds]]
 name = "Anvil Tom 2"
 engine_type = "modal"
-freq = 260.0
-brightness = 0.75
-dampening = 0.2
-inharmonicity = 0.95
-attack = 1.0
-decay = 460.0
+freq = 250.0
+brightness = 0.7
+dampening = 0.22
+inharmonicity = 0.85
+attack = 2.0
+decay = 480.0
 
 [[sounds]]
 name = "Anvil Tom 3"
 engine_type = "modal"
-freq = 200.0
-brightness = 0.75
-dampening = 0.2
-inharmonicity = 0.95
-attack = 1.0
-decay = 500.0
+freq = 180.0
+brightness = 0.55
+dampening = 0.35
+inharmonicity = 0.7
+attack = 3.0
+decay = 580.0
 
 [[sounds]]
 name = "Anvil Tom 4"
 engine_type = "modal"
-freq = 150.0
-brightness = 0.75
-dampening = 0.2
-inharmonicity = 0.95
-attack = 1.0
-decay = 540.0
+freq = 130.0
+brightness = 0.4
+dampening = 0.5
+inharmonicity = 0.55
+attack = 4.0
+decay = 680.0
 
 [[sounds]]
 name = "Bell of Doom"
@@ -106,15 +106,14 @@ rate = 3.0
 
 [[sounds]]
 name = "Foundry Clap"
-engine_type = "fm"
-freq = 1500.0
-mod_ratio = 3.0
-mod_index = 10.0
-noise_level = 0.9
-attack = 2.0
-decay = 250.0
-bits = 4.0
-rate = 3.0
+engine_type = "hybrid"
+freq = 2400.0
+noise_color = 0.7
+metallic = 0.35
+attack = 8.0
+decay = 180.0
+bits = 12.0
+rate = 1.0
 
 [[sounds]]
 name = "Steel Rim"
