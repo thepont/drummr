@@ -11,6 +11,7 @@ noise_level = 0.35
 attack = 1.0
 decay = 240.0
 bits = 10.0
+mods = [{param="mod_index", source="Envelope", depth=3.5}, {param="freq", source="Velocity", depth=8.0}]
 
 [[sounds]]
 name = "Servo Stall"
@@ -129,6 +130,8 @@ noise_level = 0.2
 attack = 1.0
 decay = 320.0
 bits = 10.0
+lfo1_freq = 8.0
+mods = [{param="freq", source="Lfo1", depth=18.0}, {param="mod_index", source="Lfo1", depth=3.0}]
 
 [[sounds]]
 name = "Static Buzz"

@@ -12,6 +12,7 @@ attack = 1.0
 decay = 250.0
 bits = 10.0
 rate = 1.0
+mods = [{param="brightness", source="Velocity", depth=0.2}]
 
 [[sounds]]
 name = "Shard Snare"
@@ -24,6 +25,7 @@ attack = 1.0
 decay = 180.0
 bits = 10.0
 rate = 1.0
+mods = [{param="inharmonicity", source="Velocity", depth=0.06}, {param="freq", source="Velocity", depth=20.0}]
 
 [[sounds]]
 name = "Ice Hat Closed"
@@ -108,6 +110,8 @@ attack = 1.0
 decay = 1400.0
 bits = 10.0
 rate = 2.0
+lfo1_freq = 0.8
+mods = [{param="brightness", source="Lfo1", depth=0.05}]
 
 [[sounds]]
 name = "Glass Ride"

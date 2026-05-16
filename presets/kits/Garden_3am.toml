@@ -28,6 +28,8 @@ grain_size = 8.0
 jitter = 0.7
 attack = 1.0
 decay = 80.0
+lfo1_freq = 12.0
+mods = [{param="density", source="Lfo1", depth=0.15}]
 
 [[sounds]]
 name = "Cricket Chorus"
@@ -38,6 +40,8 @@ grain_size = 10.0
 jitter = 0.75
 attack = 2.0
 decay = 300.0
+lfo1_freq = 9.0
+mods = [{param="density", source="Lfo1", depth=0.1}, {param="freq", source="Lfo1", depth=80.0}]
 
 [[sounds]]
 name = "Frog Throat Hi"
@@ -78,6 +82,7 @@ mod_index = 10.0
 noise_level = 0.25
 attack = 2.0
 decay = 420.0
+mods = [{param="mod_index", source="Velocity", depth=6.0}]
 
 [[sounds]]
 name = "Branch Snap"

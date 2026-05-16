@@ -10,6 +10,7 @@ mod_index = 8.0
 noise_level = 0.4
 attack = 1.0
 decay = 220.0
+mods = [{param="mod_index", source="Envelope", depth=4.0}]
 
 [[sounds]]
 name = "Actuator Snare"
@@ -19,6 +20,7 @@ noise_color = 0.5
 metallic = 0.6
 attack = 1.0
 decay = 180.0
+mods = [{param="metallic", source="Velocity", depth=0.2}, {param="freq", source="Velocity", depth=20.0}]
 
 [[sounds]]
 name = "Relay Hat Closed"

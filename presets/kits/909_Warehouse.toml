@@ -10,6 +10,7 @@ mod_index = 4.0
 noise_level = 0.3
 attack = 1.0
 decay = 300.0
+mods = [{param="mod_index", source="Envelope", depth=2.5}, {param="freq", source="Envelope", depth=40.0}]
 
 [[sounds]]
 name = "909 Snare"
@@ -19,6 +20,7 @@ noise_color = 0.6
 metallic = 0.4
 attack = 1.0
 decay = 220.0
+mods = [{param="freq", source="Velocity", depth=15.0}, {param="metallic", source="Velocity", depth=0.08}]
 
 [[sounds]]
 name = "909 Closed Hat"

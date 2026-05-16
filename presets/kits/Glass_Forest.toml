@@ -1,10 +1,10 @@
 name = "Glass Forest"
-description = "Crystalline pitched percussion built from tuned glass and ice. Pitch-stable hits — playable melodically."
+description = "Crystalline pitched percussion built from tuned glass and ice. Pitch-stable hits — playable melodically. Weightless spectrum (110Hz floor, no sub-bass); wine glass + bowls have gentle 4.5Hz vibrato; modal bells pushed to inharmonicity 0.98 for wild upper-partial shimmer."
 
 [[sounds]]
 name = "Iceberg"
 engine_type = "fm"
-freq = 55.0
+freq = 110.0
 mod_ratio = 0.5
 mod_index = 3.0
 noise_level = 0.08
@@ -19,6 +19,8 @@ brightness = 0.9
 dampening = 0.18
 attack = 1.0
 decay = 240.0
+lfo1_freq = 4.5
+mods = [{param="freq", source="Lfo1", depth=2.5}]
 
 [[sounds]]
 name = "Hailstone"
@@ -91,9 +93,11 @@ engine_type = "modal"
 freq = 880.0
 brightness = 0.65
 dampening = 0.08
-inharmonicity = 0.8
+inharmonicity = 0.98
 attack = 1.0
 decay = 2000.0
+lfo2_freq = 0.7
+mods = [{param="inharmonicity", source="Lfo2", depth=0.03}]
 
 [[sounds]]
 name = "Ice Crack"
@@ -117,9 +121,11 @@ engine_type = "modal"
 freq = 440.0
 brightness = 0.6
 dampening = 0.06
-inharmonicity = 0.7
+inharmonicity = 0.98
 attack = 2.0
 decay = 1500.0
+lfo1_freq = 3.5
+mods = [{param="freq", source="Lfo1", depth=1.5}]
 
 [[sounds]]
 name = "Wind Chime Hi"

@@ -10,6 +10,7 @@ mod_index = 1.5
 noise_level = 0.05
 attack = 1.0
 decay = 600.0
+mods = [{param="mod_index", source="Envelope", depth=5.0}]
 
 [[sounds]]
 name = "808 Snare"
@@ -19,6 +20,7 @@ noise_color = 0.7
 metallic = 0.2
 attack = 1.0
 decay = 180.0
+mods = [{param="freq", source="Velocity", depth=18.0}]
 
 [[sounds]]
 name = "808 Closed Hat"
@@ -26,7 +28,7 @@ engine_type = "hybrid"
 freq = 8000.0
 noise_color = 1.0
 metallic = 0.9
-attack = 1.0
+attack = 0.5
 decay = 40.0
 
 [[sounds]]

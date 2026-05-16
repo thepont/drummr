@@ -10,6 +10,7 @@ grain_size = 30.0
 jitter = 0.3
 attack = 1.0
 decay = 400.0
+mods = [{param="grain_size", source="Velocity", depth=-15.0}]
 
 [[sounds]]
 name = "Dust Snare"
@@ -20,6 +21,7 @@ grain_size = 12.0
 jitter = 0.6
 attack = 1.0
 decay = 220.0
+mods = [{param="freq", source="Velocity", depth=22.0}]
 
 [[sounds]]
 name = "Dust Closed Hat"
@@ -30,6 +32,8 @@ grain_size = 1.5
 jitter = 0.95
 attack = 1.0
 decay = 50.0
+lfo1_freq = 0.5
+mods = [{param="grain_size", source="Lfo1", depth=0.8}]
 
 [[sounds]]
 name = "Dust Open Hat"

@@ -29,6 +29,8 @@ grain_size = 40.0
 jitter = 0.6
 attack = 60.0
 decay = 1500.0
+lfo1_freq = 0.3
+mods = [{param="grain_size", source="Lfo1", depth=15.0}]
 
 [[sounds]]
 name = "Drift Open Hat"
@@ -39,6 +41,8 @@ grain_size = 50.0
 jitter = 0.7
 attack = 80.0
 decay = 2000.0
+lfo1_freq = 0.25
+mods = [{param="grain_size", source="Lfo1", depth=20.0}, {param="density", source="Lfo1", depth=0.1}]
 
 [[sounds]]
 name = "Drift Tom 1"

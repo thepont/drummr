@@ -12,6 +12,7 @@ attack = 2.0
 decay = 800.0
 bits = 12.0
 rate = 1.0
+mods = [{param="brightness", source="Velocity", depth=0.15}]
 
 [[sounds]]
 name = "Glass Bell Snare"
@@ -24,6 +25,7 @@ attack = 1.0
 decay = 600.0
 bits = 12.0
 rate = 1.0
+mods = [{param="freq", source="Velocity", depth=8.0}]
 
 [[sounds]]
 name = "Tuned Hat Closed"

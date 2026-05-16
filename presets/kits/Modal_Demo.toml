@@ -10,6 +10,7 @@ dampening = 0.35
 inharmonicity = 0.6
 attack = 1.0
 decay = 600.0
+mods = [{param="freq", source="Velocity", depth=12.0}, {param="brightness", source="Velocity", depth=0.2}]
 
 [[sounds]]
 name = "Cowbell"
@@ -40,6 +41,8 @@ dampening = 0.1
 inharmonicity = 0.95
 attack = 1.0
 decay = 1500.0
+lfo1_freq = 0.6
+mods = [{param="inharmonicity", source="Lfo1", depth=0.03}]
 
 [[sounds]]
 name = "Glass Bell"

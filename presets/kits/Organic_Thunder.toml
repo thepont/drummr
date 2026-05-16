@@ -9,6 +9,7 @@ brightness = 0.75
 dampening = 0.25
 attack = 2.0
 decay = 550.0
+mods = [{param="brightness", source="Velocity", depth=0.2}]
 
 [[sounds]]
 name = "Bamboo Snare"
@@ -18,6 +19,7 @@ brightness = 0.45
 dampening = 0.45
 attack = 1.0
 decay = 220.0
+mods = [{param="freq", source="Velocity", depth=15.0}, {param="brightness", source="Velocity", depth=0.15}]
 
 [[sounds]]
 name = "Clay Click"
@@ -131,6 +133,8 @@ mod_index = 4.0
 noise_level = 0.1
 attack = 20.0
 decay = 800.0
+lfo1_freq = 0.4
+mods = [{param="freq", source="Lfo1", depth=6.0}]
 
 [[sounds]]
 name = "Root Crack"

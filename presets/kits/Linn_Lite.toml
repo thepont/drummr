@@ -12,6 +12,7 @@ attack = 2.0
 decay = 200.0
 bits = 12.0
 rate = 2.0
+mods = [{param="mod_index", source="Envelope", depth=3.0}]
 
 [[sounds]]
 name = "Linn Snare"
@@ -23,6 +24,7 @@ attack = 2.0
 decay = 150.0
 bits = 12.0
 rate = 2.0
+mods = [{param="freq", source="Velocity", depth=18.0}, {param="metallic", source="Velocity", depth=0.1}]
 
 [[sounds]]
 name = "Linn Closed Hat"

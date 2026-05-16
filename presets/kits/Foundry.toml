@@ -1,5 +1,5 @@
 name = "Foundry"
-description = "Industrial metallic. Overdriven FM, anvil hits, and bell-of-doom cymbals. 4-bit / 3x-decimated crush on cymbals and perc."
+description = "Industrial metallic. Overdriven FM, anvil hits, and bell-of-doom cymbals. 4-bit / 3x-decimated crush on cymbals and perc. Anvil toms now span inharmonicity 0.70 / 0.85 / 0.95 / 1.0 — each tom has its own clang signature. Bell of Doom inharmonicity tracks velocity."
 
 [[sounds]]
 name = "Foundry Kick"
@@ -10,6 +10,7 @@ mod_index = 15.0
 noise_level = 0.6
 attack = 1.0
 decay = 300.0
+mods = [{param="mod_index", source="Envelope", depth=10.0}]
 
 [[sounds]]
 name = "Foundry Snare"
@@ -48,7 +49,7 @@ engine_type = "modal"
 freq = 340.0
 brightness = 0.88
 dampening = 0.12
-inharmonicity = 0.98
+inharmonicity = 0.70
 attack = 1.0
 decay = 380.0
 
@@ -68,7 +69,7 @@ engine_type = "modal"
 freq = 180.0
 brightness = 0.55
 dampening = 0.35
-inharmonicity = 0.7
+inharmonicity = 0.95
 attack = 3.0
 decay = 580.0
 
@@ -78,7 +79,7 @@ engine_type = "modal"
 freq = 130.0
 brightness = 0.4
 dampening = 0.5
-inharmonicity = 0.55
+inharmonicity = 1.0
 attack = 4.0
 decay = 680.0
 
@@ -91,6 +92,7 @@ dampening = 0.05
 inharmonicity = 0.85
 attack = 1.0
 decay = 1800.0
+mods = [{param="inharmonicity", source="Velocity", depth=0.15}]
 
 [[sounds]]
 name = "Doom Ride"
