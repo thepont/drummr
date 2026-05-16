@@ -37,6 +37,15 @@ impl SyncEngine {
         if let Ok(mut auto) = self.auto_sync.lock() {
             *auto = enabled;
         }
+        // When auto-sync is enabled, make sure the master clock thread is
+        // running so it can decide when to emit MIDI Start once the BPM
+        // estimator reports a stable tempo. `start()` is idempotent. When
+        // disabled we leave the thread idle -- it will just observe the
+        // flag and refrain from sending Start, which keeps the behaviour
+        // symmetric with explicit SYNC_START.
+        if enabled && !self.is_running() {
+            self.start();
+        }
     }
 
     pub fn start(&self) {
