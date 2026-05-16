@@ -695,5 +695,61 @@ pub async fn handle_command(
                 let _ = p.push([0x90, note, 100]);
             }
         }
+    } else if text == "LIST_MIDI_TRACKS" {
+        let names = crate::midi_player::list_tracks();
+        comm_engine.broadcast(format!("MIDI_TRACKS:{}", names.join(",")));
+    } else if text.starts_with("PLAY_MIDI_TRACK:") {
+        let name = text.replace("PLAY_MIDI_TRACK:", "");
+        // Abort any prior playback first so the new track starts cleanly.
+        if let Ok(mut slot) = shared_state.midi_playback_handle.lock() {
+            if let Some(h) = slot.take() {
+                h.abort();
+            }
+        }
+
+        // The on_finish callback runs after the last scheduled note has been
+        // pushed. It clears the SharedState handle slot (so a subsequent
+        // STOP_MIDI_PLAYBACK is a no-op rather than aborting an unrelated
+        // task) and broadcasts MIDI_TRACK_STOPPED so the UI resets.
+        let ss = shared_state.clone();
+        let comm = comm_engine.clone();
+        let name_for_finish = name.clone();
+        let on_finish = move || {
+            if let Ok(mut slot) = ss.midi_playback_handle.lock() {
+                *slot = None;
+            }
+            comm.broadcast(format!("MIDI_TRACK_STOPPED:{}", name_for_finish));
+        };
+
+        match crate::midi_player::spawn_playback(&name, midi_producer.clone(), on_finish) {
+            Ok(handle) => {
+                if let Ok(mut slot) = shared_state.midi_playback_handle.lock() {
+                    *slot = Some(handle);
+                }
+                comm_engine.broadcast(format!("MIDI_TRACK_PLAYING:{}", name));
+            }
+            Err(e) => {
+                eprintln!("PLAY_MIDI_TRACK: {} failed: {}", name, e);
+                comm_engine.broadcast(format!("MIDI_TRACK_ERROR:{}", name));
+            }
+        }
+    } else if text == "STOP_MIDI_PLAYBACK" {
+        let aborted = if let Ok(mut slot) = shared_state.midi_playback_handle.lock() {
+            if let Some(h) = slot.take() {
+                h.abort();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        if aborted {
+            // The on_finish callback never fires on abort (the task is killed
+            // mid-loop), so broadcast the stop here ourselves. The name field
+            // is intentionally empty -- the UI just needs to know "playback
+            // is no longer active".
+            comm_engine.broadcast("MIDI_TRACK_STOPPED:".to_string());
+        }
     }
 }

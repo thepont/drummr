@@ -26,6 +26,12 @@ pub struct SharedState {
     /// `SELECT_AUDIO:` command handler can pass it into `start_audio` without
     /// threading another argument through `handle_command`.
     pub audio_error_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    /// JoinHandle for the active "Preview Kit" MIDI playback task, if any.
+    /// Held so PLAY_MIDI_TRACK can abort a previous track before starting a
+    /// new one, and STOP_MIDI_PLAYBACK can cancel mid-playback. The handle
+    /// is also cleared by the playback task itself on natural completion
+    /// (via the `on_finish` callback passed into spawn_playback).
+    pub midi_playback_handle: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl SharedState {
@@ -41,6 +47,7 @@ impl SharedState {
             kit_snapshot: Arc::new(std::sync::Mutex::new(kit_snapshot)),
             audio_stream_leak_count: AtomicU32::new(0),
             audio_error_tx,
+            midi_playback_handle: std::sync::Mutex::new(None),
         }
     }
 

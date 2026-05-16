@@ -5,6 +5,7 @@ pub mod commands;
 pub mod dsp;
 pub mod kit;
 pub mod midi;
+pub mod midi_player;
 pub mod persistence;
 pub mod settings;
 pub mod state;
