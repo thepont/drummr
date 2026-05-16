@@ -26,6 +26,8 @@ fn test_concurrent_kit_updates_race_condition() {
             noise_color: None,
             metallic: None,
             inharmonicity: None,
+            bits: None,
+            rate: None,
             attack: 1.0,
             decay: 200.0,
             lfo1_freq: None,

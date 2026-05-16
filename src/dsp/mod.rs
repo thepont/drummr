@@ -5,6 +5,7 @@ pub mod hybrid;
 pub mod modal;
 pub mod noise;
 pub mod phys;
+pub mod postfx;
 pub mod modulation;
 pub mod modulation_engine;
 pub mod utils;

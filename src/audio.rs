@@ -4,26 +4,20 @@ use rtrb::Consumer;
 use std::sync::Arc;
 use crate::state::{SharedState, AudioCommand, MidiEvent};
 
-use crate::dsp::bpm_engine::BpmEngine;
-use tokio::sync::Mutex;
-
 pub fn start_audio(
-    device: &cpal::Device, 
-    mut event_rx: Consumer<MidiEvent>, 
-    mut cmd_rx: Consumer<AudioCommand>, 
+    device: &cpal::Device,
+    mut event_rx: Consumer<MidiEvent>,
+    mut cmd_rx: Consumer<AudioCommand>,
     shared_state: Arc<SharedState>,
-    bpm_engine: Arc<Mutex<BpmEngine>>,
-) -> Result<(cpal::Stream, Option<cpal::Stream>)> {
+) -> Result<cpal::Stream> {
     let config_supported = device.default_output_config()?;
     let mut config: cpal::StreamConfig = config_supported.into();
     config.buffer_size = cpal::BufferSize::Fixed(128);
     let channels = config.channels as usize;
 
-    // 1. Output Stream (Synthesizer)
     let output_stream = device.build_output_stream(
         &config,
         move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-            // ... (keep synthesizer logic as is)
             if let Ok(mut kit) = shared_state.kit.try_lock() {
                 while let Ok(cmd) = cmd_rx.pop() {
                     match cmd {
@@ -37,6 +31,9 @@ pub fn start_audio(
                             if let Some(voice_opt) = kit.voices.get_mut(slot) {
                                 if let Some(voice) = voice_opt { voice.set_lfo(index, freq); }
                             }
+                        }
+                        AudioCommand::SetPostFx(slot, param, val) => {
+                            kit.set_postfx(slot, &param, val);
                         }
                     }
                 }
@@ -74,29 +71,7 @@ pub fn start_audio(
     )?;
     output_stream.play()?;
 
-    // 2. Input Stream (BPM Detection)
-    let host = cpal::default_host();
-    let input_stream = if let Some(input_device) = host.default_input_device() {
-        let input_config: cpal::StreamConfig = input_device.default_input_config()?.into();
-        let bpm_clone = bpm_engine.clone();
-        
-        let stream = input_device.build_input_stream(
-            &input_config,
-            move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                if let Ok(mut bpm) = bpm_clone.try_lock() {
-                    bpm.process_audio(data);
-                }
-            },
-            |_err| {},
-            None
-        )?;
-        stream.play()?;
-        Some(stream)
-    } else {
-        None
-    };
-
-    Ok((output_stream, input_stream))
+    Ok(output_stream)
 }
 
 pub fn soft_clip(x: f32) -> f32 {

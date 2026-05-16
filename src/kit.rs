@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use crate::dsp::fm::FmVoice;
 use crate::dsp::noise::NoiseVoice;
+use crate::dsp::postfx::PostFx;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ParamSchema {
@@ -161,6 +162,8 @@ pub struct DrumSound {
     pub noise_color: Option<f32>,
     pub metallic: Option<f32>,
     pub inharmonicity: Option<f32>,
+    pub bits: Option<f32>,
+    pub rate: Option<f32>,
     pub attack: f32,
     pub decay: f32,
     pub lfo1_freq: Option<f32>,
@@ -170,6 +173,9 @@ pub struct DrumSound {
 
 pub struct KitEngine {
     pub voices: [Option<Voice>; 16],
+    /// Per-slot post-FX (bitcrusher + sample-rate reducer). Always present so
+    /// the audio thread can run unconditionally; defaults to a pass-through.
+    pub postfx: [PostFx; 16],
     pub sample_rate: f32,
     pub midi_map: [Option<usize>; 128], // note -> slot index
 }
@@ -177,8 +183,15 @@ pub struct KitEngine {
 impl KitEngine {
     pub fn new(sample_rate: f32) -> Self {
         const NO_VOICE: Option<Voice> = None;
+        let postfx = [
+            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
+            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
+            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
+            PostFx::new(), PostFx::new(), PostFx::new(), PostFx::new(),
+        ];
         Self {
             voices: [NO_VOICE; 16],
+            postfx,
             sample_rate,
             midi_map: [None; 128],
         }
@@ -252,6 +265,8 @@ impl KitEngine {
             if let Some(f) = sound.lfo2_freq { voice.set_lfo(2, f); }
 
             engine.voices[idx] = Some(voice);
+            engine.postfx[idx].set_bits(sound.bits.unwrap_or(16.0));
+            engine.postfx[idx].set_rate(sound.rate.unwrap_or(1.0));
         }
 
         engine.set_mapping(&mappings);
@@ -301,6 +316,14 @@ impl KitEngine {
         }
     }
 
+    /// Adjust the per-slot post-FX (bitcrusher / sample-rate reducer).
+    /// `param` is one of "bits", "rate".
+    pub fn set_postfx(&mut self, slot: usize, param: &str, value: f32) {
+        if slot < 16 {
+            self.postfx[slot].set_param(param, value);
+        }
+    }
+
     pub fn trigger(&mut self, note: u8, velocity: f32) {
         if note < 128 {
             if let Some(slot) = self.midi_map[note as usize] {
@@ -322,11 +345,10 @@ impl KitEngine {
 
     pub fn tick(&mut self) -> f32 {
         let mut out = 0.0;
-        for voice_opt in self.voices.iter_mut() {
+        for (i, voice_opt) in self.voices.iter_mut().enumerate() {
             if let Some(voice) = voice_opt {
-                if voice.is_active() {
-                    out += voice.tick();
-                }
+                let raw = if voice.is_active() { voice.tick() } else { 0.0 };
+                out += self.postfx[i].process(raw);
             }
         }
         out.clamp(-1.0, 1.0)

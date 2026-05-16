@@ -32,6 +32,8 @@ fn kit_to_json(config: &DrumKit) -> String {
             "noise_color": s.noise_color.unwrap_or(0.5),
             "metallic": s.metallic.unwrap_or(0.5),
             "inharmonicity": s.inharmonicity.unwrap_or(0.3),
+            "bits": s.bits.unwrap_or(16.0),
+            "rate": s.rate.unwrap_or(1.0),
             "attack": s.attack,
             "decay": s.decay,
             "lfo1_freq": s.lfo1_freq.unwrap_or(1.0),
@@ -233,7 +235,15 @@ pub async fn handle_command(
             let slot: usize = parts[1].parse().unwrap_or(0);
             let param = parts[2];
             let value: f32 = parts[3].parse().unwrap_or(0.0);
-            if let Ok(mut p) = cmd_producer.lock() { let _ = p.push(AudioCommand::SetParam(slot, param.to_string(), value)); }
+            // Route bits/rate to the per-slot post-FX channel so the audio
+            // thread updates the PostFx struct rather than calling the engine.
+            if let Ok(mut p) = cmd_producer.lock() {
+                let cmd = match param {
+                    "bits" | "rate" => AudioCommand::SetPostFx(slot, param.to_string(), value),
+                    _ => AudioCommand::SetParam(slot, param.to_string(), value),
+                };
+                let _ = p.push(cmd);
+            }
 
             // Mutate the in-memory snapshot under one lock; emit the change to
             // the persistence worker outside the lock.
@@ -254,6 +264,8 @@ pub async fn handle_command(
                         "noise_color" => sound.noise_color = Some(value),
                         "metallic" => sound.metallic = Some(value),
                         "inharmonicity" => sound.inharmonicity = Some(value),
+                        "bits" => sound.bits = Some(value),
+                        "rate" => sound.rate = Some(value),
                         "attack" => sound.attack = value,
                         "decay" => sound.decay = value,
                         "lfo1_freq" => sound.lfo1_freq = Some(value),
@@ -332,6 +344,44 @@ pub async fn handle_command(
                 if let Some(sound) = snapshot.sounds.get_mut(slot) {
                     if index == 1 { sound.lfo1_freq = Some(freq); }
                     else if index == 2 { sound.lfo2_freq = Some(freq); }
+                    Some(snapshot.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let Some(config) = snapshot_clone {
+                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config));
+            }
+        }
+    } else if text.starts_with("SET_BITS:") || text.starts_with("SET_RATE:") {
+        // SET_BITS:slot|val or SET_RATE:slot|val (also supports ':' as a separator
+        // for symmetry with the other SET_* commands).
+        let is_bits = text.starts_with("SET_BITS:");
+        let payload = if is_bits {
+            text.replace("SET_BITS:", "")
+        } else {
+            text.replace("SET_RATE:", "")
+        };
+        let parts: Vec<&str> = payload.split(|c| c == '|' || c == ':').collect();
+        if parts.len() == 2 {
+            let slot: usize = parts[0].parse().unwrap_or(0);
+            let value: f32 = parts[1].parse().unwrap_or(0.0);
+            let param = if is_bits { "bits" } else { "rate" };
+
+            if let Ok(mut p) = cmd_producer.lock() {
+                let _ = p.push(AudioCommand::SetPostFx(slot, param.to_string(), value));
+            }
+
+            let snapshot_clone = if let Ok(mut snapshot) = shared_state.kit_snapshot.lock() {
+                if let Some(sound) = snapshot.sounds.get_mut(slot) {
+                    if is_bits {
+                        sound.bits = Some(value);
+                    } else {
+                        sound.rate = Some(value);
+                    }
                     Some(snapshot.clone())
                 } else {
                     None

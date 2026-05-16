@@ -57,4 +57,7 @@ pub enum AudioCommand {
     SetParam(usize, String, f32),
     SetMod(usize, String, crate::dsp::modulation::ModSource, f32),
     SetLfo(usize, usize, f32),
+    /// Adjust per-slot post-FX (bitcrusher / sample-rate reducer).
+    /// `param` is one of "bits", "rate".
+    SetPostFx(usize, String, f32),
 }
