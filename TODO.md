@@ -13,6 +13,20 @@ Items marked `(in progress)` are being addressed in a parallel implementation pa
 
 ---
 
+## Recently landed (Phase 3 DSP / audio polish)
+
+- [x] **`hybrid.rs:126` metallic=1.0 nukes oscillator path** — metallic blend no longer zeros the oscillator. (`54385ee`)
+- [x] **`modal.rs` voices saturate to 1.0** — output headroom trimmed and retuned for low-Q kicks. (`f63ce39`, `4b96fbc`)
+- [x] **`modal.rs` `is_active` doesn't honour mode-bank tail** — fixed in modal headroom pass. (`f63ce39`)
+- [x] **PostFx decimator state held across voice-inactive boundaries** — decimator now resets on voice trigger. (`ebe2cf2`)
+- [x] **Audio recovery task has no backoff** — 500ms backoff added. (`3a78fde`)
+- [x] **Modal bandpass impulse response inaudible** — switched to constant-skirt-gain bandpass. (`12324c9`)
+- [x] **MIDI NoteOff cut drum tails short** — NoteOff now ignored so voices ring out. (`4be1763`)
+- [x] **`SELECT_AUDIO` ring buffers not rebuilt** — device switching restored. (`02eb7fe`)
+- [x] **Foundry Clap / pipe sound-alikes** — kit voices differentiated via TOML pass. (`76a4245`)
+
+---
+
 ## P1 — Top architectural priorities
 
 1. [x] **Eliminate disk-as-truth for kit mutations** — mutations now go through in-memory `SharedState::kit` + persistence-worker snapshot. (`2ef61dd`)
@@ -24,11 +38,11 @@ Items marked `(in progress)` are being addressed in a parallel implementation pa
 
 ## P1 — Confirmed Rust bugs
 
-- [ ] **Hybrid engine ignores velocity** — `src/dsp/hybrid.rs:124` returns `mixed * env` with no velocity term. Quiet hits play full volume.
-- [ ] **Granular engine ignores velocity** — `src/dsp/granular.rs:166` returns `mixed * env * 0.5` with no velocity term.
-- [ ] **`BpmEngine::new(_sample_rate: f32)` param unused** — `src/dsp/bpm_engine.rs:31`; drop from signature after autocorrelation refactor.
-- [ ] **cpal stream leaked via `std::mem::forget` on every `SELECT_AUDIO`** — `src/commands.rs:423`, `src/main.rs:174`. Dead streams accumulate on runtime device changes.
-- [ ] **Audio stream error callback is `|_err| {}`** — `src/audio.rs:69`. USB unplug / device disconnect / sleep is silent.
+- [x] **Hybrid engine ignores velocity** — `src/dsp/hybrid.rs:124` returns `mixed * env` with no velocity term. Quiet hits play full volume. (`e81dea7`)
+- [x] **Granular engine ignores velocity** — `src/dsp/granular.rs:166` returns `mixed * env * 0.5` with no velocity term. (`e81dea7`)
+- [x] **`BpmEngine::new(_sample_rate: f32)` param unused** — `src/dsp/bpm_engine.rs:31`; drop from signature after autocorrelation refactor. (`817b6b4`)
+- [~] **cpal stream leaked via `std::mem::forget` on every `SELECT_AUDIO`** — `src/commands.rs:423`, `src/main.rs:174`. Logging + leak counter added (`448c1fd`); architectural fix deferred (cpal::Stream is !Send).
+- [x] **Audio stream error callback is `|_err| {}`** — `src/audio.rs:69`. USB unplug / device disconnect / sleep is silent. (`448c1fd`, `d6ee7d5`)
 - [ ] **3 frontend tests failing** — `ui/src/App.test.tsx` (2 WebSocket lifecycle tests), `ui/src/views/KitEditorView.test.tsx:66` ("Base Pitch" text not found).
 - [ ] **`kit.toml` read-modify-write race on `SET_PARAM`** — `src/commands.rs:271-311` (largely subsumed by P1 #1; verify residuals).
 - [ ] **Atomic rename uses hardcoded tmp + swallows errors** — `src/persistence.rs:20,28`. Need per-target `*.tmp.<pid>.<nonce>`.
@@ -40,22 +54,22 @@ Items marked `(in progress)` are being addressed in a parallel implementation pa
 - [ ] **`TEST_TRIGGER` bypasses BPM onset registration** — `src/commands.rs:408` vs `src/app_utils.rs:31`.
 - [ ] **`from_config` silently truncates kits >16 voices** — `src/kit.rs:180`.
 - [ ] **`set_mod` dedupe keyed on `(param, source)` without validation** — `src/commands.rs:336`.
-- [ ] **`set_mod` persistence accretes zero-depth entries forever** — `src/commands.rs:336-341`. Treat `depth == 0.0` as remove.
+- [x] **`set_mod` persistence accretes zero-depth entries forever** — `src/commands.rs:336-341`. Treat `depth == 0.0` as remove. (`e07d3f5`)
 
 ---
 
 ## P1 — Confirmed UI bugs (Phase 2 review)
 
-- [ ] **Engine-type selector missing Modal and Noise** — `ui/src/views/KitEditorView.tsx:250` hardcodes `['fm','phys','granular','hybrid']`. Modal_Demo.toml not editable; clicking pills silently overwrites modal.
-- [ ] **PostFx (`bits`/`rate`) has zero UI** — round-trips via KIT JSON but no sliders. Suggested placement: 5th column in `KitEditorView.tsx:241` grid after Modulation.
-- [ ] **Auto-Sync placebo from cold start** — `App.tsx:140-144` sends `SET_AUTO_SYNC:true` but `commands.rs:406-408` only flips a flag; master clock thread (`sync.rs:42`) only spawned by SYNC_START. Lazy-spawn in `set_auto_sync(true)` or have UI also send `SYNC_START`.
-- [ ] **Only one mod slot per param rendered** — `KitEditorView.tsx:331-358` truncates with `while (displayMods.length < 1)`. Backend `voice.set_mod` is additive.
+- [x] **Engine-type selector missing Modal and Noise** — `ui/src/views/KitEditorView.tsx:250` hardcodes `['fm','phys','granular','hybrid']`. Modal_Demo.toml not editable; clicking pills silently overwrites modal. (`0c480cf`)
+- [x] **PostFx (`bits`/`rate`) has zero UI** — round-trips via KIT JSON but no sliders. Suggested placement: 5th column in `KitEditorView.tsx:241` grid after Modulation. (`0c480cf`)
+- [x] **Auto-Sync placebo from cold start** — `App.tsx:140-144` sends `SET_AUTO_SYNC:true` but `commands.rs:406-408` only flips a flag; master clock thread (`sync.rs:42`) only spawned by SYNC_START. Lazy-spawn in `set_auto_sync(true)` or have UI also send `SYNC_START`. (`1b187b4`)
+- [x] **Only one mod slot per param rendered** — `KitEditorView.tsx:331-358` truncates with `while (displayMods.length < 1)`. Backend `voice.set_mod` is additive. (`0c480cf`)
 - [ ] **No per-slot test-trigger button** — `KitEditorView.tsx:175-181` Preview is single-slot; not exposed in slot-tab row or `MappingView.tsx`.
-- [ ] **WebSocket reconnect doesn't re-fetch full state** — `App.tsx:61-66` only re-sends `LIST_MIDI/LIST_AUDIO/LIST_KITS/GET_SYNC_STATUS`. Missing: `GET_KIT`, `GET_MAPPING`, `LIST_SOUND_PRESETS`, all `GET_SCHEMA:<slot>`. Editor shows stale data after backend restart.
-- [ ] **`selectedSound.attack.toFixed(0)` crashes when schema arrives late** — `KitEditorView.tsx:315`. Same for `decay`. Needs `?? 0`.
+- [x] **WebSocket reconnect doesn't re-fetch full state** — `App.tsx:61-66` only re-sends `LIST_MIDI/LIST_AUDIO/LIST_KITS/GET_SYNC_STATUS`. Missing: `GET_KIT`, `GET_MAPPING`, `LIST_SOUND_PRESETS`, all `GET_SCHEMA:<slot>`. Editor shows stale data after backend restart. (`f51f74a`)
+- [x] **`selectedSound.attack.toFixed(0)` crashes when schema arrives late** — `KitEditorView.tsx:315`. Same for `decay`. Needs `?? 0`. (`0c480cf`)
 - [ ] **`MasterPeakMeter` driven by `isMidiFlashing`, not real audio** — `App.tsx:254`. "Signal Status" tied to syncStatus only. Misleading.
-- [ ] **`MappingView.tsx:163` re-requests `GET_MAPPING` on every `KIT:` broadcast** — noisy refresh loop.
-- [ ] **LibrarySidebar truncates kit names with no tooltip** — `LibrarySidebar.tsx:182`. 22 kits, single-input filter, no tags/categories.
+- [x] **`MappingView.tsx:163` re-requests `GET_MAPPING` on every `KIT:` broadcast** — noisy refresh loop. (`f51f74a`)
+- [x] **LibrarySidebar truncates kit names with no tooltip** — `LibrarySidebar.tsx:182`. 22 kits, single-input filter, no tags/categories. (`f51f74a`)
 - [ ] **No "kit dirty" indicator** — save-kit-as is the only save (no overwrite); no signal that in-memory differs from disk.
 - [ ] **No error/failure feedback on WS commands** — save kit, load preset, etc. fire-and-forget.
 
@@ -131,11 +145,11 @@ Aggressive use of systems already shipped. ~1 day total. No regression risk.
 
 ## P2 — Missing test coverage
 
-- [ ] **ModalEngine** — only 2 inline unit tests in `src/dsp/modal.rs:347`; no `tests/modal_engine_tests.rs`.
-- [ ] **PostFx** — only inline tests in `src/dsp/postfx.rs:78`; no `tests/postfx_tests.rs`. Per-slot routing in `kit.rs:351` untested end-to-end.
-- [ ] **BPM engine** — no `tests/bpm_engine_tests.rs`. Autocorrelation + tactus + sub-harmonic logic uncovered.
-- [ ] **`commands.rs`** — entire 440-line WS dispatcher has zero coverage. SET_PARAM, LOAD_KIT, SET_MOD, SET_BITS/SET_RATE round-trips untested.
-- [ ] **`persistence.rs`** — untested.
+- [x] **ModalEngine** — integration suite landed in `tests/modal_engine_tests.rs`. (`70e70d8`)
+- [x] **PostFx** — integration suite landed in `tests/postfx_tests.rs`; per-slot routing covered. (`70e70d8`)
+- [x] **BPM engine** — `tests/bpm_engine_tests.rs` covers autocorrelation + tactus + sub-harmonic logic. (`7625557`)
+- [x] **`commands.rs`** — WS dispatcher coverage landed in `tests/commands_tests.rs`. (`39a7f34`)
+- [x] **`persistence.rs`** — atomic write + worker resilience tests in `tests/persistence_tests.rs`. (`c641dfe`)
 - [ ] **Groove MIDI Dataset corpus** — zero references in `tests/`. BPM accuracy untested against real beats.
 
 ---
