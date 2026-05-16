@@ -9,12 +9,17 @@ export function ModulationPanel({ lfo1_freq, lfo2_freq, onChangeLfo, modValues }
 }) {
   return (
     <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-5">
-      <header className="flex items-center gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
-        <Waves size={14} />
-        4. Modulation
+      <header className="flex items-center justify-between gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
+        <span className="flex items-center gap-2">
+          <Waves size={14} />
+          4. Modulation
+        </span>
+        <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
+          Global LFO rates. Assign sources to parameters in Timbre.
+        </span>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-1 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-3 p-3 bg-background/30 rounded-xl border border-border/50">
           <div className="flex items-center justify-between">
             <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">LFO 1</div>
@@ -56,11 +61,6 @@ export function ModulationPanel({ lfo1_freq, lfo2_freq, onChangeLfo, modValues }
         </div>
       </div>
 
-      <div className="mt-auto pt-4 border-t border-border/50">
-        <div className="text-[10px] font-medium text-muted-foreground italic">
-          Global LFO rates. Assign sources to parameters in the Timbre column.
-        </div>
-      </div>
     </section>
   );
 }

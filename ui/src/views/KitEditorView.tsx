@@ -247,26 +247,34 @@ export default function KitEditorView({
         const safeLfo2 = selectedSound.lfo2_freq ?? 1.0;
         const safeBits = selectedSound.bits ?? 16;
         const safeRate = selectedSound.rate ?? 1;
+        const timbreParams = schemas[selectedSoundId]?.filter(p => !['freq', 'attack', 'decay', 'bits', 'rate'].includes(p.name)) ?? [];
         return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 items-stretch">
-          <section className="bg-card/30 border border-border rounded-3xl p-5 space-y-5 flex flex-col">
-            <header className="flex items-center gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
-              <Cpu size={14} />
-              1. Source
+        <div className="flex flex-col gap-4">
+          {/* 1. SOURCE */}
+          <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-5">
+            <header className="flex items-center justify-between gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
+              <span className="flex items-center gap-2">
+                <Cpu size={14} />
+                1. Source
+              </span>
+              <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
+                Raw synthesis engine and base pitch
+              </span>
             </header>
-            
-            <div className="space-y-4">
+
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-5 items-start">
               <div className="grid grid-cols-3 gap-2">
                 {['fm', 'phys', 'granular', 'hybrid', 'modal', 'noise'].map(type => (
                   <button
                     key={type}
                     onClick={() => updateParam('engine_type' as any, type as any)}
                     aria-pressed={selectedSound.engine_type === type}
+                    aria-label={`Set engine to ${type}`}
                     className={cn(
-                      "px-2 py-2 rounded-lg text-[11px] font-black transition-all uppercase tracking-wider border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                      "px-3 py-2.5 rounded-lg text-[11px] font-black transition-all uppercase tracking-wider border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                       selectedSound.engine_type === type
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "bg-background/50 border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                        ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20"
+                        : "bg-background/50 border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-background"
                     )}
                   >
                     {type}
@@ -274,7 +282,7 @@ export default function KitEditorView({
                 ))}
               </div>
 
-              <div className="pt-2">
+              <div>
                 <FrequencyVisualizer
                   value={safeFreq}
                   min={20}
@@ -295,82 +303,97 @@ export default function KitEditorView({
                 />
               </div>
             </div>
-
-            <div className="mt-auto pt-4 border-t border-border/50">
-               <div className="text-[10px] font-medium text-muted-foreground italic">
-                 The raw sound generation engine. Choose the core synthesis method.
-               </div>
-            </div>
           </section>
 
-          <section className="bg-card/30 border border-border rounded-3xl p-5 space-y-5 flex flex-col">
-            <header className="flex items-center gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
-              <Clock size={14} />
-              2. Shape
+          {/* 2. SHAPE */}
+          <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-5">
+            <header className="flex items-center justify-between gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
+              <span className="flex items-center gap-2">
+                <Clock size={14} />
+                2. Shape
+              </span>
+              <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
+                Drag the curve to shape attack and decay
+              </span>
             </header>
-            
-            <div className="flex-1 min-h-[200px] bg-background/50 rounded-2xl relative overflow-hidden border border-border/50">
-              <EnvelopeEditor
-                attack={safeAttack}
-                decay={safeDecay}
-                onChange={(a, d) => {
-                  updateParam('attack', a);
-                  updateParam('decay', d);
-                }}
-              />
-            </div>
 
-            <div className="grid grid-cols-2 gap-3">
-               <div className="p-3 bg-background/30 rounded-xl border border-border/50">
-                 <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Attack</div>
-                 <div className="text-sm font-mono font-bold">{safeAttack.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
-               </div>
-               <div className="p-3 bg-background/30 rounded-xl border border-border/50">
-                 <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Decay</div>
-                 <div className="text-sm font-mono font-bold">{safeDecay.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
-               </div>
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-5 items-stretch">
+              <div className="min-h-[200px] bg-background/50 rounded-2xl relative overflow-hidden border border-border/50">
+                <EnvelopeEditor
+                  attack={safeAttack}
+                  decay={safeDecay}
+                  onChange={(a, d) => {
+                    updateParam('attack', a);
+                    updateParam('decay', d);
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 content-start">
+                <div className="p-3 bg-background/30 rounded-xl border border-border/50">
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Attack</div>
+                  <div className="text-sm font-mono font-bold">{safeAttack.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
+                </div>
+                <div className="p-3 bg-background/30 rounded-xl border border-border/50">
+                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Decay</div>
+                  <div className="text-sm font-mono font-bold">{safeDecay.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
+                </div>
+              </div>
             </div>
           </section>
 
-          <section className="bg-card/30 border border-border rounded-3xl p-5 space-y-5 flex flex-col">
-            <header className="flex items-center gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
-              <SlidersIcon size={14} />
-              3. Timbre
+          {/* 3. TIMBRE */}
+          <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-5">
+            <header className="flex items-center justify-between gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
+              <span className="flex items-center gap-2">
+                <SlidersIcon size={14} />
+                3. Timbre
+              </span>
+              <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
+                Engine-specific parameters. Add modulation slots per knob.
+              </span>
             </header>
-            
-            <div className="space-y-6 max-h-[480px] overflow-y-auto pr-2 custom-scrollbar">
-              {schemas[selectedSoundId]?.filter(p => !['freq', 'attack', 'decay', 'bits', 'rate'].includes(p.name)).map((param) => {
-                const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
-                // Render every existing mod plus one trailing empty "add new" row.
-                const displayMods = [
-                  ...paramMods,
-                  { param: param.name, source: 'None', depth: 0 },
-                ];
 
-                return (
-                  <div key={param.name}>
-                    <ParamController
-                      label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')}
-                      value={selectedSound[param.name] ?? param.default}
-                      min={param.min}
-                      max={param.max}
-                      step={param.max - param.min > 10 ? 1 : 0.01}
-                      format={v => smartFormat(v, param.unit)}
-                      onChange={v => updateParam(param.name as any, v)}
-                      mods={displayMods}
-                      onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
-                      modValue={getModulatedValue(param.name, selectedSound[param.name] ?? param.default)}
-                      attack={safeAttack}
-                      decay={safeDecay}
-                      lfo1_freq={safeLfo1}
-                      lfo2_freq={safeLfo2}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            {timbreParams.length === 0 ? (
+              <div className="text-[10px] text-muted-foreground italic py-8 text-center">
+                No timbre parameters for this engine.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-6">
+                {timbreParams.map((param) => {
+                  const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
+                  // Render every existing mod plus one trailing empty "add new" row.
+                  const displayMods = [
+                    ...paramMods,
+                    { param: param.name, source: 'None', depth: 0 },
+                  ];
+
+                  return (
+                    <div key={param.name}>
+                      <ParamController
+                        label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')}
+                        value={selectedSound[param.name] ?? param.default}
+                        min={param.min}
+                        max={param.max}
+                        step={param.max - param.min > 10 ? 1 : 0.01}
+                        format={v => smartFormat(v, param.unit)}
+                        onChange={v => updateParam(param.name as any, v)}
+                        mods={displayMods}
+                        onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
+                        modValue={getModulatedValue(param.name, selectedSound[param.name] ?? param.default)}
+                        attack={safeAttack}
+                        decay={safeDecay}
+                        lfo1_freq={safeLfo1}
+                        lfo2_freq={safeLfo2}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
+          {/* 4. MODULATION */}
           <ModulationPanel
             lfo1_freq={safeLfo1}
             lfo2_freq={safeLfo2}
@@ -378,22 +401,28 @@ export default function KitEditorView({
             modValues={selectedSlotIndex !== -1 ? modStates[selectedSlotIndex] : undefined}
           />
 
-          <section className="bg-card/30 border border-border rounded-3xl p-5 space-y-5 flex flex-col">
+          {/* 5. FX */}
+          <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-5">
             <header className="flex items-center justify-between gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
               <span className="flex items-center gap-2">
                 <Waveform size={14} />
                 5. FX
               </span>
-              {safeBits >= 16 && safeRate <= 1 && (
-                <span className="text-[9px] font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full normal-case tracking-normal">
-                  idle
+              <span className="flex items-center gap-3">
+                {safeBits >= 16 && safeRate <= 1 && (
+                  <span className="text-[9px] font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full normal-case tracking-normal">
+                    idle
+                  </span>
+                )}
+                <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
+                  Post-FX lo-fi grit
                 </span>
-              )}
+              </span>
             </header>
 
-            <div className="space-y-3">
-              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Bitcrusher</div>
-              <div className="p-4 bg-background/30 rounded-xl border border-border/50 space-y-5">
+            <div className="max-w-3xl w-full">
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Bitcrusher</div>
+              <div className="p-4 bg-background/30 rounded-xl border border-border/50 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Slider
                   label="Bit depth"
                   value={safeBits}
@@ -413,12 +442,6 @@ export default function KitEditorView({
                   format={v => `${v.toFixed(0)}x`}
                 />
               </div>
-            </div>
-
-            <div className="mt-auto pt-4 border-t border-border/50">
-               <div className="text-[10px] font-medium text-muted-foreground italic">
-                 Post-FX shaping. Crush bits or downsample for lo-fi grit.
-               </div>
             </div>
           </section>
 
