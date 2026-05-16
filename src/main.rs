@@ -308,6 +308,14 @@ async fn main() -> Result<()> {
                 }
                 Err(e) => eprintln!("[audio recovery] start_audio failed: {}", e),
             }
+
+            // Pace recovery. If the replacement device ALSO errors instantly
+            // on stream start, the error callback will refill the channel
+            // before we get back to recv().await. Without this sleep the
+            // loop hot-spins: error -> enumerate -> swap rings -> start_audio
+            // -> instant error -> repeat, leaking a cpal::Stream and burning
+            // CPU on every iteration. 500ms caps the restart rate at 2/sec.
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         }
     });
 
