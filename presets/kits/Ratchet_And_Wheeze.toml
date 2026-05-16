@@ -1,5 +1,5 @@
 name = "Ratchet & Wheeze"
-description = "Broken machines and tired lungs. Mechanical clicks meet breath textures. Burial-school: drums made of things that aren't drums."
+description = "Broken machines and tired lungs. Mechanical clicks meet breath textures. Burial-school: drums made of things that aren't drums. Subtle 10-bit kit grit; Modem Squeal crushed to 3-bit / 4x."
 
 [[sounds]]
 name = "Beatbox"
@@ -10,6 +10,7 @@ mod_index = 5.0
 noise_level = 0.35
 attack = 1.0
 decay = 240.0
+bits = 10.0
 
 [[sounds]]
 name = "Servo Stall"
@@ -19,6 +20,7 @@ noise_color = 0.5
 metallic = 0.6
 attack = 2.0
 decay = 200.0
+bits = 10.0
 
 [[sounds]]
 name = "Wheeze Hi"
@@ -26,6 +28,7 @@ engine_type = "noise"
 freq = 0.0
 attack = 2.0
 decay = 60.0
+bits = 10.0
 
 [[sounds]]
 name = "Asthmatic Exhale"
@@ -33,6 +36,7 @@ engine_type = "noise"
 freq = 0.0
 attack = 4.0
 decay = 280.0
+bits = 10.0
 
 [[sounds]]
 name = "Pipe Knock"
@@ -42,6 +46,7 @@ noise_color = 0.3
 metallic = 0.55
 attack = 2.0
 decay = 320.0
+bits = 10.0
 
 [[sounds]]
 name = "Mid Pipe"
@@ -51,6 +56,7 @@ noise_color = 0.3
 metallic = 0.55
 attack = 2.0
 decay = 370.0
+bits = 10.0
 
 [[sounds]]
 name = "Low Pipe"
@@ -60,6 +66,7 @@ noise_color = 0.4
 metallic = 0.5
 attack = 2.0
 decay = 420.0
+bits = 10.0
 
 [[sounds]]
 name = "Bass Pipe"
@@ -69,6 +76,7 @@ noise_color = 0.4
 metallic = 0.45
 attack = 2.0
 decay = 500.0
+bits = 10.0
 
 [[sounds]]
 name = "Modem Squeal"
@@ -79,6 +87,8 @@ mod_index = 22.0
 noise_level = 0.4
 attack = 1.0
 decay = 1100.0
+bits = 3.0
+rate = 4.0
 
 [[sounds]]
 name = "Tape Hiss"
@@ -89,6 +99,7 @@ grain_size = 15.0
 jitter = 0.95
 attack = 4.0
 decay = 1300.0
+bits = 10.0
 
 [[sounds]]
 name = "Lung Pop"
@@ -96,6 +107,7 @@ engine_type = "noise"
 freq = 0.0
 attack = 3.0
 decay = 160.0
+bits = 10.0
 
 [[sounds]]
 name = "Tongue Click"
@@ -105,6 +117,7 @@ brightness = 0.7
 dampening = 0.65
 attack = 1.0
 decay = 22.0
+bits = 10.0
 
 [[sounds]]
 name = "Broken Motor"
@@ -115,6 +128,7 @@ mod_index = 14.0
 noise_level = 0.2
 attack = 1.0
 decay = 320.0
+bits = 10.0
 
 [[sounds]]
 name = "Static Buzz"
@@ -125,6 +139,7 @@ grain_size = 1.5
 jitter = 1.0
 attack = 1.0
 decay = 100.0
+bits = 10.0
 
 [[sounds]]
 name = "Gulp"
@@ -134,6 +149,7 @@ mod_ratio = 1.5
 mod_index = 8.0
 attack = 2.0
 decay = 130.0
+bits = 10.0
 
 [[sounds]]
 name = "Steam Hiss"
@@ -141,3 +157,4 @@ engine_type = "noise"
 freq = 0.0
 attack = 10.0
 decay = 400.0
+bits = 10.0

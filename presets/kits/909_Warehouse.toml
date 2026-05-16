@@ -29,6 +29,8 @@ grain_size = 2.0
 jitter = 0.8
 attack = 1.0
 decay = 50.0
+bits = 6.0
+rate = 2.0
 
 [[sounds]]
 name = "909 Open Hat"
@@ -39,6 +41,8 @@ grain_size = 3.0
 jitter = 0.9
 attack = 1.0
 decay = 350.0
+bits = 6.0
+rate = 2.0
 
 [[sounds]]
 name = "909 Tom 1"
@@ -89,6 +93,8 @@ grain_size = 1.5
 jitter = 1.0
 attack = 1.0
 decay = 2000.0
+bits = 6.0
+rate = 2.0
 
 [[sounds]]
 name = "909 Ride"
@@ -99,6 +105,8 @@ grain_size = 4.0
 jitter = 0.6
 attack = 1.0
 decay = 1500.0
+bits = 6.0
+rate = 2.0
 
 [[sounds]]
 name = "909 Clap"

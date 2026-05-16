@@ -1,5 +1,5 @@
 name = "Office After Hours"
-description = "Fluorescent-lit ASMR percussion. Paper, plastic, hardware mechanism — dry and transient-heavy."
+description = "Fluorescent-lit ASMR percussion. Paper, plastic, hardware mechanism — dry and transient-heavy. Subtle 10-bit grit kit-wide."
 
 [[sounds]]
 name = "Stapler Ka-Chunk"
@@ -10,6 +10,7 @@ mod_index = 4.0
 noise_level = 0.15
 attack = 1.0
 decay = 180.0
+bits = 10.0
 
 [[sounds]]
 name = "Paper-Tear"
@@ -17,6 +18,7 @@ engine_type = "noise"
 freq = 0.0
 attack = 1.0
 decay = 140.0
+bits = 10.0
 
 [[sounds]]
 name = "Typewriter Strike"
@@ -27,6 +29,7 @@ grain_size = 2.0
 jitter = 0.6
 attack = 1.0
 decay = 50.0
+bits = 10.0
 
 [[sounds]]
 name = "Typewriter Long"
@@ -37,6 +40,7 @@ grain_size = 3.0
 jitter = 0.7
 attack = 1.0
 decay = 180.0
+bits = 10.0
 
 [[sounds]]
 name = "Drawer Slam"
@@ -46,6 +50,7 @@ noise_color = 0.3
 metallic = 0.4
 attack = 2.0
 decay = 300.0
+bits = 10.0
 
 [[sounds]]
 name = "Drawer Mid"
@@ -55,6 +60,7 @@ noise_color = 0.3
 metallic = 0.4
 attack = 2.0
 decay = 350.0
+bits = 10.0
 
 [[sounds]]
 name = "Filing Cabinet"
@@ -64,6 +70,7 @@ noise_color = 0.4
 metallic = 0.5
 attack = 2.0
 decay = 420.0
+bits = 10.0
 
 [[sounds]]
 name = "Big Desk Hit"
@@ -73,6 +80,7 @@ noise_color = 0.4
 metallic = 0.3
 attack = 2.0
 decay = 480.0
+bits = 10.0
 
 [[sounds]]
 name = "Phone Smash"
@@ -82,6 +90,7 @@ noise_color = 0.9
 metallic = 0.95
 attack = 1.0
 decay = 1200.0
+bits = 10.0
 
 [[sounds]]
 name = "Pen-Tap Loop"
@@ -91,6 +100,7 @@ brightness = 0.9
 dampening = 0.25
 attack = 1.0
 decay = 800.0
+bits = 10.0
 
 [[sounds]]
 name = "Folder Slap"
@@ -98,6 +108,7 @@ engine_type = "noise"
 freq = 0.0
 attack = 6.0
 decay = 200.0
+bits = 10.0
 
 [[sounds]]
 name = "Pen Click"
@@ -107,6 +118,7 @@ brightness = 0.85
 dampening = 0.7
 attack = 1.0
 decay = 25.0
+bits = 10.0
 
 [[sounds]]
 name = "Phone Bell"
@@ -116,6 +128,7 @@ mod_ratio = 0.7
 mod_index = 10.0
 attack = 1.0
 decay = 350.0
+bits = 10.0
 
 [[sounds]]
 name = "Keyboard Tap"
@@ -125,6 +138,7 @@ mod_ratio = 3.0
 mod_index = 5.0
 attack = 1.0
 decay = 40.0
+bits = 10.0
 
 [[sounds]]
 name = "Highlighter Squeak"
@@ -134,6 +148,7 @@ mod_ratio = 4.0
 mod_index = 15.0
 attack = 1.0
 decay = 80.0
+bits = 10.0
 
 [[sounds]]
 name = "Paper Crumple"
@@ -144,3 +159,4 @@ grain_size = 8.0
 jitter = 0.95
 attack = 2.0
 decay = 300.0
+bits = 10.0

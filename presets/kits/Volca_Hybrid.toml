@@ -106,6 +106,7 @@ grain_size = 25.0
 jitter = 0.4
 attack = 2.0
 decay = 260.0
+bits = 8.0
 
 [[sounds]]
 name = "Volca Rim"
@@ -115,6 +116,7 @@ mod_ratio = 6.0
 mod_index = 5.0
 attack = 1.0
 decay = 30.0
+bits = 8.0
 
 [[sounds]]
 name = "PCM Cowbell"
@@ -125,6 +127,7 @@ grain_size = 12.0
 jitter = 0.3
 attack = 1.0
 decay = 280.0
+bits = 8.0
 
 [[sounds]]
 name = "Volca Clave"
@@ -134,6 +137,7 @@ mod_ratio = 1.0
 mod_index = 0.0
 attack = 1.0
 decay = 35.0
+bits = 8.0
 
 [[sounds]]
 name = "PCM Shaker"
@@ -144,6 +148,7 @@ grain_size = 6.0
 jitter = 0.85
 attack = 1.0
 decay = 110.0
+bits = 8.0
 
 [[sounds]]
 name = "PCM Conga"
@@ -154,3 +159,4 @@ grain_size = 18.0
 jitter = 0.4
 attack = 1.0
 decay = 240.0
+bits = 8.0

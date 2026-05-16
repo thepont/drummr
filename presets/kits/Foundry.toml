@@ -1,5 +1,5 @@
 name = "Foundry"
-description = "Industrial metallic. Overdriven FM, anvil hits, and bell-of-doom cymbals."
+description = "Industrial metallic. Overdriven FM, anvil hits, and bell-of-doom cymbals. 4-bit / 3x-decimated crush on cymbals and perc."
 
 [[sounds]]
 name = "Foundry Kick"
@@ -28,6 +28,8 @@ noise_color = 0.95
 metallic = 1.0
 attack = 1.0
 decay = 55.0
+bits = 4.0
+rate = 3.0
 
 [[sounds]]
 name = "Pipe Hat Open"
@@ -37,6 +39,8 @@ noise_color = 0.95
 metallic = 1.0
 attack = 1.0
 decay = 380.0
+bits = 4.0
+rate = 3.0
 
 [[sounds]]
 name = "Anvil Tom 1"
@@ -97,6 +101,8 @@ mod_index = 30.0
 noise_level = 0.15
 attack = 1.0
 decay = 1300.0
+bits = 4.0
+rate = 3.0
 
 [[sounds]]
 name = "Foundry Clap"
@@ -107,6 +113,8 @@ mod_index = 10.0
 noise_level = 0.9
 attack = 2.0
 decay = 250.0
+bits = 4.0
+rate = 3.0
 
 [[sounds]]
 name = "Steel Rim"
@@ -116,6 +124,8 @@ noise_color = 0.2
 metallic = 1.0
 attack = 1.0
 decay = 80.0
+bits = 4.0
+rate = 3.0
 
 [[sounds]]
 name = "Iron Cowbell"
@@ -135,6 +145,8 @@ noise_color = 0.4
 metallic = 0.95
 attack = 1.0
 decay = 250.0
+bits = 4.0
+rate = 3.0
 
 [[sounds]]
 name = "Furnace Hiss"
@@ -145,6 +157,8 @@ mod_index = 40.0
 noise_level = 0.85
 attack = 1.0
 decay = 220.0
+bits = 4.0
+rate = 3.0
 
 [[sounds]]
 name = "Pipe Clang"
@@ -154,3 +168,5 @@ noise_color = 0.1
 metallic = 1.0
 attack = 1.0
 decay = 600.0
+bits = 4.0
+rate = 3.0
