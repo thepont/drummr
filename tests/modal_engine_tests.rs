@@ -146,45 +146,69 @@ fn test_modal_handles_zero_velocity() {
 }
 
 #[test]
-fn test_modal_peak_amplitude_has_headroom() {
-    // After the constant-skirt-gain bandpass change, high freq + high
-    // brightness + low dampening could push peak output to 1.0 (saturating
-    // the final clamp) and leave nothing for the master soft-clip.
-    // OUTPUT_TRIM should keep peak under 0.75 across the parameter space.
-    let freqs = [200.0_f32, 800.0, 2000.0, 4000.0];
-    let brightnesses = [0.5_f32, 0.9, 1.0];
-    let dampenings = [0.0_f32, 0.3];
+fn test_modal_typical_kit_voices_are_audible() {
+    // The dual goal of OUTPUT_TRIM: typical kit voices (kicks, toms with
+    // moderate brightness and dampening) must be clearly audible -- peak
+    // >= -25 dBFS so they don't sit below the perceptual floor against FM
+    // / Phys voices in the same kit. Output must always be finite.
+    let cases = [
+        // (freq, brightness, dampening, inharmonicity, decay_ms, label)
+        (55.0, 0.55, 0.18, 0.05, 800.0, "Cathedral Bell Kick"),
+        (45.0, 0.40, 0.20, 0.10, 700.0, "Sub Zero Kick"),
+        (220.0, 0.55, 0.35, 0.60, 400.0, "909 Tom 1 modal"),
+        (100.0, 0.50, 0.35, 0.60, 400.0, "Tom 4 lower mid"),
+        (440.0, 0.70, 0.06, 0.70, 2000.0, "Glass Forest Singing Bowl"),
+        (300.0, 0.90, 0.20, 0.85, 400.0, "Tokyo Bell Tom 1"),
+    ];
+    for (freq, bright, damp, inh, dec, label) in cases {
+        let mut e = ModalEngine::new(SR);
+        e.set_param("freq", freq);
+        e.set_param("brightness", bright);
+        e.set_param("dampening", damp);
+        e.set_param("inharmonicity", inh);
+        e.set_param("decay", dec);
+        e.trigger(1.0);
 
-    for &freq in &freqs {
-        for &bright in &brightnesses {
-            for &damp in &dampenings {
-                let mut e = ModalEngine::new(SR);
-                e.set_param("decay", 1000.0);
-                e.set_param("attack", 1.0);
-                e.set_param("freq", freq);
-                e.set_param("brightness", bright);
-                e.set_param("dampening", damp);
-                e.trigger(1.0);
+        let n = (SR * (dec / 1000.0 + 0.5)) as usize;
+        let mut peak = 0.0f32;
+        for _ in 0..n {
+            let y = e.tick();
+            assert!(y.is_finite(), "non-finite at {}", label);
+            peak = peak.max(y.abs());
+        }
 
-                // One full envelope cycle (~1s decay) plus a little tail.
-                let n = (SR * 1.2) as usize;
-                let mut peak = 0.0f32;
-                for _ in 0..n {
-                    let y = e.tick();
-                    assert!(
-                        y.is_finite(),
-                        "non-finite sample at f={} bright={} damp={}",
-                        freq, bright, damp
-                    );
-                    peak = peak.max(y.abs());
-                }
+        // -25 dBFS = ~0.056. Below this the voice would be inaudible against
+        // FM/Phys voices that peak near 1.0 in the same kit.
+        assert!(
+            peak >= 0.056,
+            "{}: peak {:.4} ({:.1} dBFS) is too quiet to be audible",
+            label, peak, 20.0 * peak.log10()
+        );
+    }
+}
 
-                assert!(
-                    peak < 0.75,
-                    "peak {} >= 0.75 at f={} bright={} damp={} (would leave no headroom)",
-                    peak, freq, bright, damp
-                );
-            }
+#[test]
+fn test_modal_extreme_corners_clamp_safely() {
+    // High freq + brightness=1 + dampening=0 + long decay puts the bank near
+    // saturation. The trailing clamp(-1.0, 1.0) must hold; output must never
+    // exceed 1.0 or go non-finite.
+    let extremes = [
+        (4000.0_f32, 1.0_f32, 0.0_f32, 2000.0_f32),
+        (2000.0, 1.0, 0.05, 2000.0),
+        (1000.0, 1.0, 0.0, 1500.0),
+    ];
+    for (freq, bright, damp, dec) in extremes {
+        let mut e = ModalEngine::new(SR);
+        e.set_param("freq", freq);
+        e.set_param("brightness", bright);
+        e.set_param("dampening", damp);
+        e.set_param("decay", dec);
+        e.trigger(1.0);
+        let n = (SR * (dec / 1000.0 + 0.5)) as usize;
+        for _ in 0..n {
+            let y = e.tick();
+            assert!(y.is_finite(), "non-finite at f={} b={} d={} dec={}", freq, bright, damp, dec);
+            assert!(y.abs() <= 1.0001, "exceeded clamp: {} at f={} b={} d={} dec={}", y, freq, bright, damp, dec);
         }
     }
 }

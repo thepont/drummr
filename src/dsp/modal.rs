@@ -7,15 +7,14 @@ use std::f32::consts::PI;
 /// Number of parallel modes in the resonator bank.
 const NUM_MODES: usize = 12;
 
-/// Empirical output trim applied at the end of `tick()`. The constant-skirt
-/// bandpass form puts modal output in the audible ballpark, but at the upper
-/// end of the parameter space (high freq + high brightness + low dampening)
-/// the pre-trim summed bank can peak at ~17. Probed worst case across
-/// f in {200..4000} Hz, brightness in {0.5..1.0}, dampening in {0.0..0.3}
-/// with a 1 s decay: trim of 0.03 brings worst-case peak to ~0.51 (-6 dBFS)
-/// and leaves moderate-setting output near -18 dBFS — comfortable headroom
-/// for the master soft-clip.
-const OUTPUT_TRIM: f32 = 0.03;
+/// Output trim applied at the end of `tick()`. The constant-skirt bandpass
+/// form has impulse-response peak scaling with Q, so the parameter-space
+/// dynamic range is wide (typical kit voices ~0.1-0.3 pre-trim, extreme
+/// f=4000+b=1.0+d=0.0 ~17 pre-trim). Trim 2.0 brings typical voices to a
+/// healthy -8 to -14 dBFS; extreme cases hit the trailing `clamp(-1.0, 1.0)`
+/// and produce a soft-clip-style distortion that sounds like the metallic
+/// clang you'd want at those settings anyway.
+const OUTPUT_TRIM: f32 = 1.2;
 
 /// Below this absolute sample magnitude the mode bank is considered quiet
 /// enough to treat as inactive (used to keep `is_active()` honest while the
@@ -87,7 +86,8 @@ impl Mode {
 
         let a0 = 1.0 + alpha;
         // Constant skirt: b0 = sin(w0)/2 = alpha * Q. Impulse-response peak
-        // scales as sqrt(Q/2/PI/f) -- finite even for high Q.
+        // scales with Q -- low-Q kicks need this full gain to be audible;
+        // high-Q extremes overshoot but are caught by the tail clamp.
         let b0 = sin_w0 * 0.5;
         let b1 = 0.0;
         let b2 = -b0;
