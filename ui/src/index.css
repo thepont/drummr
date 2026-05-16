@@ -38,35 +38,48 @@
 
 @layer base {
   :root {
-    --background: #09090b;
-    --foreground: #fafafa;
+    --background: #020617;
+    --foreground: #f8fafc;
     
-    --card: #09090b;
-    --card-foreground: #fafafa;
+    --card: #0f172a;
+    --card-foreground: #f8fafc;
     
-    --popover: #09090b;
-    --popover-foreground: #fafafa;
+    --popover: #020617;
+    --popover-foreground: #f8fafc;
     
-    --primary: #fafafa;
-    --primary-foreground: #18181b;
+    --primary: #10b981;
+    --primary-foreground: #020617;
     
-    --secondary: #27272a;
-    --secondary-foreground: #fafafa;
+    --secondary: #1e293b;
+    --secondary-foreground: #f8fafc;
     
-    --muted: #18181b;
-    --muted-foreground: #a1a1aa;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
     
-    --accent: #27272a;
-    --accent-foreground: #fafafa;
+    --accent: #334155;
+    --accent-foreground: #f8fafc;
     
-    --destructive: #7f1d1d;
-    --destructive-foreground: #fafafa;
+    --destructive: #ef4444;
+    --destructive-foreground: #f8fafc;
     
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #d4d4d8;
+    --border: #334155;
+    --input: #1e293b;
+    --ring: #10b981;
     
-    --radius: 0.5rem;
+    --radius: 1rem;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted rounded-full hover:bg-muted-foreground/50 transition-colors;
   }
 }
 

@@ -25,6 +25,8 @@ pub async fn handle_command(
     sample_rate: f32,
     event_consumer: Arc<Mutex<Option<rtrb::Consumer<MidiEvent>>>>,
     cmd_consumer: Arc<Mutex<Option<rtrb::Consumer<AudioCommand>>>>,
+    bpm_engine: Arc<Mutex<crate::dsp::bpm_engine::BpmEngine>>,
+    sync_engine: Arc<crate::sync::SyncEngine>,
 ) {
     if text == "LIST_MIDI" {
         if let Ok(ports) = MidiEngine::list_ports() {
@@ -362,7 +364,19 @@ pub async fn handle_command(
         }
     } else if text.starts_with("SELECT_MIDI:") {
         let index = text.replace("SELECT_MIDI:", "").parse().unwrap_or(0);
-        let _ = start_midi(midi_engine, comm_engine, midi_tx, midi_producer, index).await;
+        let _ = start_midi(midi_engine, comm_engine, midi_tx, midi_producer, index, bpm_engine).await;
+    } else if text == "SYNC_START" {
+        sync_engine.start();
+        comm_engine.broadcast("SYNC_STATUS:Running".to_string());
+    } else if text == "SYNC_STOP" {
+        sync_engine.stop();
+        comm_engine.broadcast("SYNC_STATUS:Stopped".to_string());
+    } else if text.starts_with("SET_AUTO_SYNC:") {
+        let enabled = text.replace("SET_AUTO_SYNC:", "") == "true";
+        sync_engine.set_auto_sync(enabled);
+    } else if text == "GET_SYNC_STATUS" {
+        let status = if sync_engine.is_running() { "Running" } else { "Stopped" };
+        comm_engine.broadcast(format!("SYNC_STATUS:{}", status));
     } else if text.starts_with("SELECT_AUDIO:") {
         let index = text.replace("SELECT_AUDIO:", "").parse().unwrap_or(0);
         let host = cpal::default_host();
@@ -372,9 +386,10 @@ pub async fn handle_command(
                 let mut e_cons_lock = event_consumer.lock().await;
                 let mut c_cons_lock = cmd_consumer.lock().await;
                 if let (Some(e_cons), Some(c_cons)) = (e_cons_lock.take(), c_cons_lock.take()) {
-                    if let Ok(stream) = start_audio(device, e_cons, c_cons, shared_state) {
+                    if let Ok((out_stream, in_stream)) = start_audio(device, e_cons, c_cons, shared_state, bpm_engine) {
                         let name = device.name().unwrap_or_default();
-                        std::mem::forget(stream); 
+                        std::mem::forget(out_stream); 
+                        if let Some(s) = in_stream { std::mem::forget(s); }
                         comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
                         let mut settings = Settings::load();
                         settings.last_audio_device = Some(name);

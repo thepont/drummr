@@ -100,3 +100,28 @@ fn test_phys_engine_inf_resilience() {
         assert!(!sample.is_infinite() && !sample.is_nan(), "Phys Engine propagated Infinity/NaN to output");
     }
 }
+
+#[test]
+fn test_soft_clipper_overflow_resilience() {
+    use drummr::audio::soft_clip;
+    
+    let test_values = [1.1, 1.5, 2.0, 10.0, -1.1, -1.5, -2.0, -10.0, 100.0, -100.0];
+    
+    for &val in test_values.iter() {
+        let clipped = soft_clip(val);
+        assert!(clipped.is_finite(), "Soft clipper produced non-finite value for {}", val);
+        // Tanh(x) is always in (-1, 1)
+        assert!(clipped.abs() <= 1.0, "Soft clipper failed to limit value {} (got {})", val, clipped);
+        
+        // Ensure it is actually "soft" - for val > 1.0, it should be less than val
+        if val > 0.0 {
+            assert!(clipped < val);
+        } else {
+            assert!(clipped > val);
+        }
+    }
+    
+    // Test that it doesn't wrap (like some integer overflows)
+    assert!(soft_clip(10.0) > 0.9);
+    assert!(soft_clip(-10.0) < -0.9);
+}

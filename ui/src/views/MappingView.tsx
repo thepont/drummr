@@ -78,7 +78,11 @@ function Pad({ name, isActive, midiNote, isLearning, onClick, id }: PadProps) {
   )
 }
 
-export default function MappingView({ ws }: { ws: WebSocket | null }) {
+export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }: { 
+  ws: WebSocket | null, 
+  selectedSoundId?: any,
+  setSelectedSoundId?: (id: any) => void
+}) {
   const [activeNotes, setActiveNotes] = useState<Set<number>>(new Set());
   const [learningSlot, setLearningSlot] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,9 +242,12 @@ export default function MappingView({ ws }: { ws: WebSocket | null }) {
             id={role.slot.toString()}
             name={role.name}
             midiNote={role.note}
-            isActive={activeNotes.has(role.note)}
+            isActive={activeNotes.has(role.note) || String(selectedSoundId) === String(role.slot)}
             isLearning={learningSlot === role.slot}
-            onClick={() => setLearningSlot(role.slot)}
+            onClick={() => {
+              setLearningSlot(role.slot);
+              setSelectedSoundId?.(role.slot);
+            }}
           />
         ))}
       </div>

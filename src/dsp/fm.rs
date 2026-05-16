@@ -113,7 +113,7 @@ impl FmVoice {
 
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
-            crate::kit::ParamSchema { name: "freq".to_string(), min: 20.0, max: 2000.0, default: 440.0, unit: "Hz".to_string() },
+            crate::kit::ParamSchema { name: "freq".to_string(), min: 20.0, max: 12000.0, default: 440.0, unit: "Hz".to_string() },
             crate::kit::ParamSchema { name: "mod_ratio".to_string(), min: 0.0, max: 10.0, default: 1.0, unit: "ratio".to_string() },
             crate::kit::ParamSchema { name: "mod_index".to_string(), min: 0.0, max: 50.0, default: 1.0, unit: "index".to_string() },
             crate::kit::ParamSchema { name: "noise_level".to_string(), min: 0.0, max: 1.0, default: 0.0, unit: "level".to_string() },

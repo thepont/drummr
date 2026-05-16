@@ -17,9 +17,12 @@ pub struct PhysEngine {
     
     pub attack: f32,
     pub decay: f32,
+    pub pitch_bend: f32,
     
     // Internal State
     amp_env: AdEnvelope,
+    pitch_env: f32,
+    pitch_decay_coef: f32,
     last_y: f32,
     rng: Xorshift,
 
@@ -40,8 +43,11 @@ impl PhysEngine {
             
             attack: 1.0,
             decay: 200.0,
+            pitch_bend: 200.0,
             
             amp_env: AdEnvelope::new(sample_rate),
+            pitch_env: 0.0,
+            pitch_decay_coef: (-1.0 / (0.05 * sample_rate)).exp(), // 50ms decay constant
             last_y: 0.0,
             rng: Xorshift::new(0xACE1),
             mod_engine: ModulationEngine::new(sample_rate),
@@ -57,7 +63,7 @@ impl PhysEngine {
             crate::kit::ParamSchema {
                 name: "freq".to_string(),
                 min: 20.0,
-                max: 2000.0,
+                max: 12000.0,
                 default: 100.0,
                 unit: "Hz".to_string(),
             },
@@ -89,6 +95,13 @@ impl PhysEngine {
                 default: 200.0,
                 unit: "ms".to_string(),
             },
+            crate::kit::ParamSchema {
+                name: "pitch_bend".to_string(),
+                min: 0.0,
+                max: 5000.0,
+                default: 200.0,
+                unit: "Hz".to_string(),
+            },
         ]
     }
 
@@ -97,9 +110,10 @@ impl PhysEngine {
         if velocity > 0.0 {
             self.amp_env.set_params(self.attack / 1000.0, self.decay / 1000.0);
             self.amp_env.trigger();
+            self.pitch_env = 1.0;
             
-            // Calculate and LOCK delay length based on current modulated frequency
-            let current_freq = self.mod_engine.calculate_mod(&self.frequency);
+            // Initial frequency calculation with full pitch bend
+            let current_freq = self.mod_engine.calculate_mod(&self.frequency) + self.pitch_bend;
             let l = (self.sample_rate / current_freq).round() as usize;
             self.current_l = l.clamp(2, self.delay_line.len() - 1);
             
@@ -126,10 +140,17 @@ impl PhysEngine {
 
         if env <= 0.0 && !self.amp_env.is_active() { return 0.0; }
 
+        // Update pitch drop
+        self.pitch_env *= self.pitch_decay_coef;
+        let pitch_mod = self.pitch_env * self.pitch_bend;
+        let current_freq = (self.mod_engine.calculate_mod(&self.frequency) + pitch_mod).max(20.0);
+        let l = (self.sample_rate / current_freq).round() as usize;
+        self.current_l = l.clamp(2, self.delay_line.len() - 1);
+
         let brightness = self.mod_engine.calculate_mod(&self.brightness).clamp(0.0, 1.0);
         let dampening = self.mod_engine.calculate_mod(&self.dampening).clamp(0.0, 1.0);
 
-        // Read from the delay line using the LOCKED length to prevent pitch artifacts
+        // Read from the delay line
         let read_pos = (self.write_pos + self.delay_line.len() - self.current_l) % self.delay_line.len();
         let read_pos_prev = (read_pos + self.delay_line.len() - 1) % self.delay_line.len();
         
@@ -165,6 +186,7 @@ impl PhysEngine {
             "dampening" => self.dampening.base_value = value.clamp(0.0, 1.0),
             "attack" => self.attack = value,
             "decay" => self.decay = value,
+            "pitch_bend" => self.pitch_bend = value,
             _ => {}
         }
     }

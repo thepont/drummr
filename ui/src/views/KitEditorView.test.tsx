@@ -30,7 +30,19 @@ describe('KitEditorView Schema Parsing', () => {
       if (event === 'message') messageHandler = handler;
     });
 
-    render(<KitEditorView ws={mockWs} />);
+    const mockSetSounds = vi.fn();
+    const mockSetSchemas = vi.fn();
+    const mockSetSelectedId = vi.fn();
+
+    render(<KitEditorView 
+      ws={mockWs} 
+      sounds={[]} 
+      setSounds={mockSetSounds}
+      schemas={{}}
+      setSchemas={mockSetSchemas}
+      selectedSoundId={null}
+      setSelectedSoundId={mockSetSelectedId}
+    />);
 
     // Mock initial kit load
     const kitData = [

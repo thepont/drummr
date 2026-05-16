@@ -66,7 +66,7 @@ impl GranularEngine {
             crate::kit::ParamSchema {
                 name: "freq".to_string(),
                 min: 20.0,
-                max: 4000.0,
+                max: 12000.0,
                 default: 440.0,
                 unit: "Hz".to_string(),
             },

@@ -8,3 +8,4 @@ pub mod persistence;
 pub mod audio;
 pub mod commands;
 pub mod app_utils;
+pub mod sync;

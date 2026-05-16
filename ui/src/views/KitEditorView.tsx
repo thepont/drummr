@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu } from "@phosphor-icons/react"
+import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu, ArrowsClockwise, FloppyDisk } from "@phosphor-icons/react"
 import { cn, ParamController, Button, FrequencyVisualizer, PredictiveGraph } from '../components/ui'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
@@ -35,12 +35,16 @@ interface KitEditorProps {
   setSounds: React.Dispatch<React.SetStateAction<Sound[]>>;
   schemas: Record<string, ParamSchema[]>;
   setSchemas: React.Dispatch<React.SetStateAction<Record<string, ParamSchema[]>>>;
-  soundPresets: string[];
+  selectedSoundId: any;
+  setSelectedSoundId: (id: any) => void;
 }
 
-export default function KitEditorView({ ws, sounds, setSounds, schemas, soundPresets }: KitEditorProps) {
-  const [selectedSoundId, setSelectedSoundId] = useState<any>(null);
-  const [newPresetName, setNewPresetName] = useState("");
+export default function KitEditorView({ 
+  ws, sounds, setSounds, schemas, 
+  selectedSoundId, setSelectedSoundId 
+}: KitEditorProps) {
+  const [newKitName, setNewKitName] = useState("");
+  const [isSaveKitModalOpen, setIsSaveKitModalOpen] = useState(false);
   const [modStates, setModStates] = useState<number[][]>([]);
 
   const selectedSound = useMemo(() => 
@@ -55,7 +59,7 @@ export default function KitEditorView({ ws, sounds, setSounds, schemas, soundPre
     if (sounds.length > 0 && selectedSoundId === null) {
       setSelectedSoundId(sounds[0].id);
     }
-  }, [sounds, selectedSoundId]);
+  }, [sounds, selectedSoundId, setSelectedSoundId]);
 
   useEffect(() => {
     if (selectedSoundId !== null && ws) {
@@ -154,6 +158,20 @@ export default function KitEditorView({ ws, sounds, setSounds, schemas, soundPre
         
         <div className="flex gap-2">
            <Button 
+            onClick={() => ws?.send('GET_KIT')} 
+            variant="secondary" 
+            icon={<ArrowsClockwise />}
+           >
+            Reload
+           </Button>
+           <Button 
+            onClick={() => setIsSaveKitModalOpen(true)} 
+            variant="secondary" 
+            icon={<FloppyDisk />}
+           >
+            Save Kit As
+           </Button>
+           <Button 
             onClick={triggerPreview} 
             variant="primary" 
             icon={<Play weight="fill" />}
@@ -162,6 +180,44 @@ export default function KitEditorView({ ws, sounds, setSounds, schemas, soundPre
            </Button>
         </div>
       </header>
+
+      {isSaveKitModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <h4 className="text-xl font-bold mb-4">Save Kit As</h4>
+            <input 
+              autoFocus
+              type="text" 
+              placeholder="Enter kit name..." 
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-primary transition-colors mb-6"
+              value={newKitName}
+              onChange={e => setNewKitName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && newKitName) {
+                  ws?.send(`SAVE_KIT_AS:${newKitName}`);
+                  setIsSaveKitModalOpen(false);
+                  setNewKitName("");
+                }
+                if (e.key === 'Escape') setIsSaveKitModalOpen(false);
+              }}
+            />
+            <div className="flex gap-3 justify-end">
+              <Button variant="secondary" onClick={() => setIsSaveKitModalOpen(false)}>Cancel</Button>
+              <Button 
+                variant="primary" 
+                disabled={!newKitName}
+                onClick={() => {
+                  ws?.send(`SAVE_KIT_AS:${newKitName}`);
+                  setIsSaveKitModalOpen(false);
+                  setNewKitName("");
+                }}
+              >
+                Save Kit
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2 overflow-x-auto pb-4 no-scrollbar">
         {sounds.map(sound => (
@@ -318,47 +374,6 @@ export default function KitEditorView({ ws, sounds, setSounds, schemas, soundPre
           Select a sound to start designing
         </div>
       )}
-
-      <footer className="fixed bottom-0 left-0 lg:left-64 right-0 bg-background/80 backdrop-blur-xl border-t border-border p-4 px-8 flex items-center justify-between z-20">
-         <div className="flex items-center gap-6 overflow-x-auto no-scrollbar max-w-[60%]">
-            <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest whitespace-nowrap">Presets</div>
-            {soundPresets.map(preset => (
-              <button
-                key={preset}
-                onClick={() => {
-                  if (selectedSoundId !== null && ws) {
-                    ws.send(`LOAD_SOUND_PRESET:${preset}:${selectedSoundId}`);
-                  }
-                }}
-                className="text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors whitespace-nowrap"
-              >
-                {preset}
-              </button>
-            ))}
-         </div>
-
-         <div className="flex gap-2">
-            <input 
-              type="text" 
-              placeholder="Save as..." 
-              className="bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary/50 transition-colors w-32"
-              value={newPresetName}
-              onChange={e => setNewPresetName(e.target.value)}
-            />
-            <Button 
-              variant="secondary" 
-              className="h-8 px-4 text-[10px]"
-              onClick={() => {
-                if (newPresetName && selectedSoundId !== null && ws) {
-                  ws.send(`SAVE_SOUND_PRESET:${newPresetName}:${selectedSoundId}`);
-                  setNewPresetName("");
-                }
-              }}
-            >
-              Save
-            </Button>
-         </div>
-      </footer>
     </div>
   )
 }

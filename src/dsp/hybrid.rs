@@ -48,7 +48,7 @@ impl HybridEngine {
             crate::kit::ParamSchema {
                 name: "freq".to_string(),
                 min: 20.0,
-                max: 2000.0,
+                max: 12000.0,
                 default: 200.0,
                 unit: "Hz".to_string(),
             },

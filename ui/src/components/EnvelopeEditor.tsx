@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export function EnvelopeEditor({ attack, decay, onChange }: { attack: number, decay: number, onChange: (a: number, d: number) => void }) {
   // Constants for visualization
@@ -8,23 +8,31 @@ export function EnvelopeEditor({ attack, decay, onChange }: { attack: number, de
   
   // Scaling factors (visual to ms)
   const maxMs = 2000;
-  
-  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    const svg = e.currentTarget;
+  const [activeHandle, setActiveHandle] = useState<'attack' | 'decay' | null>(null);
+
+  const handleMouseDown = (e: React.MouseEvent, type: 'attack' | 'decay') => {
+    e.stopPropagation();
+    setActiveHandle(type);
+    
+    const svg = (e.currentTarget as any).ownerSVGElement || e.currentTarget;
+    
     const updatePosition = (moveEvent: MouseEvent) => {
       const rect = svg.getBoundingClientRect();
       const x = Math.max(0, Math.min(width, moveEvent.clientX - rect.left));
-      
-      // We'll treat the peak point as the target
-      // Attack determines X of peak. Decay is total length - attack.
       const totalMs = (x / width) * maxMs;
-      const newAttack = Math.max(1, Math.min(totalMs, 1000)); // Cap attack at 1s for usability
-      const newDecay = Math.max(1, totalMs - newAttack);
-      
-      onChange(newAttack, newDecay);
+
+      if (type === 'attack') {
+        const newAttack = Math.max(1, Math.min(totalMs, 1000));
+        onChange(newAttack, decay);
+      } else {
+        const attackX = (attack / maxMs) * width;
+        const newDecay = Math.max(1, totalMs - (attackX / width * maxMs));
+        onChange(attack, newDecay);
+      }
     };
 
     const handleMouseUp = () => {
+      setActiveHandle(null);
       window.removeEventListener('mousemove', updatePosition);
       window.removeEventListener('mouseup', handleMouseUp);
     };
@@ -43,8 +51,7 @@ export function EnvelopeEditor({ attack, decay, onChange }: { attack: number, de
     <div className="w-full h-full flex flex-col">
       <svg 
         viewBox={`0 0 ${width} ${height}`} 
-        className="w-full h-full cursor-crosshair touch-none"
-        onMouseDown={handleMouseDown}
+        className="w-full h-full cursor-default touch-none"
       >
         <defs>
           <linearGradient id="envGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -66,15 +73,28 @@ export function EnvelopeEditor({ attack, decay, onChange }: { attack: number, de
           strokeLinejoin="round"
         />
 
-        {/* Draggable handle at peak */}
+        {/* Attack handle */}
         <circle 
           cx={attackX} 
           cy={padding} 
-          r="6" 
-          fill="var(--color-primary-foreground)" 
+          r="8" 
+          fill={activeHandle === 'attack' ? "var(--color-primary)" : "var(--color-primary-foreground)"} 
           stroke="var(--color-primary)" 
           strokeWidth="3"
-          className="drop-shadow-lg"
+          className="drop-shadow-lg cursor-ew-resize transition-colors"
+          onMouseDown={(e) => handleMouseDown(e, 'attack')}
+        />
+
+        {/* Decay handle */}
+        <circle 
+          cx={decayX} 
+          cy={height} 
+          r="8" 
+          fill={activeHandle === 'decay' ? "var(--color-primary)" : "var(--color-primary-foreground)"} 
+          stroke="var(--color-primary)" 
+          strokeWidth="3"
+          className="drop-shadow-lg cursor-ew-resize transition-colors"
+          onMouseDown={(e) => handleMouseDown(e, 'decay')}
         />
         
         {/* Labels */}

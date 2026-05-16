@@ -9,19 +9,28 @@ use wmidi::MidiMessage;
 use crate::state::MidiEvent;
 use anyhow::Result;
 
+use crate::dsp::bpm_engine::BpmEngine;
+
 pub async fn start_midi(
     midi_engine: Arc<Mutex<MidiEngine>>, 
     comm_engine: Arc<CommEngine>, 
     midi_tx: mpsc::UnboundedSender<String>,
     raw_midi_producer: Arc<std::sync::Mutex<Producer<MidiEvent>>>,
-    index: usize
+    index: usize,
+    bpm_engine: Arc<Mutex<BpmEngine>>,
 ) -> Result<()> {
     let mut midi = midi_engine.lock().await;
+    let bpm_clone = bpm_engine.clone();
     let res = midi.start(index, move |msg| {
         match msg {
             MidiMessage::NoteOn(_chan, note, vel) => {
                 let n_u8: u8 = note.into();
                 let v_u8: u8 = vel.into();
+                
+                // Register onset for BPM calculation - use blocking lock in MIDI thread
+                let mut bpm = bpm_clone.blocking_lock();
+                bpm.register_onset();
+
                 if let Ok(mut p) = raw_midi_producer.lock() {
                     let _ = p.push([0x90, n_u8, v_u8]);
                 }
