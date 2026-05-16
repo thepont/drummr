@@ -12,6 +12,7 @@ import KitEditorView from './views/KitEditorView'
 import { Card } from './components/ui'
 import { MasterPeakMeter } from './components/MasterPeakMeter'
 import LibrarySidebar from './components/LibrarySidebar'
+import { PreviewKitButton } from './components/PreviewKitButton'
 
 type View = 'dashboard' | 'mapping' | 'editor';
 
@@ -52,6 +53,13 @@ export default function App() {
   const [lastMidi, setLastMidi] = useState<{note: number, vel: number} | null>(null);
   const [isMidiFlashing, setIsMidiFlashing] = useState(false);
 
+  // Preview Kit: backend-curated list of CC-BY MIDI drum tracks that can be
+  // played through the active kit to audition it in a real musical context.
+  // Track names come from MIDI_TRACKS:<csv>; the currently-playing one is set
+  // by MIDI_TRACK_PLAYING:<name> and cleared by MIDI_TRACK_STOPPED:<name?>.
+  const [midiTracks, setMidiTracks] = useState<string[]>([]);
+  const [playingTrack, setPlayingTrack] = useState<string | null>(null);
+
   useEffect(() => {
     let reconnectTimeout: number;
 
@@ -70,6 +78,7 @@ export default function App() {
         socket.send('GET_KIT');
         socket.send('GET_MAPPING');
         socket.send('LIST_SOUND_PRESETS');
+        socket.send('LIST_MIDI_TRACKS');
         setWs(socket);
       };
 
@@ -142,6 +151,18 @@ export default function App() {
           setBpm(data.replace('BPM:', '').trim());
         } else if (data.startsWith('SYNC_STATUS:')) {
           setSyncStatus(data.replace('SYNC_STATUS:', ''));
+        } else if (data.startsWith('MIDI_TRACKS:')) {
+          setMidiTracks(data.replace('MIDI_TRACKS:', '').split(',').filter(Boolean));
+        } else if (data.startsWith('MIDI_TRACK_PLAYING:')) {
+          setPlayingTrack(data.replace('MIDI_TRACK_PLAYING:', ''));
+        } else if (data.startsWith('MIDI_TRACK_STOPPED')) {
+          // MIDI_TRACK_STOPPED: (manual stop) or MIDI_TRACK_STOPPED:<name>
+          // (natural end). Either way, reset to the idle state.
+          setPlayingTrack(null);
+        } else if (data.startsWith('MIDI_TRACK_ERROR:')) {
+          // Backend couldn't load the requested track -- log and reset.
+          console.warn('Preview Kit:', data);
+          setPlayingTrack(null);
         } else if (data.startsWith('MIDI: ')) {
           const rawValues = data.replace('MIDI: ', '');
           const parts = rawValues.split(',');
@@ -299,6 +320,8 @@ export default function App() {
                 >
                   {syncStatus === "Running" ? "Master GO" : "Start Master Sync"}
                 </button>
+
+                <PreviewKitButton ws={ws} tracks={midiTracks} playingTrack={playingTrack} />
              </div>
 
              <div className="ml-auto flex items-center gap-6">
