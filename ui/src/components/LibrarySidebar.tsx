@@ -55,7 +55,11 @@ export default function LibrarySidebar({
             <Books size={20} className="text-primary" />
             <h3 className="font-bold uppercase tracking-widest text-xs">Library</h3>
           </div>
-          <button onClick={onClose} className="lg:hidden p-2 hover:bg-muted rounded-full">
+          <button
+            onClick={onClose}
+            aria-label="Close library"
+            className="lg:hidden p-2 hover:bg-muted rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
             <X size={20} />
           </button>
         </header>
@@ -73,21 +77,23 @@ export default function LibrarySidebar({
           </div>
 
           <div className="flex p-1 bg-muted/30 rounded-xl border border-border/50">
-            <button 
+            <button
               onClick={() => setActiveTab('kits')}
+              aria-pressed={activeTab === 'kits'}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-tight transition-all",
-                activeTab === 'kits' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-tight transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                activeTab === 'kits' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
               )}
             >
               <Folder size={14} />
               Kits
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('presets')}
+              aria-pressed={activeTab === 'presets'}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-tight transition-all",
-                activeTab === 'presets' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold uppercase tracking-tight transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                activeTab === 'presets' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
               )}
             >
               <Files size={14} />
@@ -141,10 +147,11 @@ export default function LibrarySidebar({
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSave()}
               />
-              <button 
+              <button
                 onClick={handleSave}
                 disabled={!newName || (activeTab === 'presets' && (selectedSoundId === null || selectedSoundId === undefined))}
-                className="p-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 hover:scale-105 active:scale-95 transition-all"
+                aria-label={activeTab === 'kits' ? 'Save current kit' : 'Save current sound as preset'}
+                className="p-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 disabled:hover:scale-100 hover:scale-105 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background"
               >
                 <Plus size={16} weight="bold" />
               </button>

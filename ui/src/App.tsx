@@ -177,9 +177,10 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <header className="h-16 border-b border-border flex items-center justify-between px-4 lg:px-8 bg-background/50 backdrop-blur-md z-10 shrink-0">
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden p-2 hover:bg-muted rounded-lg"
+                aria-label="Open navigation menu"
+                className="lg:hidden p-2 hover:bg-muted rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <ListIcon size={24} />
               </button>
@@ -197,11 +198,13 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">MIDI In</span>
                </div>
 
-               <button 
+               <button
                 onClick={() => setIsLibraryOpen(!isLibraryOpen)}
+                aria-pressed={isLibraryOpen}
+                aria-label={isLibraryOpen ? 'Hide library' : 'Show library'}
                 className={cn(
-                  "p-2 rounded-lg transition-colors border flex items-center gap-2",
-                  isLibraryOpen ? "bg-primary/10 border-primary/50 text-primary" : "bg-muted/50 border-border text-muted-foreground hover:text-foreground"
+                  "px-3 py-2 rounded-lg transition-colors border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  isLibraryOpen ? "bg-primary/10 border-primary/50 text-primary" : "bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
                 )}
                >
                  <Books size={20} />
@@ -220,22 +223,24 @@ export default function App() {
              </div>
 
              <div className="flex items-center gap-3">
-                <button 
+                <button
                   onClick={toggleAutoSync}
+                  aria-pressed={isAutoSync}
                   className={cn(
-                    "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border flex items-center gap-2",
-                    isAutoSync ? "bg-amber-500/20 border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]" : "bg-background/50 border-border text-muted-foreground hover:text-foreground"
+                    "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    isAutoSync ? "bg-amber-500/20 border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]" : "bg-background/50 border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
                   )}
                 >
                   <Pulse size={14} weight={isAutoSync ? "fill" : "regular"} />
                   Auto-Record
                 </button>
 
-                <button 
+                <button
                   onClick={toggleSync}
+                  aria-pressed={syncStatus === "Running"}
                   className={cn(
-                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all border flex items-center gap-2",
-                    syncStatus === "Running" ? "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_25px_rgba(16,185,129,0.5)]" : "bg-background/50 border-border text-muted-foreground hover:text-foreground"
+                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    syncStatus === "Running" ? "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_25px_rgba(16,185,129,0.5)]" : "bg-background/50 border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
                   )}
                 >
                   {syncStatus === "Running" ? "Master GO" : "Start Master Sync"}
@@ -303,7 +308,13 @@ export default function App() {
           <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={closeMenu} />
           <nav className="relative w-80 h-full bg-card border-r border-border flex flex-col animate-in slide-in-from-left duration-300">
             <div className="absolute top-4 right-4">
-               <button onClick={closeMenu} className="p-2 hover:bg-muted rounded-full"><X size={24} /></button>
+               <button
+                 onClick={closeMenu}
+                 aria-label="Close navigation menu"
+                 className="p-2 hover:bg-muted rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+               >
+                 <X size={24} />
+               </button>
             </div>
             <SidebarContent 
               view={view} setView={(v: View) => { setView(v); closeMenu(); }} 

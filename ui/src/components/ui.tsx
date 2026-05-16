@@ -48,7 +48,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex items-center justify-center gap-2 px-6 py-2 rounded-full font-bold transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none text-sm",
+        "flex items-center justify-center gap-2 px-6 py-2 rounded-full font-bold transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         variants[variant],
         className
       )}
@@ -461,22 +461,29 @@ export function ModSlot({ source, depth, onChange }: {
     onChange(sources[nextIndex], depth);
   };
 
-  const sourceLabel = source === 'Envelope' ? 'Shape' : 
+  const sourceLabel = source === 'Envelope' ? 'Shape' :
                      source === 'Lfo1' ? 'LFO 1' :
                      source === 'Lfo2' ? 'LFO 2' :
                      source === 'Velocity' ? 'Hit' : '---';
 
+  // Per-source color coding so the user can scan a mod matrix at a glance.
+  const sourceColor =
+    source === 'Envelope' ? "bg-amber-500/15 border-amber-500/50 text-amber-400" :
+    source === 'Lfo1'     ? "bg-sky-500/15 border-sky-500/50 text-sky-400" :
+    source === 'Lfo2'     ? "bg-violet-500/15 border-violet-500/50 text-violet-400" :
+    source === 'Velocity' ? "bg-rose-500/15 border-rose-500/50 text-rose-400" :
+                            "bg-muted border-border/60 text-muted-foreground hover:border-border hover:text-foreground";
+
   return (
     <div className="flex flex-col gap-1 items-center group">
-      <button 
+      <button
         onClick={cycleSource}
+        aria-label={`Modulation source: ${sourceLabel}. Click to cycle.`}
         className={cn(
-          "text-[8px] font-black uppercase tracking-tighter transition-all px-2 py-0.5 rounded-md border",
-          source !== 'None' 
-            ? "bg-primary/20 border-primary/40 text-primary shadow-[0_0_10px_var(--color-primary-transparent)]" 
-            : "bg-muted border-transparent text-muted-foreground hover:border-border"
+          "text-[10px] font-black uppercase tracking-wider transition-all px-2.5 py-1 rounded-md border min-w-[3.5rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+          sourceColor
         )}
-        title={source === 'Envelope' ? "Link to global Decay/Attack shape" : "Select Modulation Source"}
+        title={source === 'Envelope' ? "Link to global Decay/Attack shape" : "Click to cycle modulation source"}
       >
         {sourceLabel}
       </button>
