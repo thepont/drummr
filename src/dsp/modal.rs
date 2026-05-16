@@ -56,8 +56,11 @@ impl Mode {
         self.s2 = 0.0;
     }
 
-    /// Compute bandpass biquad coefficients (constant-skirt, peak gain ~= 1)
-    /// from a center freq + Q via RBJ cookbook.
+    /// Compute bandpass biquad coefficients (RBJ "constant skirt gain = 1",
+    /// peak gain = Q). The skirt form has a much larger impulse-response peak
+    /// than the constant-peak-gain form (alpha*Q vs alpha), so for percussion
+    /// driven by short impulses the modal bank produces output at the same
+    /// loudness ballpark as the other engines.
     fn set_coeffs(&mut self, freq: f32, q: f32, sample_rate: f32) {
         // Clamp to a sane Nyquist range.
         let f = freq.clamp(10.0, sample_rate * 0.45);
@@ -68,9 +71,11 @@ impl Mode {
         let alpha = sin_w0 / (2.0 * q);
 
         let a0 = 1.0 + alpha;
-        let b0 = alpha;
+        // Constant skirt: b0 = sin(w0)/2 = alpha * Q. Impulse-response peak
+        // scales as sqrt(Q/2/PI/f) -- finite even for high Q.
+        let b0 = sin_w0 * 0.5;
         let b1 = 0.0;
-        let b2 = -alpha;
+        let b2 = -b0;
         let a1 = -2.0 * cos_w0;
         let a2 = 1.0 - alpha;
 
