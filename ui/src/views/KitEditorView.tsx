@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu, ArrowsClockwise, FloppyDisk, Waveform } from "@phosphor-icons/react"
+import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu, ArrowsClockwise, FloppyDisk, Waveform, Warning, SpeakerSlash } from "@phosphor-icons/react"
 import { cn, ParamController, Button, FrequencyVisualizer, PredictiveGraph, Slider } from '../components/ui'
 import { smartFormat } from '../components/format'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
+import type { AnalysisResult } from '../App'
 
 interface ParamSchema {
   name: string;
@@ -38,11 +39,24 @@ interface KitEditorProps {
   setSchemas: React.Dispatch<React.SetStateAction<Record<string, ParamSchema[]>>>;
   selectedSoundId: any;
   setSelectedSoundId: (id: any) => void;
+  analysis?: Record<number, AnalysisResult>;
+  requestAnalysis?: (slot: number) => void;
 }
 
-export default function KitEditorView({ 
-  ws, sounds, setSounds, schemas, 
-  selectedSoundId, setSelectedSoundId 
+/** Severity tier derived from an AnalysisResult. */
+type AnalysisStatus = 'clipping' | 'silent' | 'healthy';
+
+function statusFor(a: AnalysisResult | undefined): AnalysisStatus | null {
+  if (!a) return null;
+  if (a.sustained_clip || a.peak >= 0.999) return 'clipping';
+  if (a.silent || a.peak < 0.05) return 'silent';
+  return 'healthy';
+}
+
+export default function KitEditorView({
+  ws, sounds, setSounds, schemas,
+  selectedSoundId, setSelectedSoundId,
+  analysis = {}, requestAnalysis,
 }: KitEditorProps) {
   const [newKitName, setNewKitName] = useState("");
   const [isSaveKitModalOpen, setIsSaveKitModalOpen] = useState(false);
@@ -87,12 +101,13 @@ export default function KitEditorView({
 
   const updateParam = (param: keyof Sound, value: number) => {
     if (selectedSoundId === null || !ws) return;
-    
-    setSounds(prev => prev.map(s => 
+
+    setSounds(prev => prev.map(s =>
       String(s.id) === String(selectedSoundId) ? { ...s, [param]: value } : s
     ));
 
     ws.send(`SET_PARAM:${selectedSoundId}:${String(param)}:${value}`);
+    requestAnalysis?.(Number(selectedSoundId));
   };
 
   const updateMod = (param: string, index: number, source: string, depth: number) => {
@@ -115,16 +130,18 @@ export default function KitEditorView({
     }));
 
     ws.send(`SET_MOD:${selectedSoundId}:${param}:${source}:${depth}`);
+    requestAnalysis?.(Number(selectedSoundId));
   };
 
   const updateLfo = (index: number, freq: number) => {
     if (selectedSoundId === null || !ws) return;
 
-    setSounds(prev => prev.map(s => 
+    setSounds(prev => prev.map(s =>
       String(s.id) === String(selectedSoundId) ? { ...s, [`lfo${index}_freq`]: freq } : s
     ));
 
     ws.send(`SET_LFO:${selectedSoundId}:${index}:${freq}`);
+    requestAnalysis?.(Number(selectedSoundId));
   };
 
   const triggerPreview = () => {
@@ -221,22 +238,44 @@ export default function KitEditorView({
       )}
 
       <div className="flex flex-wrap gap-2 pb-2">
-        {sounds.map(sound => (
-          <button
-            key={sound.id}
-            onClick={() => setSelectedSoundId(sound.id)}
-            aria-pressed={String(selectedSoundId) === String(sound.id)}
-            className={cn(
-              "flex-shrink-0 px-4 py-2 rounded-xl transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-              String(selectedSoundId) === String(sound.id)
-                ? "bg-primary text-primary-foreground shadow-lg border-primary"
-                : "bg-card/30 border-border hover:border-primary/50"
-            )}
-          >
-            <span className="font-bold text-xs uppercase tracking-widest">{sound.name}</span>
-            {String(selectedSoundId) === String(sound.id) && <Sparkle size={12} weight="fill" />}
-          </button>
-        ))}
+        {sounds.map((sound, idx) => {
+          const status = statusFor(analysis[idx]);
+          const isSelected = String(selectedSoundId) === String(sound.id);
+          const dotClasses =
+            status === 'clipping' ? "bg-rose-500 shadow-[0_0_8px_rgb(244_63_94_/_0.8)]" :
+            status === 'silent'   ? "bg-amber-400 shadow-[0_0_8px_rgb(251_191_36_/_0.7)]" :
+            status === 'healthy'  ? "bg-emerald-500 shadow-[0_0_6px_rgb(16_185_129_/_0.6)]" :
+                                    null;
+          const dotTitle =
+            status === 'clipping' ? "Voice clips on trigger" :
+            status === 'silent'   ? "Voice is very quiet" :
+            status === 'healthy'  ? "Voice level looks healthy" :
+                                    undefined;
+          return (
+            <button
+              key={sound.id}
+              onClick={() => setSelectedSoundId(sound.id)}
+              aria-pressed={isSelected}
+              className={cn(
+                "flex-shrink-0 px-4 py-2 rounded-xl transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                isSelected
+                  ? "bg-primary text-primary-foreground shadow-lg border-primary"
+                  : "bg-card/30 border-border hover:border-primary/50"
+              )}
+            >
+              <span className="font-bold text-xs uppercase tracking-widest">{sound.name}</span>
+              {dotClasses && (
+                <span
+                  role="img"
+                  aria-label={dotTitle}
+                  title={dotTitle}
+                  className={cn("w-1.5 h-1.5 rounded-full transition-all", dotClasses)}
+                />
+              )}
+              {isSelected && <Sparkle size={12} weight="fill" />}
+            </button>
+          );
+        })}
       </div>
 
       {selectedSound ? (() => {
@@ -248,8 +287,48 @@ export default function KitEditorView({
         const safeBits = selectedSound.bits ?? 16;
         const safeRate = selectedSound.rate ?? 1;
         const timbreParams = schemas[selectedSoundId]?.filter(p => !['freq', 'attack', 'decay', 'bits', 'rate'].includes(p.name)) ?? [];
+        const selectedAnalysis = selectedSlotIndex !== -1 ? analysis[selectedSlotIndex] : undefined;
+        const selectedStatus = statusFor(selectedAnalysis);
         return (
         <div className="flex flex-col gap-4">
+          {selectedStatus === 'clipping' && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 px-4 py-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 text-rose-200"
+            >
+              <Warning size={18} weight="fill" className="text-rose-400 mt-0.5 shrink-0" />
+              <div className="text-xs leading-relaxed">
+                <span className="font-bold uppercase tracking-wider text-rose-300">Clipping</span>
+                {selectedAnalysis && (
+                  <span className="ml-2 font-mono text-[10px] text-rose-300/80">
+                    peak {selectedAnalysis.peak.toFixed(3)} / RMS {selectedAnalysis.rms.toFixed(3)}
+                  </span>
+                )}
+                <div className="mt-0.5 text-rose-100/80">
+                  This voice will clip on trigger. Try lowering density, metallic, brightness, or any high-depth modulations.
+                </div>
+              </div>
+            </div>
+          )}
+          {selectedStatus === 'silent' && (
+            <div
+              role="alert"
+              className="flex items-start gap-3 px-4 py-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 text-amber-200"
+            >
+              <SpeakerSlash size={18} weight="fill" className="text-amber-400 mt-0.5 shrink-0" />
+              <div className="text-xs leading-relaxed">
+                <span className="font-bold uppercase tracking-wider text-amber-300">Too quiet</span>
+                {selectedAnalysis && (
+                  <span className="ml-2 font-mono text-[10px] text-amber-300/80">
+                    peak {selectedAnalysis.peak.toFixed(3)}
+                  </span>
+                )}
+                <div className="mt-0.5 text-amber-100/80">
+                  This voice is too quiet to hear. Try raising mod_index, brightness, or the envelope depth.
+                </div>
+              </div>
+            </div>
+          )}
           {/* 1. SOURCE */}
           <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-5">
             <header className="flex items-center justify-between gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { House, ListDashes, Faders, WifiHigh, WifiSlash, SpeakerHigh, Cpu, List as ListIcon, X, Pulse, Books } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -14,6 +14,17 @@ import { MasterPeakMeter } from './components/MasterPeakMeter'
 import LibrarySidebar from './components/LibrarySidebar'
 
 type View = 'dashboard' | 'mapping' | 'editor';
+
+export interface AnalysisResult {
+  slot: number;
+  peak: number;
+  rms: number;
+  clipped_samples: number;
+  sustained_clip: boolean;
+  silent: boolean;
+  engine: string;
+  decay_ms: number;
+}
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -36,7 +47,8 @@ export default function App() {
   const [schemas, setSchemas] = useState<Record<string, any[]>>({});
   const [soundPresets, setSoundPresets] = useState<string[]>([]);
   const [selectedSoundId, setSelectedSoundId] = useState<any>(null);
-  
+  const [analysis, setAnalysis] = useState<Record<number, AnalysisResult>>({});
+
   const [lastMidi, setLastMidi] = useState<{note: number, vel: number} | null>(null);
   const [isMidiFlashing, setIsMidiFlashing] = useState(false);
 
@@ -93,10 +105,28 @@ export default function App() {
             setSounds(kit);
             if (Array.isArray(kit) && socket.readyState === WebSocket.OPEN) {
               kit.forEach((slot: any, i: number) => {
-                if (slot) socket.send('GET_SCHEMA:' + i);
+                if (slot) {
+                  socket.send('GET_SCHEMA:' + i);
+                  // Optimistic: backend may or may not implement ANALYZE_SLOT yet.
+                  // If it doesn't, we'll never receive ANALYSIS: messages and
+                  // the UI just won't show analysis dots/banners. No errors.
+                  socket.send('ANALYZE_SLOT:' + i);
+                }
               });
             }
           } catch (e) { console.error(e); }
+        } else if (data.startsWith('ANALYSIS:')) {
+          // Format: ANALYSIS:<slot>|<json>
+          const pipeIdx = data.indexOf('|');
+          if (pipeIdx > 'ANALYSIS:'.length) {
+            const slot = parseInt(data.substring('ANALYSIS:'.length, pipeIdx));
+            try {
+              const result = JSON.parse(data.substring(pipeIdx + 1)) as AnalysisResult;
+              if (!Number.isNaN(slot)) {
+                setAnalysis(prev => ({ ...prev, [slot]: result }));
+              }
+            } catch (e) { console.error('Failed to parse ANALYSIS payload', e); }
+          }
         } else if (data.startsWith('SOUND_PRESETS:')) {
           setSoundPresets(data.replace('SOUND_PRESETS:', '').split(',').filter(Boolean));
         } else if (data.startsWith('SCHEMA:')) {
@@ -144,6 +174,30 @@ export default function App() {
   }, []);
 
   const closeMenu = () => setIsMobileMenuOpen(false);
+
+  // Debounced per-slot ANALYZE_SLOT requests. Dragging a slider fires SET_PARAM
+  // every animation frame; we collapse those into one analysis request 500ms
+  // after the dragging settles so we don't spam the backend.
+  const analyzeTimersRef = useRef<Record<number, number>>({});
+  const requestAnalysis = (slot: number) => {
+    if (!ws || Number.isNaN(slot)) return;
+    const existing = analyzeTimersRef.current[slot];
+    if (existing) window.clearTimeout(existing);
+    analyzeTimersRef.current[slot] = window.setTimeout(() => {
+      delete analyzeTimersRef.current[slot];
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send('ANALYZE_SLOT:' + slot);
+      }
+    }, 500);
+  };
+
+  // On unmount: cancel any in-flight debounce timers.
+  useEffect(() => {
+    return () => {
+      Object.values(analyzeTimersRef.current).forEach(id => window.clearTimeout(id));
+      analyzeTimersRef.current = {};
+    };
+  }, []);
 
   const toggleAutoSync = () => {
     const next = !isAutoSync;
@@ -281,10 +335,11 @@ export default function App() {
                 <MappingView ws={ws} selectedSoundId={selectedSoundId} setSelectedSoundId={setSelectedSoundId} />
               )}
               {view === 'editor' && (
-                <KitEditorView 
+                <KitEditorView
                   ws={ws} sounds={sounds} setSounds={setSounds}
                   schemas={schemas} setSchemas={setSchemas}
                   selectedSoundId={selectedSoundId} setSelectedSoundId={setSelectedSoundId}
+                  analysis={analysis} requestAnalysis={requestAnalysis}
                 />
               )}
             </div>
