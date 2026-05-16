@@ -316,7 +316,7 @@ pub async fn handle_command(
                     } else if source != crate::dsp::modulation::ModSource::None {
                         mods.push(crate::kit::ModEntry { param: param.to_string(), source, depth });
                     }
-                    mods.retain(|m| m.source != crate::dsp::modulation::ModSource::None);
+                    mods.retain(|m| m.source != crate::dsp::modulation::ModSource::None && m.depth != 0.0);
                     sound.mods = Some(mods);
                     Some(snapshot.clone())
                 } else {
