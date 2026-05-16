@@ -48,7 +48,20 @@ async fn main() -> Result<()> {
     // Use a fixed sample rate for now or fetch it from a default device
     let sample_rate = 48000.0;
     let (initial_kit, initial_snapshot) = load_kit("kit.toml", sample_rate);
-    let shared_state = Arc::new(SharedState::new(initial_kit, initial_snapshot));
+
+    // Channel used by the cpal output-stream error callback (audio thread) to
+    // signal a tokio recovery task that the active device has gone away. The
+    // sender is cloned into every `start_audio` call (initial + SELECT_AUDIO +
+    // the recovery task itself), and the receiver is consumed by the recovery
+    // task spawned below.
+    let (audio_error_tx, mut audio_error_rx) =
+        tokio::sync::mpsc::unbounded_channel::<()>();
+
+    let shared_state = Arc::new(SharedState::new(
+        initial_kit,
+        initial_snapshot,
+        audio_error_tx.clone(),
+    ));
     let shared_state_audio = shared_state.clone();
     let shared_state_comm = shared_state.clone();
     
@@ -168,7 +181,13 @@ async fn main() -> Result<()> {
         let mut cons_lock = event_consumer_wrapped.lock().await;
         let mut c_cons_lock = cmd_consumer_wrapped.lock().await;
         if let (Some(consumer), Some(cmd_consumer)) = (cons_lock.take(), c_cons_lock.take()) {
-            if let Ok(out_stream) = start_audio(device, consumer, cmd_consumer, shared_state.clone()) {
+            if let Ok(out_stream) = start_audio(
+                device,
+                consumer,
+                cmd_consumer,
+                shared_state.clone(),
+                audio_error_tx.clone(),
+            ) {
                 let name = device.name().unwrap_or_default();
                 println!("Active audio device: {} (system default: {})", name, default_name.as_deref().unwrap_or("<none>"));
                 // cpal::Stream is !Send + !Sync, so we cannot stash it in
@@ -186,6 +205,111 @@ async fn main() -> Result<()> {
             }
         }
     }
+
+    // Audio device hot-swap recovery task.
+    //
+    // The cpal error callback (audio thread) trips `audio_error_tx` when the
+    // active output device errors -- e.g. unplugged USB interface, system
+    // sleep that yanks the device, or "device no longer available". Without
+    // this task the engine keeps running but pushes audio into a dead stream
+    // and the only way out is a manual SELECT_AUDIO or a process restart.
+    //
+    // On each error signal we:
+    //   1. Re-enumerate output devices and broadcast LIST_AUDIO so the UI
+    //      reflects whatever just changed (device removed, replaced, etc.).
+    //   2. Pick the new system default (falling back to index 0).
+    //   3. Recreate the rtrb ring buffers. The previous Consumer halves are
+    //      trapped inside the leaked stream callback closure and unreachable;
+    //      we swap fresh Producers into the Arc<Mutex<>>s so the MIDI thread
+    //      and WS dispatcher silently switch over to the new ring.
+    //   4. Build a new stream with `start_audio` (passing the same error_tx
+    //      so a future failure on the replacement device also recovers).
+    //   5. Leak the new stream and broadcast AUDIO_DEVICE.
+    let comm_engine_rec = comm_engine.clone();
+    let shared_state_rec = shared_state.clone();
+    let midi_producer_rec = midi_producer.clone();
+    let cmd_prod_rec = cmd_prod.clone();
+    let error_tx_for_recovery = audio_error_tx.clone();
+    tokio::spawn(async move {
+        while audio_error_rx.recv().await.is_some() {
+            // Drain bursts -- a single device disconnect can trip the error
+            // callback multiple times before cpal stops calling it.
+            while audio_error_rx.try_recv().is_ok() {}
+            eprintln!("[audio recovery] device error -- attempting hot swap...");
+
+            let host = cpal::default_host();
+            let devices: Vec<_> = match host.output_devices() {
+                Ok(d) => d.collect(),
+                Err(e) => {
+                    eprintln!("[audio recovery] enumerate failed: {}", e);
+                    continue;
+                }
+            };
+            let names: Vec<String> = devices
+                .iter()
+                .map(|d| d.name().unwrap_or_default())
+                .collect();
+            comm_engine_rec.broadcast(format!("LIST_AUDIO: {}", names.join(",")));
+
+            let default_name = host.default_output_device().and_then(|d| d.name().ok());
+            let idx = default_name
+                .as_ref()
+                .and_then(|n| names.iter().position(|name| name == n))
+                .unwrap_or(0);
+
+            let device = match devices.get(idx) {
+                Some(d) => d,
+                None => {
+                    eprintln!("[audio recovery] no output devices available");
+                    continue;
+                }
+            };
+
+            // Recreate ring buffers. The old Consumer halves are owned by the
+            // dead callback closure (which we've already mem::forget'd along
+            // with the stream), so the old Producers are pushing into a
+            // ring that nothing drains. Swap fresh Producers into the shared
+            // Arc<Mutex<>>s so MIDI / WS code keeps working unchanged.
+            let (new_midi_prod, new_midi_cons) =
+                rtrb::RingBuffer::<MidiEvent>::new(1024);
+            let (new_cmd_prod, new_cmd_cons) =
+                rtrb::RingBuffer::<AudioCommand>::new(1024);
+            if let Ok(mut p) = midi_producer_rec.lock() {
+                *p = new_midi_prod;
+            }
+            if let Ok(mut p) = cmd_prod_rec.lock() {
+                *p = new_cmd_prod;
+            }
+
+            match start_audio(
+                device,
+                new_midi_cons,
+                new_cmd_cons,
+                shared_state_rec.clone(),
+                error_tx_for_recovery.clone(),
+            ) {
+                Ok(stream) => {
+                    let name = device.name().unwrap_or_default();
+                    eprintln!("[audio recovery] switched to '{}'", name);
+                    let prior = shared_state_rec
+                        .audio_stream_leak_count
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    if prior > 0 {
+                        eprintln!(
+                            "warning: leaked {} prior cpal::Stream(s) via recovery; previous device(s) may stay busy until process exit",
+                            prior
+                        );
+                    }
+                    std::mem::forget(stream);
+                    comm_engine_rec.broadcast(format!("AUDIO_DEVICE: {}", name));
+                    let mut s = Settings::load();
+                    s.last_audio_device = Some(name);
+                    let _ = s.save();
+                }
+                Err(e) => eprintln!("[audio recovery] start_audio failed: {}", e),
+            }
+        }
+    });
 
     loop {
         tokio::select! {

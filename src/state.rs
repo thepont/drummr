@@ -18,16 +18,29 @@ pub struct SharedState {
     /// Each call to SELECT_AUDIO unavoidably leaks the previous stream; we
     /// log a warning past the first one so the leak is observable.
     pub audio_stream_leak_count: AtomicU32,
+    /// Tripped from the cpal output stream error callback (audio thread) when
+    /// the active output device errors -- typically because it was unplugged
+    /// or went into a "device no longer available" state. A tokio task spawned
+    /// in `main` listens on the matching receiver and hot-swaps in a new
+    /// stream on the current system default. Carried on `SharedState` so the
+    /// `SELECT_AUDIO:` command handler can pass it into `start_audio` without
+    /// threading another argument through `handle_command`.
+    pub audio_error_tx: tokio::sync::mpsc::UnboundedSender<()>,
 }
 
 impl SharedState {
-    pub fn new(kit: KitEngine, kit_snapshot: DrumKit) -> Self {
+    pub fn new(
+        kit: KitEngine,
+        kit_snapshot: DrumKit,
+        audio_error_tx: tokio::sync::mpsc::UnboundedSender<()>,
+    ) -> Self {
         const ZERO: AtomicU32 = AtomicU32::new(0);
         Self {
             mod_values: [ZERO; 16 * 5],
             kit: Arc::new(std::sync::Mutex::new(kit)),
             kit_snapshot: Arc::new(std::sync::Mutex::new(kit_snapshot)),
             audio_stream_leak_count: AtomicU32::new(0),
+            audio_error_tx,
         }
     }
 

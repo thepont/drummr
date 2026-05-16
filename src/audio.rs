@@ -9,6 +9,7 @@ pub fn start_audio(
     mut event_rx: Consumer<MidiEvent>,
     mut cmd_rx: Consumer<AudioCommand>,
     shared_state: Arc<SharedState>,
+    error_tx: tokio::sync::mpsc::UnboundedSender<()>,
 ) -> Result<cpal::Stream> {
     let config_supported = device.default_output_config()?;
     let mut config: cpal::StreamConfig = config_supported.into();
@@ -66,7 +67,14 @@ pub fn start_audio(
                 for sample in data.iter_mut() { *sample = 0.0; }
             }
         },
-        |err| eprintln!("audio output stream error: {}", err),
+        move |err| {
+            eprintln!("audio output stream error: {}", err);
+            // Notify the tokio recovery task. The receiver lives on
+            // SharedState's `audio_error_tx`. Sending an unbounded mpsc is
+            // non-blocking and lock-free, which is mandatory inside a cpal
+            // error callback (runs on the audio thread).
+            let _ = error_tx.send(());
+        },
         None
     )?;
     output_stream.play()?;

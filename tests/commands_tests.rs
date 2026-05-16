@@ -148,7 +148,16 @@ fn build_harness() -> TestHarness {
         .collect();
     let kit_engine = KitEngine::from_config(snapshot.clone(), sample_rate, default_mappings);
 
-    let shared_state = Arc::new(SharedState::new(kit_engine, snapshot));
+    // The audio_error_tx is unused under the test harness (no real cpal
+    // stream is started). We keep the receiver alive on a leaked Box so the
+    // channel doesn't immediately mark itself closed -- otherwise any future
+    // code path that does `audio_error_tx.send(())` from inside command
+    // handlers would observe a SendError. Box::leak is fine here: the harness
+    // exists for the lifetime of one test process.
+    let (audio_error_tx, audio_error_rx) =
+        tokio::sync::mpsc::unbounded_channel::<()>();
+    Box::leak(Box::new(audio_error_rx));
+    let shared_state = Arc::new(SharedState::new(kit_engine, snapshot, audio_error_tx));
     let comm_engine = Arc::new(CommEngine::new());
     let broadcasts = comm_engine.subscribe();
 
