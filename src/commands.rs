@@ -118,9 +118,8 @@ pub async fn handle_command(
                 mappings.push(DrumMapping { note, slot });
             }
             let _ = persistence_tx.send(PersistenceCommand::SaveMapping(mappings.clone()));
-            if let Ok(snapshot) = shared_state.kit_snapshot.lock() {
-                let new_kit = KitEngine::from_config(snapshot.clone(), sample_rate, mappings);
-                if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
+            if let Ok(mut k_lock) = shared_state.kit.lock() {
+                k_lock.set_mapping(&mappings);
             }
         }
     } else if text.starts_with("SAVE_MAPPING:") {
@@ -133,9 +132,8 @@ pub async fn handle_command(
                 }
             }).collect();
             let _ = persistence_tx.send(PersistenceCommand::SaveMapping(mappings.clone()));
-            if let Ok(snapshot) = shared_state.kit_snapshot.lock() {
-                let new_kit = KitEngine::from_config(snapshot.clone(), sample_rate, mappings);
-                if let Ok(mut k_lock) = shared_state.kit.lock() { *k_lock = new_kit; }
+            if let Ok(mut k_lock) = shared_state.kit.lock() {
+                k_lock.set_mapping(&mappings);
             }
         }
     } else if text == "LIST_SOUND_PRESETS" {

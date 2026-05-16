@@ -175,7 +175,7 @@ impl KitEngine {
 
     pub fn from_config(config: DrumKit, sample_rate: f32, mappings: Vec<DrumMapping>) -> Self {
         let mut engine = Self::new(sample_rate);
-        
+
         for (idx, sound) in config.sounds.into_iter().enumerate() {
             if idx >= 16 { break; }
             let engine_type = sound.engine_type.as_deref().unwrap_or("fm");
@@ -221,7 +221,7 @@ impl KitEngine {
                     Voice::Fm(v)
                 }
             };
-            
+
             if let Some(mods) = sound.mods {
                 for m in mods {
                     voice.set_mod(&m.param, m.source, m.depth);
@@ -229,29 +229,47 @@ impl KitEngine {
             }
             if let Some(f) = sound.lfo1_freq { voice.set_lfo(1, f); }
             if let Some(f) = sound.lfo2_freq { voice.set_lfo(2, f); }
-            
+
             engine.voices[idx] = Some(voice);
         }
 
+        engine.set_mapping(&mappings);
+
+        engine
+    }
+
+    /// Build the midi_map array for a given set of mappings, falling back to
+    /// `36 + slot` for any active slot that doesn't have an explicit entry.
+    /// Pure function so it can be shared by `from_config` and `set_mapping`.
+    fn build_midi_map(&self, mappings: &[DrumMapping]) -> [Option<usize>; 128] {
+        let mut map: [Option<usize>; 128] = [None; 128];
+
         for mapping in mappings {
             if mapping.note < 128 && mapping.slot < 16 {
-                engine.midi_map[mapping.note as usize] = Some(mapping.slot);
+                map[mapping.note as usize] = Some(mapping.slot);
             }
         }
 
         // Ensure every active slot has AT LEAST a default mapping (36 + slot) if not already mapped
         for idx in 0..16 {
-            if engine.voices[idx].is_some() {
-                if !engine.midi_map.iter().any(|&s| s == Some(idx)) {
+            if self.voices[idx].is_some() {
+                if !map.iter().any(|&s| s == Some(idx)) {
                     let default_note = 36 + idx as u8;
-                    if default_note < 128 && engine.midi_map[default_note as usize].is_none() {
-                        engine.midi_map[default_note as usize] = Some(idx);
+                    if default_note < 128 && map[default_note as usize].is_none() {
+                        map[default_note as usize] = Some(idx);
                     }
                 }
             }
         }
 
-        engine
+        map
+    }
+
+    /// Update the midi note -> slot map in place without touching any voice
+    /// state. Used by UPDATE_MAPPING / SAVE_MAPPING so that re-pad-assigning
+    /// during playback doesn't drop envelopes, grain buffers, or delay lines.
+    pub fn set_mapping(&mut self, mappings: &[DrumMapping]) {
+        self.midi_map = self.build_midi_map(mappings);
     }
 
     pub fn set_param(&mut self, slot: usize, param: &str, value: f32) {
