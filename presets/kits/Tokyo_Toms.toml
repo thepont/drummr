@@ -1,5 +1,5 @@
 name = "Tokyo Toms"
-description = "Yamaha RX5-inspired FM bell character. Inharmonic tom-bells and clangour cymbals."
+description = "Yamaha RX5-inspired FM bell character. Inharmonic tom-bells and clangour cymbals. Kit-wide 12-bit / 25 kHz crush (RX5 spec). Bell-toms have spread attacks for distinct strike shapes."
 
 [[sounds]]
 name = "Tokyo Kick"
@@ -10,6 +10,9 @@ mod_index = 7.0
 noise_level = 0.2
 attack = 1.0
 decay = 250.0
+bits = 12.0
+rate = 2.0
+mods = [{param="mod_index", source="Envelope", depth=4.0}]
 
 [[sounds]]
 name = "Tokyo Snare"
@@ -20,6 +23,9 @@ mod_index = 8.0
 noise_level = 0.4
 attack = 1.0
 decay = 170.0
+bits = 12.0
+rate = 2.0
+mods = [{param="freq", source="Velocity", depth=25.0}]
 
 [[sounds]]
 name = "Tokyo Closed Hat"
@@ -30,6 +36,8 @@ mod_index = 12.0
 noise_level = 0.3
 attack = 1.0
 decay = 55.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Tokyo Open Hat"
@@ -40,6 +48,8 @@ mod_index = 12.0
 noise_level = 0.3
 attack = 1.0
 decay = 380.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Bell Tom 1"
@@ -48,8 +58,11 @@ freq = 320.0
 brightness = 0.95
 dampening = 0.15
 inharmonicity = 0.95
-attack = 1.0
+attack = 5.0
 decay = 340.0
+bits = 12.0
+rate = 2.0
+mods = [{param="brightness", source="Velocity", depth=0.15}]
 
 [[sounds]]
 name = "Bell Tom 2"
@@ -58,8 +71,10 @@ freq = 230.0
 brightness = 0.75
 dampening = 0.28
 inharmonicity = 0.78
-attack = 2.0
+attack = 8.0
 decay = 440.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Bell Tom 3"
@@ -68,8 +83,10 @@ freq = 165.0
 brightness = 0.55
 dampening = 0.42
 inharmonicity = 0.6
-attack = 3.0
+attack = 12.0
 decay = 560.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Bell Tom 4"
@@ -78,8 +95,10 @@ freq = 115.0
 brightness = 0.35
 dampening = 0.55
 inharmonicity = 0.4
-attack = 4.0
+attack = 15.0
 decay = 680.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "FM Crash"
@@ -90,6 +109,8 @@ mod_index = 25.0
 noise_level = 0.2
 attack = 1.0
 decay = 1500.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "FM Ride"
@@ -100,6 +121,8 @@ mod_index = 22.0
 noise_level = 0.15
 attack = 1.0
 decay = 1050.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Tokyo Clap"
@@ -110,6 +133,8 @@ mod_index = 0.0
 noise_level = 1.0
 attack = 4.0
 decay = 230.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Tokyo Rim"
@@ -119,6 +144,8 @@ mod_ratio = 8.0
 mod_index = 8.0
 attack = 1.0
 decay = 32.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Tokyo Cowbell"
@@ -128,6 +155,8 @@ mod_ratio = 0.72
 mod_index = 14.0
 attack = 1.0
 decay = 320.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "Tine Perc"
@@ -137,6 +166,8 @@ mod_ratio = 4.0
 mod_index = 18.0
 attack = 1.0
 decay = 220.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "FM Shaker"
@@ -145,8 +176,10 @@ freq = 4200.0
 mod_ratio = 3.0
 mod_index = 10.0
 noise_level = 0.7
-attack = 1.0
+attack = 6.0
 decay = 90.0
+bits = 12.0
+rate = 2.0
 
 [[sounds]]
 name = "FM Click"
@@ -154,5 +187,7 @@ engine_type = "fm"
 freq = 2600.0
 mod_ratio = 5.0
 mod_index = 20.0
-attack = 1.0
+attack = 0.2
 decay = 25.0
+bits = 12.0
+rate = 2.0

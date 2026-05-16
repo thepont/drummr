@@ -1,5 +1,5 @@
 name = "Neon Night"
-description = "Vibrant, 16-sound electronic kit using all engines for maximum variety."
+description = "Vibrant, 16-sound electronic kit using all engines for maximum variety. Kit-wide 10-bit arcade sheen. Attack times spread across 0.05ms (Sub Zap click) to 30ms (Glow Shaker swell)."
 
 [[sounds]]
 name = "Laser Kick"
@@ -10,6 +10,8 @@ mod_index = 6.0
 noise_level = 0.0
 attack = 1.0
 decay = 400.0
+bits = 10.0
+mods = [{param="mod_index", source="Envelope", depth=4.0}, {param="freq", source="Envelope", depth=80.0}]
 
 [[sounds]]
 name = "Plasma Snare"
@@ -20,6 +22,8 @@ mod_index = 15.0
 noise_level = 0.4
 attack = 1.5
 decay = 220.0
+bits = 10.0
+mods = [{param="freq", source="Velocity", depth=22.0}]
 
 [[sounds]]
 name = "Neon Hat"
@@ -30,6 +34,7 @@ mod_index = 10.0
 noise_level = 0.2
 attack = 0.5
 decay = 60.0
+bits = 10.0
 
 [[sounds]]
 name = "Grid Tom 1"
@@ -40,6 +45,7 @@ mod_index = 4.0
 noise_level = 0.0
 attack = 2.0
 decay = 450.0
+bits = 10.0
 
 [[sounds]]
 name = "Grid Tom 2"
@@ -47,8 +53,10 @@ engine_type = "phys"
 freq = 110.0
 brightness = 0.6
 dampening = 0.3
-attack = 2.0
+attack = 3.0
 decay = 550.0
+bits = 10.0
+mods = [{param="brightness", source="Velocity", depth=0.2}]
 
 [[sounds]]
 name = "Grid Tom 3"
@@ -57,8 +65,9 @@ freq = 80.0
 mod_ratio = 0.75
 mod_index = 4.0
 noise_level = 0.0
-attack = 2.0
+attack = 4.0
 decay = 650.0
+bits = 10.0
 
 [[sounds]]
 name = "Pulse Clap"
@@ -69,6 +78,7 @@ grain_size = 30.0
 jitter = 0.3
 attack = 0.1
 decay = 350.0
+bits = 10.0
 
 [[sounds]]
 name = "Chrome Crash"
@@ -78,6 +88,7 @@ noise_color = 0.7
 metallic = 0.85
 attack = 1.0
 decay = 1800.0
+bits = 10.0
 
 [[sounds]]
 name = "Data Ride"
@@ -87,6 +98,7 @@ noise_color = 0.95
 metallic = 0.45
 attack = 1.0
 decay = 900.0
+bits = 10.0
 
 [[sounds]]
 name = "Bit Click"
@@ -97,6 +109,7 @@ grain_size = 4.0
 jitter = 0.1
 attack = 0.1
 decay = 25.0
+bits = 10.0
 
 [[sounds]]
 name = "Synth Cowbell"
@@ -106,6 +119,7 @@ noise_color = 0.15
 metallic = 1.0
 attack = 1.0
 decay = 450.0
+bits = 10.0
 
 [[sounds]]
 name = "Glow Shaker"
@@ -114,8 +128,11 @@ freq = 2800.0
 density = 0.85
 grain_size = 12.0
 jitter = 0.6
-attack = 10.0
+attack = 30.0
 decay = 180.0
+bits = 10.0
+lfo1_freq = 6.0
+mods = [{param="density", source="Lfo1", depth=0.1}]
 
 [[sounds]]
 name = "Vector Rim"
@@ -123,8 +140,9 @@ engine_type = "phys"
 freq = 1300.0
 brightness = 0.15
 dampening = 0.3
-attack = 1.0
+attack = 0.5
 decay = 70.0
+bits = 10.0
 
 [[sounds]]
 name = "Sub Zap"
@@ -133,8 +151,10 @@ freq = 85.0
 mod_ratio = 8.0
 mod_index = 25.0
 noise_level = 0.0
-attack = 0.1
+attack = 0.05
 decay = 250.0
+bits = 10.0
+mods = [{param="freq", source="Envelope", depth=400.0}]
 
 [[sounds]]
 name = "Phase Conga 1"
@@ -142,8 +162,9 @@ engine_type = "phys"
 freq = 280.0
 brightness = 0.35
 dampening = 0.45
-attack = 2.0
+attack = 8.0
 decay = 320.0
+bits = 10.0
 
 [[sounds]]
 name = "Phase Conga 2"
@@ -151,5 +172,6 @@ engine_type = "phys"
 freq = 190.0
 brightness = 0.35
 dampening = 0.45
-attack = 2.0
+attack = 8.0
 decay = 380.0
+bits = 10.0

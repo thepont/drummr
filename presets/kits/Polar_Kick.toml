@@ -1,5 +1,5 @@
 name = "Polar Kick"
-description = "Behringer RD-9 dirtier-than-909. Pure analog FM punch with granular cymbals."
+description = "Behringer RD-9 dirtier-than-909. Pure analog FM punch with granular cymbals. Cymbals/perc get 8-bit / 2x crush; kick + snare + toms stay clean."
 
 [[sounds]]
 name = "Polar Kick"
@@ -10,6 +10,7 @@ mod_index = 6.0
 noise_level = 0.5
 attack = 1.0
 decay = 500.0
+mods = [{param="mod_index", source="Envelope", depth=3.0}]
 
 [[sounds]]
 name = "Polar Snare"
@@ -20,6 +21,7 @@ mod_index = 8.0
 noise_level = 0.6
 attack = 1.0
 decay = 230.0
+mods = [{param="freq", source="Velocity", depth=22.0}]
 
 [[sounds]]
 name = "Polar Closed Hat"
@@ -30,6 +32,8 @@ grain_size = 2.0
 jitter = 0.85
 attack = 1.0
 decay = 55.0
+bits = 8.0
+rate = 2.0
 
 [[sounds]]
 name = "Polar Open Hat"
@@ -40,6 +44,8 @@ grain_size = 3.0
 jitter = 0.9
 attack = 1.0
 decay = 400.0
+bits = 8.0
+rate = 2.0
 
 [[sounds]]
 name = "Polar Tom 1"
@@ -90,6 +96,8 @@ grain_size = 2.0
 jitter = 1.0
 attack = 1.0
 decay = 1900.0
+bits = 8.0
+rate = 2.0
 
 [[sounds]]
 name = "Polar Ride"
@@ -100,6 +108,8 @@ grain_size = 4.0
 jitter = 0.7
 attack = 1.0
 decay = 1400.0
+bits = 8.0
+rate = 2.0
 
 [[sounds]]
 name = "Polar Clap"
@@ -148,6 +158,8 @@ grain_size = 6.0
 jitter = 0.8
 attack = 1.0
 decay = 100.0
+bits = 8.0
+rate = 2.0
 
 [[sounds]]
 name = "Polar Perc 3"

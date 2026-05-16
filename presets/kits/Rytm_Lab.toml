@@ -1,5 +1,5 @@
 name = "Rytm Lab"
-description = "Elektron Analog Rytm-inspired: FM and hybrid heavy with bright modern noise."
+description = "Elektron Analog Rytm-inspired: FM and hybrid heavy with bright modern noise. Subtle 10-bit on cymbals; envelope-driven FM kick sweep."
 
 [[sounds]]
 name = "Rytm Kick"
@@ -10,6 +10,7 @@ mod_index = 5.0
 noise_level = 0.4
 attack = 1.0
 decay = 400.0
+mods = [{param="mod_index", source="Envelope", depth=2.5}]
 
 [[sounds]]
 name = "Rytm Snare"
@@ -19,6 +20,7 @@ noise_color = 0.85
 metallic = 0.5
 attack = 1.0
 decay = 200.0
+mods = [{param="freq", source="Velocity", depth=18.0}]
 
 [[sounds]]
 name = "Rytm Closed Hat"
@@ -28,6 +30,7 @@ noise_color = 0.95
 metallic = 0.75
 attack = 1.0
 decay = 55.0
+bits = 10.0
 
 [[sounds]]
 name = "Rytm Open Hat"
@@ -37,6 +40,7 @@ noise_color = 0.95
 metallic = 0.75
 attack = 1.0
 decay = 380.0
+bits = 10.0
 
 [[sounds]]
 name = "Rytm Tom 1"
@@ -86,6 +90,7 @@ noise_color = 0.9
 metallic = 0.95
 attack = 1.0
 decay = 1600.0
+bits = 10.0
 
 [[sounds]]
 name = "Rytm Ride"
@@ -95,6 +100,7 @@ noise_color = 0.85
 metallic = 0.9
 attack = 1.0
 decay = 1100.0
+bits = 10.0
 
 [[sounds]]
 name = "Rytm Clap"
