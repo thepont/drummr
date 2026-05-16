@@ -61,6 +61,49 @@ Items marked `(in progress)` are being addressed in a parallel implementation pa
 
 ---
 
+## P1 — Kit differentiation (empirical findings)
+
+All 22 kit presets sound homogeneous despite distinct themes. Audit across `presets/kits/*.toml`:
+
+- [ ] **72% of voices share `attack = 1.0` ms** — 238 of 329 voices. Identical transient = identical ear-lock across every kit. Only `Drift.toml` systematically varies attack times.
+- [ ] **Zero kits use the mod matrix or LFOs** — `grep` finds no `mods` arrays and no `lfo1_freq`/`lfo2_freq` in any TOML. Full system (`src/dsp/modulation_engine.rs`, `AudioCommand::SetLfo`) shipped, completely unused at the preset layer.
+- [ ] **PostFx dead in 16/22 kits** — only Linn Lite, Office, Ratchet & Wheeze, Foundry (partial), Volca Hybrid (partial), 909 cymbals apply bitcrush. Industrial Glitch, Tokyo Toms, Hexagon, Neon Night all run pristine 16-bit despite advertising gritty character.
+- [ ] **Kick FM-monoculture** — 17/22 kits use FM at slot 0 in 40-85Hz with `mod_ratio` 0.5-1.0 and `mod_index` 1.5-15. The 5 Phys-kick kits read as a categorically different family — proof of engine diversity's payoff.
+- [ ] **Master path is mono, dry, identical** — `src/audio.rs:61-67`: sum → ×0.7 → tanh. No EQ, no reverb, no compression, no stereo, no panning. Kits cannot differentiate by mix character.
+- [ ] **Hybrid mode ratios `[1.0, 1.52, 2.11]` hardcoded** — `src/dsp/hybrid.rs:108`. Every Hybrid voice across every kit shares the same inharmonic fingerprint regardless of `freq`/`metallic`/`noise_color`.
+- [ ] **Inharmonicity clusters in 0.4-0.6 and 0.85-0.95** — only 5 voices below 0.1, none above 0.95. Range under-used; push extremes for radical character difference.
+
+---
+
+## P1 — Track A: TOML-only differentiation (no Rust changes)
+
+Aggressive use of systems already shipped. ~1 day total. No regression risk.
+
+- [ ] **Wider PostFx application — kit-wide for "should be dirty" kits:**
+  - `Industrial_Glitch.toml` — `bits = 5.0, rate = 3.0` kit-wide.
+  - `Tokyo_Toms.toml` — `bits = 12.0, rate = 2.0` kit-wide (RX5 was 12-bit @ 25kHz).
+  - `Hexagon.toml` — `bits = 8.0` kit-wide (Simmons was 8-bit).
+  - `Polar_Kick.toml`, `Rytm_Lab.toml` — at least cymbal-side crush.
+- [ ] **First-pass mod matrix usage — one assignment per kit, minimum:**
+  - `808_Reborn.toml` slot 0: `mod_index` ← Envelope depth +5.0 (click-then-thud sweep).
+  - `Glass_Forest.toml` slot 1 (Wine Glass): `lfo1_freq = 4.5`, `freq` ← Lfo1 ±0.5% (vibrato).
+  - `Drift.toml` slot 2 (CH): `lfo1_freq = 0.3`, `grain_size` ← Lfo1 ±20ms (swirl).
+  - `Foundry.toml` slot 8 (Bell of Doom): `inharmonicity` ← Velocity depth +0.1.
+  - `Hexagon.toml` slot 0 (Hex Kick): `freq` ← Envelope depth +400Hz (Simmons pew).
+- [ ] **Polarise inharmonicity per kit:**
+  - `Karplus_Forge.toml` Marimba Toms (slots 4-7): `inharmonicity = 0.02` (pure harmonic xylophone).
+  - `Glass_Forest.toml` Wine Glass / Glass Bowl / Singing Bowl: `inharmonicity = 0.98`.
+  - `Foundry.toml` Anvil Toms 1-4: vary 0.70/0.85/0.95/1.0 per-tom (break tom-set uniformity).
+- [ ] **Attack-time variety inside kits — break the 1.0ms monoculture:**
+  - `Neon_Night.toml` — Bit Click 0.1, Glow Shaker 30, Phase Conga 8, Sub Zap 0.05.
+  - `Tokyo_Toms.toml` — bell-toms 5/8/12/15ms.
+- [ ] **Frequency footprint shifts — give kits non-overlapping spectral identities:**
+  - `Office_After_Hours.toml` — hats to 3-4kHz, kick up to 110-130Hz (desk-thump not subs).
+  - `Glass_Forest.toml` — push everything up: kick 110Hz, whole kit 110Hz-8kHz (weightless).
+  - `Kitchen_Sink_Symphony.toml` — kick 90Hz, cymbal 4kHz, nothing above 6kHz.
+
+---
+
 ## P2 — Suspicious patterns
 
 - [ ] **Audio-thread lock contention during kit/preset swap** — `src/audio.rs:21`. Snapshot/swap with double-buffered kit pointer.
@@ -113,6 +156,20 @@ Items marked `(in progress)` are being addressed in a parallel implementation pa
 - [ ] **No LICENSE file** — repo defaults to all-rights-reserved.
 - [ ] **Packaging paths anchored to `CARGO_MANIFEST_DIR`** — `presets/`, `kit.toml`, `mapping.toml`, `settings.toml` won't survive a packaged release binary. Make `DRUMMR_HOME` env var optional.
 - [ ] **Modal engine `_ = env_active` at `src/dsp/modal.rs:297`** — leftover from refactor; either early-out when fully decayed or remove.
+
+---
+
+## P2/P3 — Track B: Engine + architecture for kit differentiation
+
+Items unlocked by the empirical findings above. Ordered by impact-per-effort.
+
+- [ ] **Stereo output + per-voice pan + per-kit master plate reverb with per-voice send** (P2, the bold move) — `src/audio.rs:61-67` currently sums all voices mono and applies one tanh. Stereo+pan+send is the single biggest "kits feel different" unlock; same 22 kits would sound like 22 different rooms before changing any voice param. Affects: `audio.rs`, `kit.rs` (`DrumSound` gains `pan`, `reverb_send`; `DrumKit` gains `[master]` table with `reverb_size`, `reverb_decay`, `master_gain`), `commands.rs` (new SET_PAN / SET_SEND / SET_MASTER_*), UI (master panel).
+- [ ] **Per-voice level/gain** (P2) — currently every voice plays at `amp_env × velocity` only. No mix balance possible at the preset layer. Add `level: Option<f32>` to `DrumSound`, multiply in `KitEngine::tick`.
+- [ ] **Per-voice drive/saturation on FM and Phys** (P2) — most percussion timbre difference comes from harmonic distortion at the transient. Add `drive: Option<f32>` to `DrumSound`; `tanh(x * (1 + drive*4))` after the engine's tick. For Phys, optionally inject a nonlinearity inside the K-S loop (`src/dsp/phys.rs:160-168`) — turns ringing-string into buzzing-sitar.
+- [ ] **Configurable Hybrid mode ratios** (P2) — `src/dsp/hybrid.rs:108` hardcodes `[1.0, 1.52, 2.11]`. Promote to three modulatable params (`ratio_b`, `ratio_c` or similar) so snare-hybrid (1.0/1.78/2.45), metallic-hybrid (1.0/2.76/5.4), wooden-hybrid (1.0/1.41/1.95) stop sharing a fingerprint.
+- [ ] **Expose FM pitch envelope per-voice** (P2) — `src/dsp/fm.rs:35-36` hardcodes `pitch_env.set_params(0.001, 0.05)`. Promote `pitch_bend`, `pitch_attack`, `pitch_decay` to per-voice TOML params so Hexagon delivers the Simmons sweep it advertises.
+- [ ] **Per-kit master FX chain** (P3) — `[master]` TOML section: `eq_low`, `eq_mid`, `eq_high`, `reverb_send_default`, `saturation`. A 3-band tilt EQ alone would let 909 Warehouse vs Kitchen Sink read as different mixes, not different patches in the same mix.
+- [ ] **Character macros** (P3, UX) — single `character` knob per voice mapping to drive + brightness + slight detune. Cheap discovery for new users; no DSP work beyond mapping.
 
 ---
 
@@ -202,10 +259,13 @@ Plus: [x] **Modal_Demo** preset showcasing the modal engine.
 
 ## Suggested order of attack
 
-1. P1 velocity bugs (Hybrid + Granular) — one-line fixes with audible impact.
-2. P1 UI bugs in `KitEditorView.tsx` — engine selector, PostFx UI, mod slots, schema-late crashes.
-3. P1 WS reconnect re-fetch — eliminates stale-data class.
-4. P1 audio cleanup — cpal leak + error callback + Auto-Sync semantics.
-5. P2 hygiene sweep — fmt, clippy, eslint, gitignore, settings.example.toml — unblocks CI.
-6. P2 test coverage for Modal / PostFx / BPM / commands / persistence.
-7. P3 design milestones — schema-driven UI + enum-tagged DrumSound + structured logging together motivate kit-schema v2.
+1. **Kit differentiation Track A** — TOML-only sweep using mod matrix + LFOs + PostFx + attack variety + frequency shifts. ~1 day, zero risk, huge audible impact.
+2. P1 velocity bugs (Hybrid + Granular) — one-line fixes; combine with Track A so velocity mod-matrix routes actually do something.
+3. **Kit differentiation Track B step 1: stereo + pan + master reverb send** — the bold move. Single biggest "kits feel different" unlock.
+4. P1 UI bugs in `KitEditorView.tsx` — engine selector, PostFx UI, mod slots, schema-late crashes.
+5. P1 WS reconnect re-fetch — eliminates stale-data class.
+6. **Track B step 2: per-voice drive + configurable Hybrid ratios + FM pitch env exposure** — completes the "harmonic character" axis.
+7. P1 audio cleanup — cpal leak + error callback + Auto-Sync semantics.
+8. P2 hygiene sweep — fmt, clippy, eslint, gitignore, settings.example.toml — unblocks CI.
+9. P2 test coverage for Modal / PostFx / BPM / commands / persistence.
+10. P3 design milestones — schema-driven UI + enum-tagged DrumSound + structured logging together motivate kit-schema v2.
