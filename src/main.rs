@@ -1,15 +1,13 @@
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait};
 use drummr::comm::CommEngine;
-use drummr::dsp::modulation::ModSource;
-use drummr::kit::{DrumKit, DrumMapping, DrumSound, KitEngine};
 use drummr::midi::MidiEngine;
 use drummr::settings::Settings;
 use rtrb::RingBuffer;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 
-use drummr::persistence::{PersistenceCommand, start_persistence_worker};
+use drummr::persistence::start_persistence_worker;
 use drummr::state::{AudioCommand, MidiEvent, SharedState};
 
 pub use drummr::app_utils::{load_kit, load_mappings, start_midi};
