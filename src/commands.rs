@@ -1,6 +1,6 @@
 use crate::audio::start_audio;
 use crate::comm::CommEngine;
-use crate::kit::{DrumKit, DrumMapping, DrumSound, KitEngine};
+use crate::kit::{DrumKit, DrumMapping, DrumSound, KitEngine, voice_from_sound};
 use crate::midi::MidiEngine;
 use crate::persistence::PersistenceCommand;
 use crate::settings::Settings;
@@ -12,6 +12,78 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 
 use crate::app_utils::{load_mappings, start_midi};
+
+/// Result of rendering a single voice in isolation off the audio thread.
+/// Returned by `analyze_sound` and rendered into the `ANALYSIS:<slot>|<json>`
+/// broadcast that the UI uses to show clipping / silent warnings.
+struct VoiceAnalysis {
+    peak: f32,
+    rms: f32,
+    clipped_samples: u32,
+    sustained_clip: bool,
+    silent: bool,
+    engine: String,
+    decay_ms: f32,
+}
+
+/// Render a fresh copy of the voice described by `sound` for long enough to
+/// cover its envelope, then measure peak / RMS / clipping behaviour.
+///
+/// This intentionally does NOT touch the live `KitEngine`: it constructs a
+/// throwaway `Voice` via `voice_from_sound`, triggers it at v=1.0, and ticks
+/// it `(decay_ms + 500ms) * sample_rate / 1000` samples. Safe to call from
+/// the WS dispatcher (tokio runtime thread) — the loop is allocation-free
+/// and bounded (~96k ticks at 48kHz / 2s envelope).
+fn analyze_sound(sound: &DrumSound, sample_rate: f32) -> Option<VoiceAnalysis> {
+    let mut voice = voice_from_sound(sound, sample_rate)?;
+    let engine_name = voice.name().to_string();
+    let decay_ms = sound.decay;
+
+    // Cover the full envelope plus 500ms of tail to catch any sustained ring.
+    let total_samples =
+        (((decay_ms + 500.0) * sample_rate / 1000.0).max(1.0) as u64).min(1_000_000) as u32;
+
+    voice.trigger(1.0);
+
+    let mut peak: f32 = 0.0;
+    let mut sum_sq: f64 = 0.0;
+    let mut clipped: u32 = 0;
+    let mut current_run: u32 = 0;
+    let mut max_run: u32 = 0;
+    const RAIL: f32 = 0.999;
+
+    for _ in 0..total_samples {
+        let y = voice.tick();
+        let a = y.abs();
+        if a > peak {
+            peak = a;
+        }
+        sum_sq += (y as f64) * (y as f64);
+        if a >= RAIL {
+            clipped += 1;
+            current_run += 1;
+            if current_run > max_run {
+                max_run = current_run;
+            }
+        } else {
+            current_run = 0;
+        }
+    }
+
+    let rms = (sum_sq / total_samples as f64).sqrt() as f32;
+    let silent = peak < 0.05;
+    let sustained_clip = max_run > 100;
+
+    Some(VoiceAnalysis {
+        peak,
+        rms,
+        clipped_samples: clipped,
+        sustained_clip,
+        silent,
+        engine: engine_name,
+        decay_ms,
+    })
+}
 
 /// Serialize a DrumKit snapshot into the JSON shape the UI expects for `KIT:` broadcasts.
 fn kit_to_json(config: &DrumKit) -> String {
@@ -568,6 +640,47 @@ pub async fn handle_command(
                 let _ = event_consumer; // silence unused-capture lint
                 let _ = cmd_consumer;
             }
+        }
+    } else if text.starts_with("ANALYZE_SLOT:") {
+        // ANALYZE_SLOT:<slot_index>
+        //
+        // Render an isolated copy of the slot's voice off the audio thread,
+        // measure peak / RMS / clipping behaviour, and broadcast
+        //   ANALYSIS:<slot>|<json>
+        // so the UI can surface "clipping" / "silent" warnings next to each
+        // slot. The live audio voice is never triggered (no sound is made).
+        let slot_str = text.replace("ANALYZE_SLOT:", "");
+        if let Ok(slot) = slot_str.parse::<usize>() {
+            // Clone the DrumSound under the snapshot lock, then release it
+            // before any synthesis happens — the tick loop must hold no locks
+            // on SharedState.
+            let sound = shared_state
+                .kit_snapshot
+                .lock()
+                .ok()
+                .and_then(|s| s.sounds.get(slot).cloned());
+
+            if let Some(sound) = sound {
+                if let Some(a) = analyze_sound(&sound, sample_rate) {
+                    let payload = serde_json::json!({
+                        "slot": slot,
+                        "peak": a.peak,
+                        "rms": a.rms,
+                        "clipped_samples": a.clipped_samples,
+                        "sustained_clip": a.sustained_clip,
+                        "silent": a.silent,
+                        "engine": a.engine,
+                        "decay_ms": a.decay_ms,
+                    });
+                    comm_engine.broadcast(format!(
+                        "ANALYSIS:{}|{}",
+                        slot,
+                        serde_json::to_string(&payload).unwrap_or_default()
+                    ));
+                }
+            }
+            // Out-of-bounds slot: silently drop. The UI treats absence of an
+            // ANALYSIS broadcast as "no measurement" rather than as an error.
         }
     } else if text.starts_with("TEST_TRIGGER:") {
         let slot_str = text.replace("TEST_TRIGGER:", "");

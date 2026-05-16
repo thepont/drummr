@@ -171,6 +171,94 @@ pub struct DrumSound {
     pub mods: Option<Vec<ModEntry>>,
 }
 
+/// Construct a single `Voice` from a `DrumSound`, applying engine-specific
+/// parameter mapping, modulation routings, and LFO frequencies. This is the
+/// per-slot factory shared between `KitEngine::from_config` (which builds a
+/// 16-slot engine) and the analysis path (which builds one throwaway voice
+/// off the audio thread to measure its envelope without making a sound).
+///
+/// Returns `None` if the engine type is not recognised. The default fall-through
+/// for unknown / missing `engine_type` is FM, matching the prior behaviour of
+/// `from_config`.
+pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
+    let engine_type = sound.engine_type.as_deref().unwrap_or("fm");
+    let mut voice: Voice = match engine_type {
+        "phys" => {
+            let mut v = crate::dsp::phys::PhysEngine::new(sample_rate);
+            v.frequency.base_value = sound.freq;
+            v.brightness.base_value = sound.brightness.unwrap_or(0.5);
+            v.dampening.base_value = sound.dampening.unwrap_or(0.5);
+            v.attack = sound.attack;
+            v.decay = sound.decay;
+            Voice::Phys(v)
+        }
+        "granular" => {
+            let mut v = crate::dsp::granular::GranularEngine::new(sample_rate);
+            v.frequency.base_value = sound.freq;
+            v.density.base_value = sound.density.unwrap_or(0.5);
+            v.grain_size.base_value = sound.grain_size.unwrap_or(50.0);
+            v.jitter.base_value = sound.jitter.unwrap_or(0.2);
+            v.attack = sound.attack;
+            v.decay = sound.decay;
+            Voice::Granular(v)
+        }
+        "hybrid" => {
+            let mut v = crate::dsp::hybrid::HybridEngine::new(sample_rate);
+            v.frequency.base_value = sound.freq;
+            v.noise_color.base_value = sound.noise_color.unwrap_or(0.5);
+            v.metallic.base_value = sound.metallic.unwrap_or(0.5);
+            v.attack = sound.attack;
+            v.decay = sound.decay;
+            Voice::Hybrid(v)
+        }
+        "modal" => {
+            let mut v = crate::dsp::modal::ModalEngine::new(sample_rate);
+            v.frequency.base_value = sound.freq;
+            v.brightness.base_value = sound.brightness.unwrap_or(0.7);
+            v.dampening.base_value = sound.dampening.unwrap_or(0.5);
+            v.inharmonicity.base_value = sound.inharmonicity.unwrap_or(0.3);
+            v.attack = sound.attack;
+            v.decay = sound.decay;
+            Voice::Modal(v)
+        }
+        "noise" => {
+            // `NoiseVoice` exposes only attack/decay via its AD envelope;
+            // there is no separate noise-engine block in `from_config` today,
+            // so the noise branch is reachable from `voice_from_sound` but
+            // only exercised by the analysis path.
+            let mut v = NoiseVoice::new(sample_rate);
+            v.amp_env.set_params(sound.attack, sound.decay);
+            Voice::Noise(v)
+        }
+        _ => {
+            let mut v = FmVoice::new(sample_rate);
+            v.frequency.base_value = sound.freq;
+            v.mod_ratio.base_value = sound.mod_ratio.unwrap_or(1.0);
+            v.mod_index.base_value = sound.mod_index.unwrap_or(1.0);
+            v.noise_level.base_value = sound.noise_level.unwrap_or(0.0);
+            v.attack = sound.attack;
+            v.decay = sound.decay;
+            v.pitch_bend = 150.0;
+            v.pitch_env.set_params(0.001, 0.05);
+            Voice::Fm(v)
+        }
+    };
+
+    if let Some(mods) = &sound.mods {
+        for m in mods {
+            voice.set_mod(&m.param, m.source, m.depth);
+        }
+    }
+    if let Some(f) = sound.lfo1_freq {
+        voice.set_lfo(1, f);
+    }
+    if let Some(f) = sound.lfo2_freq {
+        voice.set_lfo(2, f);
+    }
+
+    Some(voice)
+}
+
 pub struct KitEngine {
     pub voices: [Option<Voice>; 16],
     /// Per-slot post-FX (bitcrusher + sample-rate reducer). Always present so
@@ -216,75 +304,11 @@ impl KitEngine {
             if idx >= 16 {
                 break;
             }
-            let engine_type = sound.engine_type.as_deref().unwrap_or("fm");
-            let mut voice: Voice = match engine_type {
-                "phys" => {
-                    let mut v = crate::dsp::phys::PhysEngine::new(sample_rate);
-                    v.frequency.base_value = sound.freq;
-                    v.brightness.base_value = sound.brightness.unwrap_or(0.5);
-                    v.dampening.base_value = sound.dampening.unwrap_or(0.5);
-                    v.attack = sound.attack;
-                    v.decay = sound.decay;
-                    Voice::Phys(v)
-                }
-                "granular" => {
-                    let mut v = crate::dsp::granular::GranularEngine::new(sample_rate);
-                    v.frequency.base_value = sound.freq;
-                    v.density.base_value = sound.density.unwrap_or(0.5);
-                    v.grain_size.base_value = sound.grain_size.unwrap_or(50.0);
-                    v.jitter.base_value = sound.jitter.unwrap_or(0.2);
-                    v.attack = sound.attack;
-                    v.decay = sound.decay;
-                    Voice::Granular(v)
-                }
-                "hybrid" => {
-                    let mut v = crate::dsp::hybrid::HybridEngine::new(sample_rate);
-                    v.frequency.base_value = sound.freq;
-                    v.noise_color.base_value = sound.noise_color.unwrap_or(0.5);
-                    v.metallic.base_value = sound.metallic.unwrap_or(0.5);
-                    v.attack = sound.attack;
-                    v.decay = sound.decay;
-                    Voice::Hybrid(v)
-                }
-                "modal" => {
-                    let mut v = crate::dsp::modal::ModalEngine::new(sample_rate);
-                    v.frequency.base_value = sound.freq;
-                    v.brightness.base_value = sound.brightness.unwrap_or(0.7);
-                    v.dampening.base_value = sound.dampening.unwrap_or(0.5);
-                    v.inharmonicity.base_value = sound.inharmonicity.unwrap_or(0.3);
-                    v.attack = sound.attack;
-                    v.decay = sound.decay;
-                    Voice::Modal(v)
-                }
-                _ => {
-                    let mut v = FmVoice::new(sample_rate);
-                    v.frequency.base_value = sound.freq;
-                    v.mod_ratio.base_value = sound.mod_ratio.unwrap_or(1.0);
-                    v.mod_index.base_value = sound.mod_index.unwrap_or(1.0);
-                    v.noise_level.base_value = sound.noise_level.unwrap_or(0.0);
-                    v.attack = sound.attack;
-                    v.decay = sound.decay;
-                    v.pitch_bend = 150.0;
-                    v.pitch_env.set_params(0.001, 0.05);
-                    Voice::Fm(v)
-                }
-            };
-
-            if let Some(mods) = sound.mods {
-                for m in mods {
-                    voice.set_mod(&m.param, m.source, m.depth);
-                }
+            if let Some(voice) = voice_from_sound(&sound, sample_rate) {
+                engine.voices[idx] = Some(voice);
+                engine.postfx[idx].set_bits(sound.bits.unwrap_or(16.0));
+                engine.postfx[idx].set_rate(sound.rate.unwrap_or(1.0));
             }
-            if let Some(f) = sound.lfo1_freq {
-                voice.set_lfo(1, f);
-            }
-            if let Some(f) = sound.lfo2_freq {
-                voice.set_lfo(2, f);
-            }
-
-            engine.voices[idx] = Some(voice);
-            engine.postfx[idx].set_bits(sound.bits.unwrap_or(16.0));
-            engine.postfx[idx].set_rate(sound.rate.unwrap_or(1.0));
         }
 
         engine.set_mapping(&mappings);
