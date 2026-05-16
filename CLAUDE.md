@@ -41,24 +41,26 @@ The audio callback (cpal) MUST NOT block. Communication between threads uses loc
 - **Tokio runtime** (main thread, `main.rs`): WebSocket I/O, MIDI input handling, broadcast loops (mod-state at 40ms, BPM at 100ms). Pushes commands into the ring buffers.
 - **Persistence thread** (`persistence.rs`): a dedicated `std::thread` consuming a tokio mpsc; writes `kit.toml` / `mapping.toml` / presets via tmp-file + rename for atomicity. Keeps file I/O off both audio and async threads.
 
-`SharedState` (`state.rs`) holds an `[AtomicU32; 16*5]` of modulation source values (16 slots × 5 sources). The audio thread stores `f32::to_bits` into them per tick; the WS broadcast loop reads them out for the UI's real-time visualizers. This is the only inter-thread channel for "live values."
+`SharedState` (`state.rs`) holds an `[AtomicU32; 16*5]` of modulation source values — 16 slots × 5 source ids (None / Envelope / Lfo1 / Lfo2 / Velocity). The audio thread stores `f32::to_bits` per tick via `set_value`; the WS broadcast loop reads them out for the UI's real-time visualizers. Note that `Voice::get_mod_values` only returns the 4 active sources (`[f32; 4]`) — `Voice::Noise` returns zeros. This is the only inter-thread channel for "live values."
 
 ### DSP layout
-`src/dsp/` contains five synthesis engines, all unified through the `Voice` enum in `kit.rs`:
+`src/dsp/` contains six synthesis engines, all unified through the `Voice` enum in `kit.rs`:
 - `fm.rs` — FM synthesis + noise sizzle layer
 - `phys.rs` — Karplus-Strong physical modeling
 - `granular.rs` — granular synthesis
-- `hybrid.rs` — hybrid engine
-- `noise.rs` — noise voice
+- `hybrid.rs` — oscillator + noise blend with metallic inharmonic partials
+- `modal.rs` — parallel resonator bank (Bessel-zero mode ratios) for bells, plates, tuned percussion
+- `noise.rs` — coloured-noise voice
 
-Adding a new engine means: (1) implement the engine struct with `schema()`, `set_param`, `set_mod`, `tick`, `is_active`, etc.; (2) add a `Voice::Foo(FooEngine)` variant and wire all match arms in `kit.rs`; (3) handle the engine-type string in `KitEngine::from_config`.
+Adding a new engine means: (1) implement the engine struct with `schema()`, `set_param`, `set_mod`, `tick`, `is_active`, etc.; (2) add a `Voice::Foo(FooEngine)` variant and wire all match arms in `kit.rs`; (3) handle the engine-type string in `KitEngine::from_config`; (4) wire the engine pill into `ui/src/views/KitEditorView.tsx`.
 
-`dsp/modulation.rs` defines `ModSource` (None/Envelope/Lfo1/Lfo2/Velocity) and `ModulatableParam { base_value, mod_slots }`. Engines that support modulation use `modulation_engine.rs` to compose source values into a final per-tick parameter value. The UI's "16 × 5" mod grid mirrors this exactly.
+`dsp/modulation.rs` defines `ModSource` (None/Envelope/Lfo1/Lfo2/Velocity) and `ModulatableParam { base_value, mod_slots }`. Engines that support modulation use `modulation_engine.rs` to compose source values into a final per-tick parameter value. Per-voice post-FX (`bits`, `rate`) live in `dsp/postfx.rs` and run after the voice mix.
 
 ### Kit / mapping / state
 - `KitEngine` holds a fixed `[Option<Voice>; 16]` array of voice slots and a `[Option<usize>; 128]` MIDI-note → slot map. Sounds are addressed by **slot index**, not by name.
 - `DrumKit` / `DrumSound` / `DrumMapping` in `kit.rs` are the on-disk schema (TOML via serde). `DrumSound` carries `Option<f32>` for engine-specific params so a single struct serializes for all engines.
-- `kit.toml` is the live kit and is rewritten on every parameter change. Named kits live in `presets/kits/*.toml`; named sound presets in `presets/sounds/*.toml`.
+- **`SharedState::kit_snapshot: Arc<Mutex<DrumKit>>` is the source of truth for kit mutations.** All WS command handlers in `commands.rs` mutate the snapshot first and then push the resulting `DrumKit` to the persistence worker (which writes `kit.toml` via atomic rename). The audio thread reads its own `KitEngine` via `try_lock` on `SharedState::kit`; mapping changes use `KitEngine::set_mapping` in place to preserve voice state.
+- Named kits live in `presets/kits/*.toml`; named sound presets in `presets/sounds/*.toml`. `kit.toml` at the repo root is the live working kit and is rewritten on every parameter change.
 
 ### WebSocket command protocol (`commands.rs`)
 Messages are plain text with prefixes — not JSON envelopes. Examples:
@@ -80,4 +82,4 @@ When adding a new command, edit both `commands.rs` (Rust handler) and `ui/src/Ap
 - The `conductor/` directory contains a self-imposed TDD workflow (`workflow.md`), product docs, and per-task tracking in `tracks/`. It expects: failing test first, implementation, `git notes` summary per task, checkpoint commits per phase. The user may or may not be following this strictly — match what they ask for.
 - Commits follow Conventional Commits style (`feat(ui):`, `fix:`, `refactor:`).
 - Rust edition is `2024` — keep that in mind when consulting external Rust references.
-- The kit is a **live document**: the engine writes `kit.toml` on every UI parameter change. Don't hand-edit `kit.toml` while the engine is running unless you want it overwritten on the next slider move.
+- The kit is a **live document**: the engine writes `kit.toml` on every UI parameter change (via the persistence worker, atomic rename). Don't hand-edit `kit.toml` while the engine is running — your edits will be overwritten on the next mutation from the UI.
