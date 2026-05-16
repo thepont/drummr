@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu, ArrowsClockwise, FloppyDisk } from "@phosphor-icons/react"
-import { cn, ParamController, Button, FrequencyVisualizer, PredictiveGraph } from '../components/ui'
+import { Play, Sparkle, Sliders as SlidersIcon, Clock, Cpu, ArrowsClockwise, FloppyDisk, Waveform } from "@phosphor-icons/react"
+import { cn, ParamController, Button, FrequencyVisualizer, PredictiveGraph, Slider } from '../components/ui'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
 
@@ -237,8 +237,16 @@ export default function KitEditorView({
         ))}
       </div>
 
-      {selectedSound ? (
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-stretch">
+      {selectedSound ? (() => {
+        const safeAttack = selectedSound.attack ?? 0;
+        const safeDecay = selectedSound.decay ?? 0;
+        const safeFreq = selectedSound.freq ?? 440;
+        const safeLfo1 = selectedSound.lfo1_freq ?? 1.0;
+        const safeLfo2 = selectedSound.lfo2_freq ?? 1.0;
+        const safeBits = selectedSound.bits ?? 16;
+        const safeRate = selectedSound.rate ?? 1;
+        return (
+        <div className="grid grid-cols-1 xl:grid-cols-4 2xl:grid-cols-5 gap-6 items-stretch">
           <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col">
             <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
               <Cpu size={16} />
@@ -247,7 +255,7 @@ export default function KitEditorView({
             
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
-                {['fm', 'phys', 'granular', 'hybrid'].map(type => (
+                {['fm', 'phys', 'granular', 'hybrid', 'modal', 'noise'].map(type => (
                   <button
                     key={type}
                     onClick={() => updateParam('engine_type' as any, type as any)}
@@ -264,22 +272,22 @@ export default function KitEditorView({
               </div>
 
               <div className="pt-4">
-                <FrequencyVisualizer 
-                  value={selectedSound.freq} 
-                  min={20} 
-                  max={2000} 
-                  onChange={v => updateParam('freq', v)} 
-                  modValue={getModulatedValue('freq', selectedSound.freq)}
+                <FrequencyVisualizer
+                  value={safeFreq}
+                  min={20}
+                  max={2000}
+                  onChange={v => updateParam('freq', v)}
+                  modValue={getModulatedValue('freq', safeFreq)}
                 />
-                <PredictiveGraph 
-                  base={selectedSound.freq}
+                <PredictiveGraph
+                  base={safeFreq}
                   min={20}
                   max={2000}
                   mods={selectedSound.mods?.filter(m => m.param === 'freq') || []}
-                  attack={selectedSound.attack}
-                  decay={selectedSound.decay}
-                  lfo1_freq={selectedSound.lfo1_freq}
-                  lfo2_freq={selectedSound.lfo2_freq}
+                  attack={safeAttack}
+                  decay={safeDecay}
+                  lfo1_freq={safeLfo1}
+                  lfo2_freq={safeLfo2}
                   className="w-full mt-4 h-12"
                 />
               </div>
@@ -299,9 +307,9 @@ export default function KitEditorView({
             </header>
             
             <div className="flex-1 min-h-[200px] bg-background/50 rounded-2xl relative overflow-hidden border border-border/50">
-              <EnvelopeEditor 
-                attack={selectedSound.attack} 
-                decay={selectedSound.decay}
+              <EnvelopeEditor
+                attack={safeAttack}
+                decay={safeDecay}
                 onChange={(a, d) => {
                   updateParam('attack', a);
                   updateParam('decay', d);
@@ -312,11 +320,11 @@ export default function KitEditorView({
             <div className="grid grid-cols-2 gap-4">
                <div className="p-3 bg-background/30 rounded-xl border border-border/50">
                  <div className="text-[8px] font-black text-muted-foreground uppercase mb-1">Attack</div>
-                 <div className="text-xs font-bold">{selectedSound.attack.toFixed(0)}ms</div>
+                 <div className="text-xs font-bold">{safeAttack.toFixed(0)}ms</div>
                </div>
                <div className="p-3 bg-background/30 rounded-xl border border-border/50">
                  <div className="text-[8px] font-black text-muted-foreground uppercase mb-1">Decay</div>
-                 <div className="text-xs font-bold">{selectedSound.decay.toFixed(0)}ms</div>
+                 <div className="text-xs font-bold">{safeDecay.toFixed(0)}ms</div>
                </div>
             </div>
           </section>
@@ -328,30 +336,31 @@ export default function KitEditorView({
             </header>
             
             <div className="space-y-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-              {schemas[selectedSoundId]?.filter(p => !['freq', 'attack', 'decay'].includes(p.name)).map((param) => {
+              {schemas[selectedSoundId]?.filter(p => !['freq', 'attack', 'decay', 'bits', 'rate'].includes(p.name)).map((param) => {
                 const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
-                const displayMods = [...paramMods];
-                while (displayMods.length < 1) {
-                  displayMods.push({ param: param.name, source: 'None', depth: 0 });
-                }
+                // Render every existing mod plus one trailing empty "add new" row.
+                const displayMods = [
+                  ...paramMods,
+                  { param: param.name, source: 'None', depth: 0 },
+                ];
 
                 return (
                   <div key={param.name}>
-                    <ParamController 
-                      label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')} 
-                      value={selectedSound[param.name] ?? param.default} 
-                      min={param.min} 
-                      max={param.max} 
+                    <ParamController
+                      label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')}
+                      value={selectedSound[param.name] ?? param.default}
+                      min={param.min}
+                      max={param.max}
                       step={param.max - param.min > 10 ? 1 : 0.01}
                       format={v => param.unit ? `${v.toFixed(param.unit === 'Hz' ? 0 : 2)} ${param.unit}` : v.toFixed(2)}
-                      onChange={v => updateParam(param.name as any, v)} 
+                      onChange={v => updateParam(param.name as any, v)}
                       mods={displayMods}
                       onModChange={(idx, source, depth) => updateMod(param.name, idx, source, depth)}
                       modValue={getModulatedValue(param.name, selectedSound[param.name] ?? param.default)}
-                      attack={selectedSound.attack}
-                      decay={selectedSound.decay}
-                      lfo1_freq={selectedSound.lfo1_freq}
-                      lfo2_freq={selectedSound.lfo2_freq}
+                      attack={safeAttack}
+                      decay={safeDecay}
+                      lfo1_freq={safeLfo1}
+                      lfo2_freq={safeLfo2}
                     />
                   </div>
                 );
@@ -360,16 +369,59 @@ export default function KitEditorView({
           </section>
 
           <section className="xl:col-span-1">
-             <ModulationPanel 
-                lfo1_freq={selectedSound.lfo1_freq || 1.0}
-                lfo2_freq={selectedSound.lfo2_freq || 1.0}
+             <ModulationPanel
+                lfo1_freq={safeLfo1}
+                lfo2_freq={safeLfo2}
                 onChangeLfo={updateLfo}
                 modValues={selectedSlotIndex !== -1 ? modStates[selectedSlotIndex] : undefined}
               />
           </section>
 
+          <section className="bg-card/30 border border-border rounded-3xl p-6 space-y-6 flex flex-col xl:col-span-1">
+            <header className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+              <Waveform size={16} />
+              5. FX
+            </header>
+
+            <div className="space-y-4">
+              <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Bitcrusher</div>
+              <div className="p-4 bg-background/30 rounded-xl border border-border/50 space-y-6">
+                <Slider
+                  label="Bit depth"
+                  value={safeBits}
+                  min={1}
+                  max={16}
+                  step={1}
+                  onChange={v => updateParam('bits', v)}
+                  format={v => `${v.toFixed(0)} bits`}
+                />
+                <Slider
+                  label="Rate divisor"
+                  value={safeRate}
+                  min={1}
+                  max={32}
+                  step={1}
+                  onChange={v => updateParam('rate', v)}
+                  format={v => `${v.toFixed(0)}x`}
+                />
+                {safeBits >= 16 && safeRate <= 1 && (
+                  <div className="text-[9px] font-bold text-muted-foreground italic text-center">
+                    Idle (no effect at 16 bits / 1x)
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-auto pt-6 border-t border-border/50">
+               <div className="text-[9px] font-bold text-muted-foreground italic">
+                 Post-FX shaping. Crush bits or downsample for lo-fi grit.
+               </div>
+            </div>
+          </section>
+
         </div>
-      ) : (
+        );
+      })() : (
         <div className="h-[400px] flex items-center justify-center border-2 border-dashed border-border rounded-3xl text-muted-foreground italic">
           Select a sound to start designing
         </div>
