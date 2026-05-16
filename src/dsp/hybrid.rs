@@ -123,7 +123,13 @@ impl HybridEngine {
         let lp_out = self.last_noise + noise_color * (noise_raw - self.last_noise);
         self.last_noise = lp_out;
 
-        let mixed = (osc_out * (1.0 - metallic)) + (lp_out * metallic);
+        // Crossfade with a 15% floor on each side so both the pitched bank
+        // and the filtered noise contribute at every metallic setting.
+        // The old `osc*(1-m) + noise*m` zeroed the pitched bank at m=1.0,
+        // making the `freq` parameter a placebo for high-metallic voices.
+        let osc_weight = 1.0 - metallic * 0.85;   // metallic=1 -> 0.15 osc
+        let noise_weight = 0.15 + metallic * 0.85; // metallic=0 -> 0.15 noise, =1 -> 1.0
+        let mixed = (osc_out * osc_weight) + (lp_out * noise_weight);
         (mixed * env * self.velocity).clamp(-1.0, 1.0)
     }
 
