@@ -4,6 +4,17 @@ use crate::dsp::modulation_engine::ModulationEngine;
 use crate::dsp::timing::BeatDivision;
 use crate::dsp::utils::{SINE_LUT, Xorshift};
 
+/// Hybrid oscillator + noise voice. Three sine partials at inharmonic
+/// ratios are blended with a colour-filtered noise stream via the
+/// `metallic` knob (0 = pure oscillator, 1 = pure filtered noise).
+/// The blend is enforced at a 15% floor on either side so neither
+/// component completely disappears — the engine always has both a
+/// pitched and a noise component.
+///
+/// Use this engine for snares, claps, and any drum that wants a tonal
+/// body plus a noise top. The three partials' inharmonic ratios give
+/// the metallic character that pure FM cannot reach without a high
+/// modulation index.
 pub struct HybridEngine {
     sample_rate: f32,
     phases: [f32; 3],

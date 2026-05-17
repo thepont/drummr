@@ -14,8 +14,14 @@ use std::f32::consts::PI;
 /// generic interpolation cannot reproduce.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExplicitMode {
+    /// Mode centre frequency in Hz. No clamping at the schema level —
+    /// `Mode::set_coeffs` enforces a Nyquist-safe range internally.
     pub freq: f32,
+    /// Resonator Q. Higher = narrower bandwidth and longer ring;
+    /// clamped to `[0.5, 1200]` at coefficient computation time.
     pub q: f32,
+    /// Per-mode gain. 1.0 is unity; the per-tick `brightness` rolloff
+    /// in `ModalEngine::tick` still applies on top.
     pub gain: f32,
 }
 
@@ -132,6 +138,19 @@ impl Mode {
     }
 }
 
+/// Parallel-resonator modal voice. A short impulse excites 12 parallel
+/// bandpass filters whose centre frequencies are derived from a base
+/// `freq` and an `inharmonicity` knob that interpolates between the
+/// harmonic series (0) and Bessel-zero ratios of a circular membrane (1).
+/// Each mode's Q is derived from a target -60 dB decay time and modulated
+/// by `dampening`; `brightness` rolls off the gains of higher modes at
+/// `tick()` time.
+///
+/// Use this engine for tuned percussion: bells, plates, cowbells, chimes,
+/// xylophones, gongs. An optional `mode_list` (`ExplicitMode`) lets a
+/// kit author bypass the interpolation entirely and dial in exact
+/// frequencies / Qs / gains for hardware-faithful resonator design
+/// (e.g. the 808 cowbell's 540 + 800 Hz pair).
 pub struct ModalEngine {
     sample_rate: f32,
 

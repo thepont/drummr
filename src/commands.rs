@@ -175,6 +175,63 @@ fn parse_beat_division(name: &str) -> Option<crate::dsp::timing::BeatDivision> {
     }
 }
 
+/// Single dispatch entry for every WebSocket message from the UI. Text is
+/// a prefix-tagged string (not JSON); branches below parse each prefix
+/// and route to the appropriate side-effect path (audio thread via rtrb,
+/// persistence worker via mpsc, broadcast via `CommEngine`, etc.).
+///
+/// ## Client → server commands
+///
+/// **Discovery / state:**
+/// - `GET_KIT` — broadcast `KIT: <json>` with the current kit snapshot.
+/// - `GET_SCHEMA:<slot>` — broadcast `SCHEMA:<slot>|<json>` with the slot's
+///   engine schema.
+/// - `GET_MAPPING` — broadcast `MAPPING: <json>` with slot/note pairs.
+/// - `LIST_MIDI` / `LIST_AUDIO` — broadcast available ports / devices.
+/// - `LIST_KITS` / `LIST_SOUND_PRESETS` — broadcast preset names as CSV.
+/// - `LIST_MIDI_TRACKS` — broadcast bundled Preview Kit track names.
+///
+/// **Parameter / modulation edits:**
+/// - `SET_PARAM:slot|name|value` — set any scalar parameter. Routes `bits`
+///   / `rate` to PostFx and the four generative-trigger fields to
+///   `SetGenerative` internally.
+/// - `SET_MOD:slot|param|source|depth` — adjust a mod-matrix route.
+/// - `SET_LFO:slot|index|freq` — set LFO 1 or 2 rate in Hz.
+/// - `SET_BITS:slot|val` / `SET_RATE:slot|val` — explicit PostFx setters.
+/// - `SET_DIVISION:slot|param|division` — set a tempo-locked beat division
+///   for `lfo1` / `lfo2` / `decay`. The division name is a `BeatDivision`
+///   variant (`Quarter`, `Bar`, `EighthDotted`, ...).
+/// - `CLEAR_DIVISION:slot|param` — clear the tempo-locked override.
+///
+/// **Mapping / preset / persistence:**
+/// - `UPDATE_MAPPING:slot:note` / `SAVE_MAPPING:<json>` — mutate the MIDI
+///   note → slot map.
+/// - `LOAD_KIT:<name>` / `SAVE_KIT_AS:<name>` — load/save a named kit.
+/// - `LOAD_SOUND_PRESET:<name>:<slot>` /
+///   `SAVE_SOUND_PRESET:<name>:<slot>` — single-slot preset I/O.
+///
+/// **Device selection:**
+/// - `SELECT_MIDI:<index>` / `SELECT_AUDIO:<index>` — hot-swap input /
+///   output device. `SELECT_AUDIO` leaks the previous cpal::Stream by
+///   design (see `audio_stream_leak_count` in `SharedState`).
+///
+/// **Diagnostics / playback:**
+/// - `ANALYZE_SLOT:<slot>` — off-thread render of a single slot's voice
+///   for peak / RMS / clipping / silent measurement. Broadcasts
+///   `ANALYSIS:<slot>|<json>`. Does not produce audio.
+/// - `TEST_TRIGGER:<slot>` — push a MIDI note-on for the slot's mapped
+///   note onto the audio thread.
+/// - `PLAY_MIDI_TRACK:<name>` / `STOP_MIDI_PLAYBACK` — Preview Kit
+///   playback control.
+///
+/// **Sync:**
+/// - `SYNC_START` / `SYNC_STOP` / `SET_AUTO_SYNC:<bool>` /
+///   `GET_SYNC_STATUS` — master-clock virtual MIDI output (Linux only).
+///
+/// Replies are broadcast through `CommEngine` so every connected client
+/// sees them; this is how a parameter edit in one tab is reflected in
+/// another tab's UI. See `ui/src/App.tsx::onmessage` for the parser
+/// side.
 pub async fn handle_command(
     text: String,
     midi_engine: Arc<Mutex<MidiEngine>>,

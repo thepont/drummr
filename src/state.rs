@@ -4,7 +4,31 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 pub type MidiEvent = [u8; 3];
 
+/// Cross-thread state for the drummr engine. One instance is created in
+/// `main.rs` and an `Arc<SharedState>` is handed to the audio callback,
+/// the tokio WS dispatcher, the BPM broadcast loop, and the audio-recovery
+/// task. Every field is either an `AtomicXxx` (lock-free) or a
+/// `Mutex<...>` that the audio thread accesses via `try_lock` so a
+/// contention never blocks the audio callback.
+///
+/// The two mutable kit views are intentionally split:
+/// - `kit` (audio-thread `KitEngine`) — owns live voice state (envelopes,
+///   delay lines, mode banks). Mutated from the audio thread (triggers)
+///   and from the WS dispatcher (parameter edits via `AudioCommand` on
+///   the rtrb ring); the WS dispatcher only updates the audio-thread
+///   engine for swap-only operations (engine type change, kit load).
+/// - `kit_snapshot` (serialisable `DrumKit`) — the source of truth for
+///   persistence and the wire format. All WS handlers mutate this first,
+///   then hand a clone to the persistence worker. See `commands.rs`.
 pub struct SharedState {
+    /// `[AtomicU32; 16 * 5]` of live modulation source values indexed
+    /// as `slot * 5 + source` where source ids are
+    /// `None=0 / Envelope=1 / Lfo1=2 / Lfo2=3 / Velocity=4`. Stores
+    /// `f32::to_bits` per tick from the audio thread (via `set_value`);
+    /// read by the 40 ms mod-state broadcast loop in `main.rs` and
+    /// pushed to the UI as `MOD_STATES: <json>` for real-time visualisers.
+    /// This is the only inter-thread channel for "live values"; the
+    /// audio callback never sends per-tick state any other way.
     mod_values: [AtomicU32; 16 * 5], // [slot * 5 + source]
     /// Current detected tempo, stored as the raw bits of an `f32` so the audio
     /// thread can read it lock-free every block. Written by the 10 Hz BPM

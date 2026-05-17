@@ -5,6 +5,17 @@ use crate::dsp::timing::BeatDivision;
 
 use crate::dsp::utils::Xorshift;
 
+/// Karplus-Strong physical modelling voice. A short noise burst excites a
+/// delay line whose feedback path implements the characteristic 1-zero
+/// average filter (with `brightness` as the blend factor) and a one-pole
+/// lowpass (`dampening`). Produces realistic plucks, toms, and metallic
+/// rings whose pitch is set by the delay-line length.
+///
+/// Use this engine for plucked / struck sounds where the resonator
+/// character carries the timbre. The frequency parameter sets the
+/// fundamental pitch via the delay length; brightness controls the
+/// average-filter mix; dampening controls how quickly high frequencies
+/// die.
 pub struct PhysEngine {
     sample_rate: f32,
     delay_line: Vec<f32>,

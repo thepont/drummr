@@ -2,6 +2,15 @@ use crate::dsp::envelope::AdEnvelope;
 use crate::dsp::timing::BeatDivision;
 use crate::dsp::utils::Xorshift;
 
+/// Pure noise voice with AD envelope shaping. The simplest engine — a
+/// white-noise stream gated by attack/decay. No LFOs, no modulation
+/// matrix, no per-param schema beyond the envelope. Used for hi-hat
+/// sizzle, cymbal washes, and anywhere a clean noise burst is the
+/// whole sound.
+///
+/// Honors `decay_division` (tempo-locked decay) but not the LFO
+/// divisions — there's nothing to modulate. The amp envelope is
+/// authoritative; `is_active()` reports the envelope's own activity.
 pub struct NoiseVoice {
     #[allow(dead_code)]
     sample_rate: f32,

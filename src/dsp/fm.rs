@@ -4,6 +4,15 @@ use crate::dsp::modulation_engine::ModulationEngine;
 use crate::dsp::timing::BeatDivision;
 use crate::dsp::utils::{SINE_LUT, Xorshift};
 
+/// Two-operator FM voice with a parallel noise burst. The classic
+/// DX7-style algorithm: a single sine carrier whose phase is modulated
+/// by a single sine modulator, mixed with a velocity-scaled noise
+/// excitation. Pitch envelope on top of the carrier frequency provides
+/// the "thump" sweep typical of FM kicks and toms.
+///
+/// Use this engine for kicks, toms, FM bells, and any drum where the
+/// modulator/carrier ratio gives the timbral character (1.0 = pure
+/// sine, integer ratios = harmonic, non-integer = inharmonic / metallic).
 pub struct FmVoice {
     sample_rate: f32,
     carrier_phase: f32,
@@ -154,6 +163,9 @@ impl FmVoice {
         self.velocity
     }
 
+    /// Per-engine parameter list exposed to the UI via `GET_SCHEMA:`.
+    /// Returns one `ParamSchema` per modulatable param with its min /
+    /// max / default / unit. Allocates — call off the audio thread only.
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
             crate::kit::ParamSchema {

@@ -14,6 +14,15 @@ struct Grain {
 
 use crate::dsp::utils::Xorshift;
 
+/// Granular synthesis voice. Plays overlapping short grains from a
+/// pre-rendered noise buffer; each grain has its own pitch, life, and
+/// decay. The four params (`density`, `grain_size`, `jitter`, `freq`)
+/// trade off spectrum, texture, and time-domain regularity.
+///
+/// Use this engine for textural shakers, hi-hats, foley, and any sound
+/// where the "particles" character carries more weight than a single
+/// fundamental pitch. The grain pool is fixed-size (32) and lives on
+/// the stack via `ArrayVec` so the audio thread never allocates.
 pub struct GranularEngine {
     sample_rate: f32,
     noise_buffer: Vec<f32>,

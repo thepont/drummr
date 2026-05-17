@@ -38,6 +38,21 @@ pub const MAX_PATTERN_STEPS_PER_PRIMARY: usize = 32;
 /// enough for an operator to notice.
 static PENDING_OVERFLOW_WARN: Once = Once::new();
 
+/// Wire contract used by the `SCHEMA:<slot>|<json>` WebSocket broadcast to
+/// describe one engine parameter to the UI. Each `Voice::schema()` returns
+/// a `Vec<ParamSchema>` listing the engine's modulatable params so the UI
+/// can render sliders without knowing engine internals.
+///
+/// `unit` is a free-form display hint and the UI keys layout off it.
+/// Conventions in use today:
+/// - `"Hz"` — fundamental frequency or any rate-in-cycles-per-second.
+/// - `"ms"` — durations (`attack`, `decay`, `grain_size`).
+/// - `"ratio"` — pure dimensionless ratios (`mod_ratio`).
+/// - `"index"` — FM modulation index (no real-world unit, just a depth knob).
+/// - `"level"` — normalised 0..1 amplitudes (`noise_level`).
+/// - `""` (empty) — engines that have no canonical unit for the param
+///   (`brightness`, `dampening`, `inharmonicity`, `density`, `jitter`,
+///   `noise_color`, `metallic`).
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ParamSchema {
     pub name: String,
@@ -49,6 +64,21 @@ pub struct ParamSchema {
 
 use crate::dsp::modulation::ModSource;
 
+/// Audio-thread voice dispatcher. One variant per synthesis engine; the
+/// six engines share the same trigger / tick / schema / mod surface
+/// through the match arms in `impl Voice`.
+///
+/// `Voice` is the audio-thread-facing runtime type. The serialisable
+/// per-slot config lives in `DrumSound` (TOML); `voice_from_sound` is
+/// the factory that maps a `DrumSound` to one of these variants. Each
+/// variant owns its engine state directly (no `Box<dyn>`), so dispatch
+/// is a tagged-union match — six near-identical arms per method.
+///
+/// Adding a new engine means: implement the engine struct with the same
+/// surface (`schema`, `set_param`, `set_mod`, `set_lfo`, `trigger`, `tick`,
+/// `is_active`), add a new variant here, and wire the match arms in this
+/// file plus the `voice_from_sound` factory. See `CLAUDE.md` for the
+/// full checklist.
 pub enum Voice {
     Fm(FmVoice),
     Phys(crate::dsp::phys::PhysEngine),
@@ -211,6 +241,10 @@ impl Voice {
     }
 }
 
+/// On-disk schema for a kit. One `DrumKit` per `kit.toml` (the live working
+/// kit) and one per file under `presets/kits/*.toml` (named presets). The
+/// `sounds` array is positional: index 0..16 maps to slot 0..16 in the
+/// audio engine. Names are display-only — slots are addressed by index.
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumKit {
@@ -219,12 +253,20 @@ pub struct DrumKit {
     pub sounds: Vec<DrumSound>,
 }
 
+/// MIDI note number → slot index mapping for one slot. Persisted to
+/// `mapping.toml`. Resolution is "first match wins" via `KitEngine::midi_map`
+/// (a 128-entry lookup table); unmapped notes silently no-op.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumMapping {
     pub note: u8,
     pub slot: usize,
 }
 
+/// One modulation route on a `DrumSound`. Persisted in TOML as part of the
+/// per-slot `mods` array. Routes are unique per `(param, source)` pair —
+/// adding the same combination again overwrites the depth (see the
+/// `SET_MOD:` handler in `commands.rs`). `depth == 0.0` or
+/// `source == ModSource::None` entries are pruned on write.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModEntry {
     pub param: String,
@@ -276,27 +318,76 @@ pub struct SubHit {
     pub velocity_factor: f32,
 }
 
+/// On-disk schema for one slot. A single struct serialises every engine
+/// type via per-engine `Option<f32>` parameter fields, so the TOML format
+/// stays stable across engine changes. `engine_type` (an opaque key like
+/// `"fm"`, `"phys"`, `"granular"`, `"hybrid"`, `"modal"`, `"noise"`)
+/// selects which Option fields are read by `voice_from_sound`. Fields
+/// that aren't relevant to the chosen engine are simply ignored — they
+/// don't have to be `None`.
+///
+/// `attack` and `decay` are MILLISECONDS (the convention across the UI,
+/// TOML, and `set_param`). Engines convert to seconds internally when
+/// they hand the values to `AdEnvelope::set_params`.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumSound {
+    /// Display name shown in the UI. Slots are addressed by index, not name.
     pub name: String,
+    /// Engine selector: `"fm"`, `"phys"`, `"granular"`, `"hybrid"`, `"modal"`,
+    /// or `"noise"`. Defaults to `"fm"` when missing.
     pub engine_type: Option<String>,
+    /// Fundamental frequency in Hz. Range varies per engine (typically
+    /// 20..12000 for FM/Phys/Granular/Hybrid, 20..4000 for Modal).
     pub freq: f32,
+    /// FM only. Ratio between modulator and carrier frequency (0..10).
+    /// Integer ratios produce harmonic spectra; non-integer ratios
+    /// produce inharmonic / bell-like timbres.
     pub mod_ratio: Option<f32>,
+    /// FM only. Depth of frequency modulation (0..50). Higher = more
+    /// sidebands, brighter / more complex.
     pub mod_index: Option<f32>,
+    /// FM only. Noise burst mixed with the FM output (0..1). Drives
+    /// the click / sizzle layer (snare crack, hat shimmer).
     pub noise_level: Option<f32>,
+    /// Phys / Modal. How much high-frequency content is emphasised (0..1).
+    /// 0 = dark / fundamental only; 1 = all overtones present.
     pub brightness: Option<f32>,
+    /// Phys / Modal. How quickly resonance dies away (0..1).
+    /// 0 = long ring; 1 = short, muted hit.
     pub dampening: Option<f32>,
+    /// Granular only. Overlap of grains (0..1). Low = sparse; high = dense cloud.
     pub density: Option<f32>,
+    /// Granular only. Length of each grain in ms (1..200). Short = clicky;
+    /// long = smooth / textural.
     pub grain_size: Option<f32>,
+    /// Granular only. Random timing variation between grains (0..1).
+    /// 0 = perfectly periodic; 1 = chaotic.
     pub jitter: Option<f32>,
+    /// Hybrid only. Filter character for the noise component (0..1).
+    /// 0 = dark / dull; 1 = bright / sharp.
     pub noise_color: Option<f32>,
+    /// Hybrid only. Mix between pitched oscillator (0) and filtered
+    /// noise (1) inharmonic partials. Higher = more metallic / less tonal.
     pub metallic: Option<f32>,
+    /// Modal only. 0 = harmonic series (musical xylophone bars);
+    /// 1 = Bessel-zero ratios (circular drum membrane). In between
+    /// gives bell-like character.
     pub inharmonicity: Option<f32>,
+    /// PostFx: bit depth (1..16). 16 = clean, lower = digital crunch
+    /// (SP-1200 / LinnDrum character). Applied per slot after voice mix.
     pub bits: Option<f32>,
+    /// PostFx: sample-rate divisor (1..32). 1 = clean, higher = aliasing
+    /// distortion. Applied per slot after voice mix.
     pub rate: Option<f32>,
+    /// Envelope attack time in MILLISECONDS. Time from trigger to peak.
     pub attack: f32,
+    /// Envelope decay time in MILLISECONDS. Time from peak to silence.
+    /// When `decay_division` is set, this value is ignored in favour
+    /// of the tempo-locked length.
     pub decay: f32,
+    /// LFO 1 rate in Hz. Used when `lfo1_division` is unset.
     pub lfo1_freq: Option<f32>,
+    /// LFO 2 rate in Hz. Used when `lfo2_division` is unset.
     pub lfo2_freq: Option<f32>,
     /// Tempo-locked LFO 1 division. When set, overrides `lfo1_freq` at trigger
     /// time using the live BPM (`dsp::timing::BeatDivision::to_hz`). Backwards
@@ -513,6 +604,18 @@ pub struct PendingTrigger {
     pub fire_at_sample: u64,
 }
 
+/// Audio-thread mutable kit state. Owns the 16 voice slots, their PostFx
+/// chains, the MIDI note → slot lookup, deferred-trigger queue (sub-hits /
+/// pattern steps / ghost notes), and the generative-trigger RNG. Built
+/// from a `DrumKit` via `from_config`; mutated in place from the audio
+/// thread for live-fire activity and from the WS dispatcher (via
+/// `AudioCommand`s through the rtrb ring) for parameter edits.
+///
+/// Most fields are `pub` to keep the audio callback in `audio.rs` and the
+/// integration tests in `tests/` zero-cost — but external mutation of
+/// `pending`, `samples_processed`, `last_bpm`, and `rng` is undefined
+/// behaviour from the engine's point of view. See `docs/code_smells.md`
+/// for the encapsulation backlog (entries 71-72).
 pub struct KitEngine {
     pub voices: [Option<Voice>; 16],
     /// Per-slot post-FX (bitcrusher + sample-rate reducer). Always present so
