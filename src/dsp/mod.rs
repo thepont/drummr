@@ -9,4 +9,5 @@ pub mod modulation_engine;
 pub mod noise;
 pub mod phys;
 pub mod postfx;
+pub mod timing;
 pub mod utils;
