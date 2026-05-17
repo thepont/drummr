@@ -41,6 +41,42 @@ interface KitEditorProps {
   setSelectedSoundId: (id: any) => void;
   analysis?: Record<number, AnalysisResult>;
   requestAnalysis?: (slot: number) => void;
+  /** Live BPM (string from App.tsx, may be "0.0" before first sync).
+   *  Used to render "~Xs" / "~X Hz" previews on the tempo-locked
+   *  decay / LFO badges. Optional — falls back to 120 BPM. */
+  bpm?: string;
+}
+
+// Mirrors `BeatDivision::to_seconds` in `src/dsp/timing.rs`. Used by the
+// tempo-lock hint on the Shape -> Decay slider so the UI can preview the
+// engine-overridden decay length without a backend round-trip.
+const DIVISION_QUARTERS: Record<string, number> = {
+  ThirtySecond: 0.125,
+  SixteenthTriplet: 1.0 / 6.0,
+  Sixteenth: 0.25,
+  SixteenthDotted: 0.375,
+  EighthTriplet: 1.0 / 3.0,
+  Eighth: 0.5,
+  EighthDotted: 0.75,
+  QuarterTriplet: 2.0 / 3.0,
+  Quarter: 1.0,
+  QuarterDotted: 1.5,
+  Half: 2.0,
+  Bar: 4.0,
+  TwoBars: 8.0,
+  FourBars: 16.0,
+};
+
+function divisionToSeconds(name: string, bpm: number): number | null {
+  const q = DIVISION_QUARTERS[name];
+  if (q === undefined) return null;
+  return (q * 60.0) / Math.max(bpm, 0.01);
+}
+
+function decayHint(division: string, bpm: number): string {
+  const sec = divisionToSeconds(division, bpm);
+  if (sec === null || !isFinite(sec)) return `Tempo-locked to ${division}`;
+  return `Tempo-locked to ${division} @ ${bpm.toFixed(1)} BPM (~${sec.toFixed(2)}s)`;
 }
 
 /** Severity tier derived from an AnalysisResult. */
@@ -60,7 +96,15 @@ export default function KitEditorView({
   ws, sounds, setSounds, schemas,
   selectedSoundId, setSelectedSoundId,
   analysis = {}, requestAnalysis,
+  bpm: bpmString,
 }: KitEditorProps) {
+  // The App-level bpm state is a string ("0.0" pre-sync); coerce to a
+  // sensible number for the tempo-lock previews so we never divide by
+  // zero / NaN downstream.
+  const bpmNum = (() => {
+    const n = parseFloat(bpmString ?? "");
+    return isFinite(n) && n > 0 ? n : 120.0;
+  })();
   const [newKitName, setNewKitName] = useState("");
   const [isSaveKitModalOpen, setIsSaveKitModalOpen] = useState(false);
   const [modStates, setModStates] = useState<number[][]>([]);
@@ -444,8 +488,29 @@ export default function KitEditorView({
                   <div className="text-sm font-mono font-bold">{safeAttack.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
                 </div>
                 <div className="p-3 bg-background/30 rounded-xl border border-border/50">
-                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Decay</div>
-                  <div className="text-sm font-mono font-bold">{safeDecay.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Decay</div>
+                    {decayDiv && (
+                      <span
+                        title={decayHint(decayDiv, bpmNum)}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[9px] font-bold uppercase tracking-wider"
+                      >
+                        <Clock size={9} weight="fill" />
+                        Tempo-locked
+                      </span>
+                    )}
+                  </div>
+                  <Slider
+                    label={decayDiv ? "Decay (tempo-locked)" : "Decay"}
+                    value={safeDecay}
+                    min={1}
+                    max={5000}
+                    step={1}
+                    format={v => `${v.toFixed(0)} ms`}
+                    onChange={v => updateParam('decay', v)}
+                    disabled={!!decayDiv}
+                    disabledHint={decayDiv ? decayHint(decayDiv, bpmNum) : undefined}
+                  />
                 </div>
               </div>
             </div>
@@ -508,6 +573,9 @@ export default function KitEditorView({
             lfo2_freq={safeLfo2}
             onChangeLfo={updateLfo}
             modValues={selectedSlotIndex !== -1 ? modStates[selectedSlotIndex] : undefined}
+            lfo1_division={lfo1Div}
+            lfo2_division={lfo2Div}
+            bpm={bpmNum}
           />
 
           {/* 5. FX */}
@@ -615,8 +683,11 @@ export default function KitEditorView({
             UI than a single slider, so we surface them as informational
             badges -- enough to address "this kit has hidden features I
             can't see" (HIGH bug #6) without committing to a full editor
-            in this pass. The decay-division warning indirectly addresses
-            HIGH #5 by telling the user their slider is overridden.
+            in this pass. The decay-division / lfo*_division warnings on
+            their respective sliders (Shape -> Decay, Modulation -> LFO
+            Rate) are the primary user-facing indicator now; this Clock
+            section remains the holistic summary plus the only surface
+            for sub_hits / pattern / mode_list.
           */}
           {hasClockFeatures && (
             <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-3">

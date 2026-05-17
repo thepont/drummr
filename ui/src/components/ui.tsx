@@ -59,7 +59,7 @@ export function Button({
   );
 }
 
-export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2), className, modValue }: {
+export function Slider({ label, value, min, max, step, onChange, format = (v: number) => v.toFixed(2), className, modValue, disabled = false, disabledHint }: {
   label: string,
   value: number,
   min: number,
@@ -68,14 +68,20 @@ export function Slider({ label, value, min, max, step, onChange, format = (v: nu
   onChange: (v: number) => void,
   format?: (v: number) => string,
   className?: string,
-  modValue?: number
+  modValue?: number,
+  /** When true, the slider is non-interactive and visually dimmed.
+   *  Used by the tempo-lock indicator (lfo*_division / decay_division)
+   *  to communicate that the static value is overridden at trigger time. */
+  disabled?: boolean,
+  /** Optional secondary line shown under the label (only when disabled). */
+  disabledHint?: string,
 }) {
   const modPos = modValue !== undefined
     ? ((modValue - min) / (max - min)) * 100
     : undefined;
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2", className, disabled && "opacity-60")}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">{label}</span>
         <span className="text-sm font-mono font-bold bg-muted px-2 py-1 rounded-md tabular-nums whitespace-nowrap">{format(value)}</span>
@@ -86,8 +92,14 @@ export function Slider({ label, value, min, max, step, onChange, format = (v: nu
           aria-label={label}
           min={min} max={max} step={step}
           value={value}
+          disabled={disabled}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer accent-primary hover:accent-primary/80 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className={cn(
+            "w-full h-2 bg-muted rounded-full appearance-none accent-primary transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            disabled
+              ? "cursor-not-allowed pointer-events-none accent-amber-400"
+              : "cursor-pointer hover:accent-primary/80"
+          )}
         />
         {modPos !== undefined && (
           <div
@@ -98,6 +110,11 @@ export function Slider({ label, value, min, max, step, onChange, format = (v: nu
           />
         )}
       </div>
+      {disabled && disabledHint && (
+        <div className="text-[10px] font-medium text-amber-300/90 italic leading-tight">
+          {disabledHint}
+        </div>
+      )}
     </div>
   )
 }

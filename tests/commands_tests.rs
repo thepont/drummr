@@ -760,6 +760,40 @@ async fn test_kit_to_json_emits_mode_list() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn test_kit_to_json_includes_all_clock_aware_fields() {
+    // Regression test for MEDIUM bug #8 (closed by commit 97ab143). Asserts
+    // that every clock-aware / generative-trigger field is present in the
+    // per-slot object produced by `kit_to_json`. If any future refactor drops
+    // one of these keys, this single test surfaces the regression rather than
+    // a per-field test failing in isolation.
+    let mut h = build_harness();
+    install_kit_with_new_fields(&mut h);
+    let parsed = get_kit_json(&mut h).await;
+    let arr = parsed.as_array().expect("kit is array");
+    let slot0 = arr[0].as_object().expect("slot 0 is an object");
+
+    for field in [
+        "sub_hits",
+        "pattern",
+        "mode_list",
+        "trigger_probability",
+        "ghost_probability",
+        "ghost_offset_ms",
+        "ghost_velocity_factor",
+        "lfo1_division",
+        "lfo2_division",
+        "decay_division",
+    ] {
+        assert!(
+            slot0.contains_key(field),
+            "kit_to_json must emit `{}` on every slot (slot 0 missing it); full slot = {:?}",
+            field,
+            slot0
+        );
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn test_kit_to_json_emits_divisions() {
     let mut h = build_harness();
     install_kit_with_new_fields(&mut h);

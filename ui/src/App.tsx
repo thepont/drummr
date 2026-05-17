@@ -363,6 +363,7 @@ export default function App() {
                   schemas={schemas} setSchemas={setSchemas}
                   selectedSoundId={selectedSoundId} setSelectedSoundId={setSelectedSoundId}
                   analysis={analysis} requestAnalysis={requestAnalysis}
+                  bpm={bpm}
                 />
               )}
             </div>
