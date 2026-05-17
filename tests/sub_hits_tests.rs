@@ -206,3 +206,143 @@ fn test_no_sub_hits_keeps_existing_behaviour() {
     kit.trigger(36, 1.0, 120.0);
     assert!(kit.pending.is_empty(), "no sub-hits expected; got {}", kit.pending.len());
 }
+
+// -----------------------------------------------------------------------
+// Gap 2 — Sub-hit edge cases. The queueing math has to be robust against
+// pathological inputs: zero offsets, zero/over-one velocity factors,
+// negative offsets (clamped to zero), and huge offsets that stress the
+// u64 fire-at-sample field.
+// -----------------------------------------------------------------------
+
+#[test]
+fn test_sub_hit_offset_zero_fires_immediately() {
+    // offset_ms = 0 -> samples_offset = 0; the entry's fire_at_sample
+    // equals the engine's samples_processed at queue time. Since `tick`
+    // bumps the counter BEFORE draining, the entry fires on the very
+    // next tick. We assert it fires within 1 sample after the trigger.
+    let sub = SubHit { offset_ms: 0.0, velocity_factor: 1.0 };
+    let mut kit = build_kit(vec![make_kick_sound(Some(vec![sub]))]);
+    kit.trigger(36, 1.0, 120.0);
+    assert_eq!(kit.pending.len(), 1);
+
+    let start = kit.samples_processed;
+    // First tick should fire it.
+    kit.tick();
+    assert!(
+        kit.pending.is_empty(),
+        "offset_ms=0 must fire within one tick; pending={}",
+        kit.pending.len()
+    );
+    let delta = kit.samples_processed - start;
+    assert_eq!(
+        delta, 1,
+        "offset_ms=0 sub-hit must fire exactly 1 tick after trigger; delta={}",
+        delta
+    );
+}
+
+#[test]
+fn test_sub_hit_velocity_factor_zero() {
+    // velocity_factor=0 makes the sub-hit's velocity 0. The trigger code
+    // gates on `if velocity > 0.0` inside FmVoice::trigger so the amp
+    // envelope is NOT restarted. The sub-hit therefore neither resets
+    // the FM voice nor produces a fresh burst. We verify the engine
+    // doesn't panic and the pending queue empties cleanly.
+    let sub = SubHit { offset_ms: 5.0, velocity_factor: 0.0 };
+    let mut kit = build_kit(vec![make_kick_sound(Some(vec![sub]))]);
+    kit.trigger(36, 0.8, 120.0);
+    assert_eq!(kit.pending.len(), 1);
+
+    // Tick past the sub-hit; queue should empty without panic.
+    for _ in 0..(SR * 0.020) as usize {
+        kit.tick();
+    }
+    assert!(kit.pending.is_empty(), "queue should drain even with velocity 0");
+
+    // After the sub-hit "fires" with velocity 0, the FM voice retains
+    // its primary velocity (the gate inside trigger short-circuits the
+    // velocity store too). The important behavioural property is that
+    // no panic occurs and the system stays in a sane state.
+    let v = fm_velocity(&kit, 0);
+    assert!(
+        v.is_finite() && (0.0..=1.0).contains(&v),
+        "velocity should remain in [0,1] after zero-vel sub-hit; got {}",
+        v
+    );
+}
+
+#[test]
+fn test_sub_hit_velocity_factor_over_one() {
+    // velocity_factor=2.0 with primary 0.4 -> 0.8, well inside [0,1].
+    // (Beyond 1.0 should clamp; this test focuses on the intermediate.)
+    let sub = SubHit { offset_ms: 5.0, velocity_factor: 2.0 };
+    let mut kit = build_kit(vec![make_kick_sound(Some(vec![sub]))]);
+    kit.trigger(36, 0.4, 120.0);
+    for _ in 0..(SR * 0.010) as usize {
+        kit.tick();
+    }
+    assert!(kit.pending.is_empty());
+
+    let v = fm_velocity(&kit, 0);
+    assert!(
+        (v - 0.8).abs() < 1e-3,
+        "expected velocity 0.4 * 2.0 = 0.8 after sub-hit; got {}",
+        v
+    );
+
+    // Sanity: with a primary of 1.0 and factor 2.0, the sub-hit velocity
+    // must clamp to 1.0 — never exceed it.
+    let sub = SubHit { offset_ms: 5.0, velocity_factor: 2.0 };
+    let mut kit = build_kit(vec![make_kick_sound(Some(vec![sub]))]);
+    kit.trigger(36, 1.0, 120.0);
+    for _ in 0..(SR * 0.010) as usize {
+        kit.tick();
+    }
+    let v = fm_velocity(&kit, 0);
+    assert!(
+        v <= 1.0 + 1e-6,
+        "velocity must clamp to <= 1.0; got {}",
+        v
+    );
+}
+
+#[test]
+fn test_sub_hit_negative_offset_clamped_to_zero() {
+    // The trigger path applies `offset_ms.max(0.0)` before converting to
+    // samples. A negative offset must NOT panic and must fire promptly.
+    let sub = SubHit { offset_ms: -10.0, velocity_factor: 1.0 };
+    let mut kit = build_kit(vec![make_kick_sound(Some(vec![sub]))]);
+    kit.trigger(36, 1.0, 120.0);
+    assert_eq!(kit.pending.len(), 1);
+
+    // Negative offset clamps to 0 -> fires within 1 tick.
+    kit.tick();
+    assert!(
+        kit.pending.is_empty(),
+        "negative offset must clamp to 0 and fire immediately; pending={}",
+        kit.pending.len()
+    );
+}
+
+#[test]
+fn test_sub_hit_huge_offset() {
+    // 60 second offset = 2,880,000 samples @ 48 kHz. Well within u64.
+    // We do NOT drive forward 60 seconds; we just verify the math at
+    // queue time doesn't overflow / panic and the entry is present
+    // with a fire_at_sample in the far future.
+    let sub = SubHit { offset_ms: 60_000.0, velocity_factor: 1.0 };
+    let mut kit = build_kit(vec![make_kick_sound(Some(vec![sub]))]);
+    let start = kit.samples_processed;
+    kit.trigger(36, 1.0, 120.0);
+    assert_eq!(kit.pending.len(), 1);
+
+    let entry = kit.pending[0];
+    let expected = start + (60.0 * SR) as u64;
+    let delta = (entry.fire_at_sample as i64 - expected as i64).abs();
+    assert!(
+        delta <= 1,
+        "60-second sub-hit should be queued at fire_at_sample={} (delta from expected {} = {})",
+        entry.fire_at_sample, expected, delta
+    );
+    assert!(entry.fire_at_sample > start, "fire_at_sample must be in the future");
+}

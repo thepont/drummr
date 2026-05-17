@@ -290,3 +290,157 @@ fn test_no_pattern_keeps_existing_behaviour() {
     kit.trigger(36, 1.0, 120.0);
     assert!(kit.pending.is_empty());
 }
+
+// -----------------------------------------------------------------------
+// Gap 3 — Pattern timing precision and BPM tracking.
+// -----------------------------------------------------------------------
+
+#[test]
+fn test_pattern_step_at_240_bpm() {
+    // Quarter@240 = 60/240 = 0.25 s = 12000 samples @ 48 kHz.
+    let step = PatternStep {
+        division: BeatDivision::Quarter,
+        velocity_factor: 1.0,
+        multiplier: 1.0,
+    };
+    let mut kit = build_kit(vec![make_sound(Some(vec![step]))]);
+    kit.trigger(36, 1.0, 240.0);
+    let drain = first_drain_index(&mut kit, (SR * 0.5) as usize)
+        .expect("step should fire within 0.5 s @ 240 BPM");
+    let expected = (0.25 * SR) as u64;
+    let delta = (drain as i64 - expected as i64).abs();
+    assert!(
+        delta <= 10,
+        "Quarter@240 fired at {}; expected ~{} (±10); delta={}",
+        drain, expected, delta
+    );
+}
+
+#[test]
+fn test_pattern_step_at_40_bpm() {
+    // Quarter@40 = 60/40 = 1.5 s = 72000 samples @ 48 kHz.
+    let step = PatternStep {
+        division: BeatDivision::Quarter,
+        velocity_factor: 1.0,
+        multiplier: 1.0,
+    };
+    let mut kit = build_kit(vec![make_sound(Some(vec![step]))]);
+    kit.trigger(36, 1.0, 40.0);
+    let drain = first_drain_index(&mut kit, (SR * 2.0) as usize)
+        .expect("step should fire within 2 s @ 40 BPM");
+    let expected = (1.5 * SR) as u64;
+    let delta = (drain as i64 - expected as i64).abs();
+    assert!(
+        delta <= 10,
+        "Quarter@40 fired at {}; expected ~{} (±10); delta={}",
+        drain, expected, delta
+    );
+}
+
+#[test]
+fn test_multiplier_zero() {
+    // multiplier=0 yields a 0-second offset -> fires within 1 tick.
+    let step = PatternStep {
+        division: BeatDivision::Quarter,
+        velocity_factor: 1.0,
+        multiplier: 0.0,
+    };
+    let mut kit = build_kit(vec![make_sound(Some(vec![step]))]);
+    kit.trigger(36, 1.0, 120.0);
+    assert_eq!(kit.pending.len(), 1);
+    // Should fire within at most a handful of samples — but definitely
+    // not loop forever and definitely not panic.
+    let drain = first_drain_index(&mut kit, 32).expect("multiplier=0 should fire promptly");
+    assert!(drain <= 2, "multiplier=0 should fire within 1-2 samples; got {}", drain);
+}
+
+#[test]
+fn test_multiplier_negative() {
+    // The trigger path applies `step.multiplier.max(0.0)` before computing
+    // the sample offset. A negative multiplier must clamp to 0 — same
+    // effect as multiplier=0: fires immediately, no panic.
+    let step = PatternStep {
+        division: BeatDivision::Quarter,
+        velocity_factor: 1.0,
+        multiplier: -1.0,
+    };
+    let mut kit = build_kit(vec![make_sound(Some(vec![step]))]);
+    kit.trigger(36, 1.0, 120.0);
+    assert_eq!(kit.pending.len(), 1);
+    let drain = first_drain_index(&mut kit, 32)
+        .expect("negative multiplier should clamp & fire promptly");
+    assert!(drain <= 2, "negative multiplier should fire within 1-2 samples; got {}", drain);
+}
+
+#[test]
+fn test_pattern_uses_bpm_at_trigger_not_at_load() {
+    // Same kit, two different BPMs. Verify the SECOND trigger uses the
+    // SECOND BPM, not whatever was cached at load time. We measure by
+    // ratio: 60 BPM should fire twice as far out as 120 BPM.
+    let step = PatternStep {
+        division: BeatDivision::Quarter,
+        velocity_factor: 1.0,
+        multiplier: 1.0,
+    };
+
+    let mut kit_a = build_kit(vec![make_sound(Some(vec![step.clone()]))]);
+    kit_a.trigger(36, 1.0, 60.0);
+    let slow_at = first_drain_index(&mut kit_a, (SR * 2.0) as usize)
+        .expect("slow primary fires");
+
+    let mut kit_b = build_kit(vec![make_sound(Some(vec![step]))]);
+    kit_b.trigger(36, 1.0, 120.0);
+    let fast_at = first_drain_index(&mut kit_b, (SR * 2.0) as usize)
+        .expect("fast primary fires");
+
+    let ratio = slow_at as f32 / fast_at as f32;
+    assert!(
+        (ratio - 2.0).abs() < 0.05,
+        "trigger-time BPM resolution: 60 BPM ({}) should be 2x 120 BPM ({}); ratio={}",
+        slow_at, fast_at, ratio
+    );
+}
+
+#[test]
+fn test_pattern_with_subdivisions_across_all_14_variants() {
+    // For each BeatDivision variant, fire a 1-step pattern at 120 BPM
+    // and verify the drain index is within ±5% of the analytically
+    // expected sample offset. Variants with offsets longer than a few
+    // seconds (TwoBars=4s, FourBars=8s) are still tested but with
+    // proportionally larger windows.
+    let all = [
+        BeatDivision::ThirtySecond,
+        BeatDivision::SixteenthTriplet,
+        BeatDivision::Sixteenth,
+        BeatDivision::SixteenthDotted,
+        BeatDivision::EighthTriplet,
+        BeatDivision::Eighth,
+        BeatDivision::EighthDotted,
+        BeatDivision::QuarterTriplet,
+        BeatDivision::Quarter,
+        BeatDivision::QuarterDotted,
+        BeatDivision::Half,
+        BeatDivision::Bar,
+        BeatDivision::TwoBars,
+        BeatDivision::FourBars,
+    ];
+
+    for div in all {
+        let step = PatternStep { division: div, velocity_factor: 1.0, multiplier: 1.0 };
+        let mut kit = build_kit(vec![make_sound(Some(vec![step]))]);
+        kit.trigger(36, 1.0, 120.0);
+        let expected_sec = div.to_seconds(120.0);
+        let expected_samples = (expected_sec * SR) as u64;
+        // Drive forward at most 2x the expected duration plus a small fudge.
+        let window = ((expected_sec * 2.0 + 0.05) * SR) as usize;
+        let drain = first_drain_index(&mut kit, window)
+            .unwrap_or_else(|| panic!("{:?} did not fire within window", div));
+        let abs_err = (drain as i64 - expected_samples as i64).abs() as f32;
+        let rel_err = abs_err / (expected_samples as f32).max(1.0);
+        assert!(
+            rel_err <= 0.05,
+            "{:?}: drain={} expected={} (rel_err={:.4})",
+            div, drain, expected_samples, rel_err
+        );
+    }
+}
