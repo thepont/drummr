@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Plus, List, Target, MagnifyingGlass, Trash, FloppyDisk } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -90,6 +90,18 @@ export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }:
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  // Tracks fire-and-forget timers so we can cancel them on unmount and
+  // avoid setState-on-unmounted warnings during view switches.
+  const saveTimerRef = useRef<number | null>(null);
+  const activeNoteTimersRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+      activeNoteTimersRef.current.forEach(id => window.clearTimeout(id));
+      activeNoteTimersRef.current.clear();
+    };
+  }, []);
 
   const filteredRoles = useMemo(() => {
     return roles.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -121,7 +133,9 @@ export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }:
     if (!ws) return;
     setIsSaving(true);
     ws.send(`SAVE_MAPPING:${JSON.stringify(roles)}`);
-    setTimeout(() => {
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
       setIsSaving(false);
       setHasChanges(false);
     }, 500);
@@ -145,15 +159,18 @@ export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }:
 
         if (velocity > 0) {
           setActiveNotes(prev => new Set(prev).add(note));
-          
-          // Flash duration: remove note after 100ms
-          setTimeout(() => {
+
+          // Flash duration: remove note after 100ms. Tracked so we can
+          // cancel pending flashes on unmount.
+          const timerId = window.setTimeout(() => {
+            activeNoteTimersRef.current.delete(timerId);
             setActiveNotes(prev => {
               const next = new Set(prev);
               next.delete(note);
               return next;
             });
           }, 100);
+          activeNoteTimersRef.current.add(timerId);
 
           if (learningSlot !== null) {
             updateRoleNote(learningSlot, note);

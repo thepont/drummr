@@ -52,6 +52,11 @@ export default function App() {
 
   const [lastMidi, setLastMidi] = useState<{note: number, vel: number} | null>(null);
   const [isMidiFlashing, setIsMidiFlashing] = useState(false);
+  // MIDI flash timer ref: replaced on each new MIDI event so the previous
+  // pending "flash off" never lands AFTER a fresh "flash on", and so we
+  // don't leak timers on unmount during high-rate MIDI input (drum hits
+  // can arrive faster than the 80ms flash window).
+  const midiFlashTimerRef = useRef<number | null>(null);
 
   // Preview Kit: backend-curated list of CC-BY MIDI drum tracks that can be
   // played through the active kit to audition it in a real musical context.
@@ -170,13 +175,22 @@ export default function App() {
           const note = parseInt(parts[0]);
           const vel = parseInt(parts[1]);
           if (isNaN(note) || isNaN(vel)) return;
+          if (midiFlashTimerRef.current !== null) {
+            window.clearTimeout(midiFlashTimerRef.current);
+          }
           if (vel > 0) {
             setLastMidi({ note, vel });
             setIsMidiFlashing(true);
-            setTimeout(() => setIsMidiFlashing(false), 80);
+            midiFlashTimerRef.current = window.setTimeout(() => {
+              midiFlashTimerRef.current = null;
+              setIsMidiFlashing(false);
+            }, 80);
           } else {
             setIsMidiFlashing(true);
-            setTimeout(() => setIsMidiFlashing(false), 40);
+            midiFlashTimerRef.current = window.setTimeout(() => {
+              midiFlashTimerRef.current = null;
+              setIsMidiFlashing(false);
+            }, 40);
           }
         }
       };
@@ -212,11 +226,15 @@ export default function App() {
     }, 500);
   };
 
-  // On unmount: cancel any in-flight debounce timers.
+  // On unmount: cancel any in-flight debounce timers and the MIDI-flash timer.
   useEffect(() => {
     return () => {
       Object.values(analyzeTimersRef.current).forEach(id => window.clearTimeout(id));
       analyzeTimersRef.current = {};
+      if (midiFlashTimerRef.current !== null) {
+        window.clearTimeout(midiFlashTimerRef.current);
+        midiFlashTimerRef.current = null;
+      }
     };
   }, []);
 
