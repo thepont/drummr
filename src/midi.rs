@@ -43,9 +43,13 @@ impl MidiEngine {
                 port,
                 "drummr-read-input",
                 move |_timestamp, data, _| {
-                    if !data.is_empty() {
-                        println!("MIDI BYTES: {:?}", data);
-                    }
+                    // Per-message stdout chatter was firing for EVERY raw MIDI
+                    // byte stream (CC, pitch-bend, clock, aftertouch — none of
+                    // which affects audio). On a controller streaming MIDI
+                    // clock at 24 ppqn @ 120 BPM that's ~50 lines/sec into a
+                    // line-buffered stdout from a foreign (midir) thread —
+                    // not a leak but a real I/O-amplification issue worth
+                    // killing. See docs/backend_leaks.md LOW.
                     if let Ok(message) = MidiMessage::from_bytes(data) {
                         callback(message);
                     }

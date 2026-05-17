@@ -51,12 +51,10 @@ impl BpmEngine {
             self.onsets.pop_front();
         }
 
-        println!(
-            "[BpmEngine] Hit  vel={:.2}  w={:.2}  n={}",
-            velocity,
-            weight,
-            self.onsets.len()
-        );
+        // Per-onset stdout chatter removed: fired every time the audio thread
+        // or the live MIDI callback called register_onset, which at a heavy
+        // fill is ~20 lines/sec into line-buffered stdout. Telemetry is still
+        // available via get_bpm() / is_stable. See docs/backend_leaks.md LOW.
         self.estimate_tempo();
     }
 
@@ -155,10 +153,9 @@ impl BpmEngine {
             }
         }
 
-        println!(
-            "[BpmEngine] BPM {:.1} (raw {:.1}, lag {:.3}s, stable {})",
-            self.current_bpm, clamped_bpm, chosen_lag, self.is_stable
-        );
+        // Per-estimate stdout chatter removed; ran once per register_onset.
+        // The BPM is broadcast every 100 ms by the loop in main.rs, which is
+        // the operational source of truth. See docs/backend_leaks.md LOW.
     }
 
     fn prefer_subharmonic(&self, peak_lag: f32, peak_score: f32, scores: &[(f32, f32)]) -> f32 {
