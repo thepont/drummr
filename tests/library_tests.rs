@@ -24,6 +24,9 @@ fn test_sound_preset_serialization() {
         decay: 100.0,
         lfo1_freq: None,
         lfo2_freq: None,
+        lfo1_division: None,
+        lfo2_division: None,
+        decay_division: None,
         mods: None,
         mode_list: None,
     };

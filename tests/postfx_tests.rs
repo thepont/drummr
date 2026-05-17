@@ -173,7 +173,7 @@ fn test_kit_engine_trigger_resets_postfx() {
     // the voice goes silent if the decimator isn't reset on re-trigger.
     kit.set_postfx(0, "rate", 4.0);
 
-    kit.trigger(36, 1.0);
+    kit.trigger(36, 1.0, 120.0);
 
     // Run until the voice goes inactive (capped to avoid infinite loops on
     // bugs). Record the last non-zero output before the tail goes to 0.
@@ -203,7 +203,7 @@ fn test_kit_engine_trigger_resets_postfx() {
     // PostFx, but the decimator could still re-emit `last_nonzero` until its
     // window expires. Re-triggering with reset means the very first sample
     // after re-trigger must NOT equal that held tail value.
-    kit.trigger(36, 1.0);
+    kit.trigger(36, 1.0, 120.0);
     let first_after = kit.tick();
 
     // With reset, hold_counter == 0 at trigger time, so the next process()
@@ -240,8 +240,8 @@ fn test_kit_engine_applies_postfx_per_slot() {
     kit_crushed.set_postfx(0, "bits", 4.0);
     kit_crushed.set_postfx(0, "rate", 4.0);
 
-    kit_clean.trigger(36, 1.0);
-    kit_crushed.trigger(36, 1.0);
+    kit_clean.trigger(36, 1.0, 120.0);
+    kit_crushed.trigger(36, 1.0, 120.0);
 
     let n = 500;
     let mut clean_out = Vec::with_capacity(n);

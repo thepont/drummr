@@ -49,7 +49,7 @@ fn test_kit_engine_polymorphism() {
     engine.midi_map[38] = Some(1);
 
     assert_eq!(engine.voices.len(), 16);
-    engine.trigger(36, 1.0);
+    engine.trigger(36, 1.0, 120.0);
     let sample = engine.tick();
     assert!(sample != 0.0);
 }

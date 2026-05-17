@@ -2,6 +2,7 @@ use crate::dsp::fm::FmVoice;
 use crate::dsp::modal::ExplicitMode;
 use crate::dsp::noise::NoiseVoice;
 use crate::dsp::postfx::PostFx;
+use crate::dsp::timing::BeatDivision;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -92,14 +93,20 @@ impl Voice {
         }
     }
 
-    pub fn trigger(&mut self, velocity: f32) {
+    /// Trigger this voice with the given velocity and tempo (BPM). The BPM
+    /// is consumed by tempo-locked features (`lfo*_division`, `decay_division`
+    /// on the engine struct); engines that have no such features set will
+    /// ignore it. Off-thread callers that don't have a live tempo handy
+    /// (e.g. the ANALYZE_SLOT path in `commands.rs`) pass a sensible default
+    /// like 120.0.
+    pub fn trigger(&mut self, velocity: f32, bpm: f32) {
         match self {
-            Voice::Fm(v) => v.trigger(velocity),
-            Voice::Phys(v) => v.trigger(velocity),
-            Voice::Granular(v) => v.trigger(velocity),
-            Voice::Hybrid(v) => v.trigger(velocity),
-            Voice::Modal(v) => v.trigger(velocity),
-            Voice::Noise(v) => v.trigger(velocity),
+            Voice::Fm(v) => v.trigger(velocity, bpm),
+            Voice::Phys(v) => v.trigger(velocity, bpm),
+            Voice::Granular(v) => v.trigger(velocity, bpm),
+            Voice::Hybrid(v) => v.trigger(velocity, bpm),
+            Voice::Modal(v) => v.trigger(velocity, bpm),
+            Voice::Noise(v) => v.trigger(velocity, bpm),
         }
     }
 
@@ -169,6 +176,16 @@ pub struct DrumSound {
     pub decay: f32,
     pub lfo1_freq: Option<f32>,
     pub lfo2_freq: Option<f32>,
+    /// Tempo-locked LFO 1 division. When set, overrides `lfo1_freq` at trigger
+    /// time using the live BPM (`dsp::timing::BeatDivision::to_hz`). Backwards
+    /// compatible: kits without this field parse identically (Option = None).
+    pub lfo1_division: Option<BeatDivision>,
+    /// Tempo-locked LFO 2 division. See `lfo1_division`.
+    pub lfo2_division: Option<BeatDivision>,
+    /// Tempo-locked envelope decay. When set, overrides `decay` (ms) at
+    /// trigger time using the live BPM. Lets a kit declare "decay over one
+    /// bar" or "ring for 4 bars" without committing to a specific tempo.
+    pub decay_division: Option<BeatDivision>,
     pub mods: Option<Vec<ModEntry>>,
     /// Optional explicit mode list for the modal engine. When present, the
     /// modal voice uses these exact `{freq, q, gain}` triples (up to 12) in
@@ -197,6 +214,9 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             v.dampening.base_value = sound.dampening.unwrap_or(0.5);
             v.attack = sound.attack;
             v.decay = sound.decay;
+            v.lfo1_division = sound.lfo1_division;
+            v.lfo2_division = sound.lfo2_division;
+            v.decay_division = sound.decay_division;
             Voice::Phys(v)
         }
         "granular" => {
@@ -207,6 +227,9 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             v.jitter.base_value = sound.jitter.unwrap_or(0.2);
             v.attack = sound.attack;
             v.decay = sound.decay;
+            v.lfo1_division = sound.lfo1_division;
+            v.lfo2_division = sound.lfo2_division;
+            v.decay_division = sound.decay_division;
             Voice::Granular(v)
         }
         "hybrid" => {
@@ -216,6 +239,9 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             v.metallic.base_value = sound.metallic.unwrap_or(0.5);
             v.attack = sound.attack;
             v.decay = sound.decay;
+            v.lfo1_division = sound.lfo1_division;
+            v.lfo2_division = sound.lfo2_division;
+            v.decay_division = sound.decay_division;
             Voice::Hybrid(v)
         }
         "modal" => {
@@ -226,6 +252,9 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             v.inharmonicity.base_value = sound.inharmonicity.unwrap_or(0.3);
             v.attack = sound.attack;
             v.decay = sound.decay;
+            v.lfo1_division = sound.lfo1_division;
+            v.lfo2_division = sound.lfo2_division;
+            v.decay_division = sound.decay_division;
             // Install the explicit mode list (if any) AFTER the standard
             // params so the explicit path is what `rebuild_modes()` sees on
             // the next trigger. Cloning is one-shot at kit-build time and
@@ -240,6 +269,7 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             // only exercised by the analysis path.
             let mut v = NoiseVoice::new(sample_rate);
             v.amp_env.set_params(sound.attack, sound.decay);
+            v.decay_division = sound.decay_division;
             Voice::Noise(v)
         }
         _ => {
@@ -250,6 +280,9 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             v.noise_level.base_value = sound.noise_level.unwrap_or(0.0);
             v.attack = sound.attack;
             v.decay = sound.decay;
+            v.lfo1_division = sound.lfo1_division;
+            v.lfo2_division = sound.lfo2_division;
+            v.decay_division = sound.decay_division;
             v.pitch_bend = 150.0;
             v.pitch_env.set_params(0.001, 0.05);
             Voice::Fm(v)
@@ -378,7 +411,7 @@ impl KitEngine {
         }
     }
 
-    pub fn trigger(&mut self, note: u8, velocity: f32) {
+    pub fn trigger(&mut self, note: u8, velocity: f32, bpm: f32) {
         if note < 128 {
             if let Some(slot) = self.midi_map[note as usize] {
                 if let Some(voice) = &mut self.voices[slot] {
@@ -386,7 +419,7 @@ impl KitEngine {
                     // leading edge isn't coloured by the previous voice's tail
                     // held inside the sample-rate reducer.
                     self.postfx[slot].reset();
-                    voice.trigger(velocity);
+                    voice.trigger(velocity, bpm);
                 }
             }
         }

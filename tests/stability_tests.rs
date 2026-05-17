@@ -32,6 +32,9 @@ fn test_concurrent_kit_updates_race_condition() {
             decay: 200.0,
             lfo1_freq: None,
             lfo2_freq: None,
+            lfo1_division: None,
+            lfo2_division: None,
+            decay_division: None,
             mods: None,
             mode_list: None,
         }],
@@ -84,7 +87,7 @@ fn test_fm_voice_nan_resilience() {
 
     // Inject NaN into base value
     voice.frequency.base_value = std::f32::NAN;
-    voice.trigger(1.0);
+    voice.trigger(1.0, 120.0);
 
     for _ in 0..100 {
         let sample = voice.tick();
@@ -102,7 +105,7 @@ fn test_phys_engine_inf_resilience() {
 
     // Inject Infinity into brightness
     engine.brightness.base_value = std::f32::INFINITY;
-    engine.trigger(1.0);
+    engine.trigger(1.0, 120.0);
 
     for _ in 0..100 {
         let sample = engine.tick();

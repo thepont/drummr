@@ -1,6 +1,7 @@
 use crate::dsp::envelope::AdEnvelope;
 use crate::dsp::modulation::ModulatableParam;
 use crate::dsp::modulation_engine::ModulationEngine;
+use crate::dsp::timing::BeatDivision;
 use crate::dsp::utils::{SINE_LUT, Xorshift};
 
 pub struct FmVoice {
@@ -23,6 +24,13 @@ pub struct FmVoice {
 
     // Modulation Engine
     pub mod_engine: ModulationEngine,
+
+    // Tempo-locked overrides applied at trigger time. When `Some`, the
+    // corresponding feature is driven by the live BPM passed into `trigger`
+    // instead of the fixed Hz / ms values. See `dsp::timing::BeatDivision`.
+    pub lfo1_division: Option<BeatDivision>,
+    pub lfo2_division: Option<BeatDivision>,
+    pub decay_division: Option<BeatDivision>,
 
     // Runtime state
     velocity: f32,
@@ -49,21 +57,36 @@ impl FmVoice {
             pitch_env,
             pitch_bend: 0.0,
             mod_engine: ModulationEngine::new(sample_rate),
+            lfo1_division: None,
+            lfo2_division: None,
+            decay_division: None,
             velocity: 0.0,
             rng: Xorshift::new(12345),
         }
     }
 
-    pub fn trigger(&mut self, velocity: f32) {
+    pub fn trigger(&mut self, velocity: f32, bpm: f32) {
         self.velocity = velocity;
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
             self.carrier_phase = 0.0;
             self.mod_phase = 0.0;
-            self.amp_env
-                .set_params(self.attack / 1000.0, self.decay / 1000.0);
+            // Tempo-locked decay overrides the static `decay` (ms) when set.
+            let decay_sec = match self.decay_division {
+                Some(div) => div.to_seconds(bpm),
+                None => self.decay / 1000.0,
+            };
+            self.amp_env.set_params(self.attack / 1000.0, decay_sec);
             self.amp_env.trigger();
             self.pitch_env.trigger();
+            // Tempo-locked LFOs override the static Hz when set. Indices
+            // match `ModulationEngine::set_lfo` (1 = lfo1, 2 = lfo2).
+            if let Some(div) = self.lfo1_division {
+                self.mod_engine.set_lfo(1, div.to_hz(bpm));
+            }
+            if let Some(div) = self.lfo2_division {
+                self.mod_engine.set_lfo(2, div.to_hz(bpm));
+            }
         }
     }
 
@@ -208,10 +231,10 @@ mod tests {
     fn test_fm_voice_velocity() {
         let mut voice = FmVoice::new(44100.0);
 
-        voice.trigger(0.5);
+        voice.trigger(0.5, 120.0);
         let out_half = voice.tick().abs();
 
-        voice.trigger(1.0);
+        voice.trigger(1.0, 120.0);
         let out_full = voice.tick().abs();
 
         assert!(out_full > out_half);

@@ -1,6 +1,7 @@
 use crate::dsp::envelope::AdEnvelope;
 use crate::dsp::modulation::{ModAmount, ModSource, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
+use crate::dsp::timing::BeatDivision;
 use arrayvec::ArrayVec;
 
 struct Grain {
@@ -32,6 +33,11 @@ pub struct GranularEngine {
     rng: Xorshift,
     velocity: f32,
     pub mod_engine: ModulationEngine,
+
+    // Tempo-locked overrides applied at trigger time.
+    pub lfo1_division: Option<BeatDivision>,
+    pub lfo2_division: Option<BeatDivision>,
+    pub decay_division: Option<BeatDivision>,
 }
 
 impl GranularEngine {
@@ -56,6 +62,9 @@ impl GranularEngine {
             rng: Xorshift::new(0x5678),
             velocity: 1.0,
             mod_engine: ModulationEngine::new(sample_rate),
+            lfo1_division: None,
+            lfo2_division: None,
+            decay_division: None,
         }
     }
 }
@@ -111,13 +120,22 @@ impl GranularEngine {
             },
         ]
     }
-    pub fn trigger(&mut self, velocity: f32) {
+    pub fn trigger(&mut self, velocity: f32, bpm: f32) {
         self.velocity = velocity;
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
-            self.amp_env
-                .set_params(self.attack / 1000.0, self.decay / 1000.0);
+            let decay_sec = match self.decay_division {
+                Some(div) => div.to_seconds(bpm),
+                None => self.decay / 1000.0,
+            };
+            self.amp_env.set_params(self.attack / 1000.0, decay_sec);
             self.amp_env.trigger();
+            if let Some(div) = self.lfo1_division {
+                self.mod_engine.set_lfo(1, div.to_hz(bpm));
+            }
+            if let Some(div) = self.lfo2_division {
+                self.mod_engine.set_lfo(2, div.to_hz(bpm));
+            }
             self.grains.clear();
         }
     }

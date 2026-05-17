@@ -13,7 +13,7 @@ fn test_phys_engine_output() {
     engine.set_param("decay", 100.0);
 
     // Trigger the engine
-    engine.trigger(0.8);
+    engine.trigger(0.8, 120.0);
 
     // Process and check for non-zero output
     let mut non_zero_count = 0;

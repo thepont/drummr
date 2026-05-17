@@ -14,7 +14,7 @@ fn test_kit_engine_mapping() {
     kit.midi_map[60] = Some(0);
 
     // Trigger the mapped note
-    kit.trigger(60, 1.0);
+    kit.trigger(60, 1.0, 120.0);
 
     let out = kit.tick();
     assert!(out != 0.0);
@@ -30,7 +30,7 @@ fn test_kit_engine_clamping() {
         v.frequency.base_value = 100.0;
         kit.voices[i] = Some(drummr::kit::Voice::Fm(v));
         kit.midi_map[i as usize] = Some(i);
-        kit.trigger(i as u8, 1.0);
+        kit.trigger(i as u8, 1.0, 120.0);
     }
 
     // Tick many times to get past initial zero samples

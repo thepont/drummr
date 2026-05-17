@@ -25,7 +25,7 @@ fn test_factory_kits_output() {
         println!("Testing Kit: {}", kit_name);
 
         for slot in 0..16 {
-            engine.trigger(slot as u8, 1.0);
+            engine.trigger(slot as u8, 1.0, 120.0);
 
             let mut max_abs = 0.0f32;
             // Run for 50ms per sound

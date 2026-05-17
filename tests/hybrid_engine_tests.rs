@@ -46,7 +46,7 @@ fn test_hybrid_engine_output() {
     engine.set_param("decay", 100.0);
 
     // Trigger
-    engine.trigger(1.0);
+    engine.trigger(1.0, 120.0);
 
     // Check output
     let mut max_abs = 0.0f32;
@@ -90,8 +90,8 @@ fn test_freq_audible_at_metallic_1() {
     e_high.set_param("attack", 1.0);
     e_high.set_param("decay", 200.0);
 
-    e_low.trigger(1.0);
-    e_high.trigger(1.0);
+    e_low.trigger(1.0, 120.0);
+    e_high.trigger(1.0, 120.0);
 
     let low_samples = run_collect(&mut e_low, 2000);
     let high_samples = run_collect(&mut e_high, 2000);
@@ -171,7 +171,7 @@ fn test_metallic_sweep_smoothly_changes_timbre() {
         e.set_param("metallic", metallic);
         e.set_param("attack", 1.0);
         e.set_param("decay", 200.0);
-        e.trigger(1.0);
+        e.trigger(1.0, 120.0);
         run_collect(&mut e, 2000)
     };
 
@@ -230,7 +230,7 @@ fn test_metallic_zero_still_works() {
     e.set_param("metallic", 0.0);
     e.set_param("attack", 1.0);
     e.set_param("decay", 200.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
 
     let samples = run_collect(&mut e, 2000);
     let p = peak(&samples);

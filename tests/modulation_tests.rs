@@ -15,7 +15,7 @@ fn test_fm_voice_lfo_modulation() {
     // The final mod_index will swing between 5.0 and 15.0
     voice.set_mod("mod_index", ModSource::Lfo1, 5.0);
 
-    voice.trigger(1.0);
+    voice.trigger(1.0, 120.0);
 
     // Check initial few ticks
     let mut values = Vec::new();
@@ -43,7 +43,7 @@ fn test_fm_voice_env_modulation() {
     voice.attack = 0.01; // Very fast attack for test
     voice.set_mod("freq", ModSource::Envelope, 100.0);
 
-    voice.trigger(1.0);
+    voice.trigger(1.0, 120.0);
 
     // Tick it once - env value should be high (near 1.0)
     let out = voice.tick();

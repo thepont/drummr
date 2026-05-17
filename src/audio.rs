@@ -20,6 +20,11 @@ pub fn start_audio(
         &config,
         move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
             if let Ok(mut kit) = shared_state.kit.try_lock() {
+                // Snapshot the live BPM once per audio block. Reads are
+                // lock-free (Relaxed atomic) and the value is stable for the
+                // duration of this callback, so every note-on processed below
+                // sees a consistent tempo.
+                let bpm = shared_state.load_bpm();
                 while let Ok(cmd) = cmd_rx.pop() {
                     match cmd {
                         AudioCommand::SetParam(slot, param, val) => {
@@ -53,7 +58,7 @@ pub fn start_audio(
                     // envelope rings out after the stick lifts. Also treat "NoteOn with
                     // velocity 0" (the running-status NoteOff convention) as a release.
                     if (0x90..=0x9F).contains(&status) && velocity_raw > 0 {
-                        kit.trigger(note, velocity_raw as f32 / 127.0);
+                        kit.trigger(note, velocity_raw as f32 / 127.0, bpm);
                     }
                 }
 

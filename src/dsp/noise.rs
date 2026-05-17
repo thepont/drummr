@@ -1,4 +1,5 @@
 use crate::dsp::envelope::AdEnvelope;
+use crate::dsp::timing::BeatDivision;
 use crate::dsp::utils::Xorshift;
 
 pub struct NoiseVoice {
@@ -7,6 +8,10 @@ pub struct NoiseVoice {
     pub amp_env: AdEnvelope,
     rng: Xorshift,
     velocity: f32,
+    /// Optional tempo-locked decay. When `Some`, overrides the envelope's
+    /// configured decay at trigger time using the supplied BPM. The noise
+    /// voice has no LFO, so only the decay hook applies here.
+    pub decay_division: Option<BeatDivision>,
 }
 
 impl NoiseVoice {
@@ -19,11 +24,16 @@ impl NoiseVoice {
             amp_env,
             rng: Xorshift::new(42),
             velocity: 0.0,
+            decay_division: None,
         }
     }
 
-    pub fn trigger(&mut self, velocity: f32) {
+    pub fn trigger(&mut self, velocity: f32, bpm: f32) {
         self.velocity = velocity;
+        if let Some(div) = self.decay_division {
+            let decay_sec = div.to_seconds(bpm);
+            self.amp_env.set_params(self.amp_env.attack_sec, decay_sec);
+        }
         self.amp_env.trigger();
     }
 

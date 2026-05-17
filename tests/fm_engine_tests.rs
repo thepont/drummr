@@ -23,7 +23,7 @@ fn test_fm_engine_noise_sizzle() {
     voice.set_param("attack", 0.001);
     voice.set_param("decay", 0.1);
 
-    voice.trigger(1.0);
+    voice.trigger(1.0, 120.0);
 
     // Check for non-zero output (should be noise)
     let mut found_noise = false;
@@ -49,7 +49,7 @@ fn test_plasma_snare_silence() {
     voice.attack = 1.5;
     voice.decay = 180.0;
 
-    voice.trigger(1.0);
+    voice.trigger(1.0, 120.0);
 
     let mut max_abs = 0.0f32;
     let mut non_zero = 0;

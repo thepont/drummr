@@ -46,7 +46,7 @@ fn no_kit_clipping() {
                 Some(v) => v,
                 None => continue,
             };
-            voice.trigger(1.0);
+            voice.trigger(1.0, 120.0);
             let decay_ms = sound.decay.max(50.0);
             let n = ((decay_ms + 800.0) * SR / 1000.0) as usize;
             let mut consec = 0usize;

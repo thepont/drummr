@@ -1,6 +1,7 @@
 use crate::dsp::envelope::AdEnvelope;
 use crate::dsp::modulation::{ModAmount, ModSource, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
+use crate::dsp::timing::BeatDivision;
 use crate::dsp::utils::Xorshift;
 use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
@@ -165,6 +166,11 @@ pub struct ModalEngine {
     explicit_modes: Option<Vec<ExplicitMode>>,
 
     pub mod_engine: ModulationEngine,
+
+    // Tempo-locked overrides applied at trigger time.
+    pub lfo1_division: Option<BeatDivision>,
+    pub lfo2_division: Option<BeatDivision>,
+    pub decay_division: Option<BeatDivision>,
 }
 
 impl ModalEngine {
@@ -202,6 +208,9 @@ impl ModalEngine {
             tail_active: false,
             explicit_modes: None,
             mod_engine: ModulationEngine::new(sample_rate),
+            lfo1_division: None,
+            lfo2_division: None,
+            decay_division: None,
         };
 
         me.rebuild_modes();
@@ -335,13 +344,27 @@ impl ModalEngine {
         ]
     }
 
-    pub fn trigger(&mut self, velocity: f32) {
+    pub fn trigger(&mut self, velocity: f32, bpm: f32) {
         self.mod_engine.velocity = velocity;
         if velocity > 0.0 {
+            // Tempo-locked decay overrides the static `decay` (ms) when set.
+            // Modal voices store the resolved decay back into `self.decay`
+            // (ms) so `rebuild_modes()` — which uses `self.decay` to compute
+            // per-mode Q values — picks up the live-tempo length.
+            if let Some(div) = self.decay_division {
+                self.decay = div.to_seconds(bpm) * 1000.0;
+            }
             self.amp_env
                 .set_params(self.attack / 1000.0, self.decay / 1000.0);
             self.amp_env.trigger();
             self.rebuild_modes();
+
+            if let Some(div) = self.lfo1_division {
+                self.mod_engine.set_lfo(1, div.to_hz(bpm));
+            }
+            if let Some(div) = self.lfo2_division {
+                self.mod_engine.set_lfo(2, div.to_hz(bpm));
+            }
 
             for m in self.modes.iter_mut() {
                 m.reset_state();
@@ -477,7 +500,7 @@ mod tests {
     #[test]
     fn test_modal_engine_runs_clean() {
         let mut e = ModalEngine::new(48000.0);
-        e.trigger(1.0);
+        e.trigger(1.0, 120.0);
         assert!(
             e.is_active(),
             "engine should be active immediately after trigger"
@@ -502,7 +525,7 @@ mod tests {
         let mut e = ModalEngine::new(48000.0);
         e.set_param("freq", 880.0);
         assert!((e.frequency.base_value - 880.0).abs() < 1e-3);
-        e.trigger(1.0);
+        e.trigger(1.0, 120.0);
         // Just make sure it still ticks finite at a different fundamental.
         for _ in 0..256 {
             let y = e.tick();

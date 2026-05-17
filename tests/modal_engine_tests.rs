@@ -9,7 +9,7 @@ fn run_collect(engine: &mut ModalEngine, n: usize) -> Vec<f32> {
 #[test]
 fn test_modal_activates_on_trigger() {
     let mut e = ModalEngine::new(SR);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
     assert!(
         e.is_active(),
         "engine should report active immediately after trigger"
@@ -35,7 +35,7 @@ fn test_modal_decays_to_inactive() {
     // Short decay: 50 ms
     e.set_param("decay", 50.0);
     e.set_param("attack", 1.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
 
     // Run for 2x the decay time (100 ms) total
     let total = (SR * 0.1) as usize;
@@ -64,7 +64,7 @@ fn test_modal_decays_to_inactive() {
 fn test_modal_velocity_scaling() {
     fn peak_for(velocity: f32) -> f32 {
         let mut e = ModalEngine::new(SR);
-        e.trigger(velocity);
+        e.trigger(velocity, 120.0);
         let n = (SR * 0.1) as usize; // 100 ms
         let mut peak = 0.0f32;
         for _ in 0..n {
@@ -90,7 +90,7 @@ fn test_modal_velocity_scaling() {
 #[test]
 fn test_modal_frequency_change_doesnt_explode() {
     let mut e = ModalEngine::new(SR);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
 
     for _ in 0..100 {
         let y = e.tick();
@@ -114,7 +114,7 @@ fn test_modal_inharmonicity_extremes() {
     fn rms_for(inharm: f32) -> f32 {
         let mut e = ModalEngine::new(SR);
         e.set_param("inharmonicity", inharm);
-        e.trigger(1.0);
+        e.trigger(1.0, 120.0);
         let samples: Vec<f32> = (0..500)
             .map(|_| {
                 let y = e.tick();
@@ -147,7 +147,7 @@ fn test_modal_inharmonicity_extremes() {
 #[test]
 fn test_modal_handles_zero_velocity() {
     let mut e = ModalEngine::new(SR);
-    e.trigger(0.0);
+    e.trigger(0.0, 120.0);
 
     let mut max_abs = 0.0f32;
     for _ in 0..2000 {
@@ -184,7 +184,7 @@ fn test_modal_typical_kit_voices_are_audible() {
         e.set_param("dampening", damp);
         e.set_param("inharmonicity", inh);
         e.set_param("decay", dec);
-        e.trigger(1.0);
+        e.trigger(1.0, 120.0);
 
         let n = (SR * (dec / 1000.0 + 0.5)) as usize;
         let mut peak = 0.0f32;
@@ -222,7 +222,7 @@ fn test_modal_extreme_corners_clamp_safely() {
         e.set_param("brightness", bright);
         e.set_param("dampening", damp);
         e.set_param("decay", dec);
-        e.trigger(1.0);
+        e.trigger(1.0, 120.0);
         let n = (SR * (dec / 1000.0 + 0.5)) as usize;
         for _ in 0..n {
             let y = e.tick();
@@ -254,7 +254,7 @@ fn test_modal_is_active_honours_tail() {
     e.set_param("decay", 1000.0);
     e.set_param("attack", 1.0);
     e.set_param("dampening", 0.0); // longest possible mode-bank ring
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
 
     assert!(
         e.is_active(),
@@ -301,7 +301,7 @@ fn test_modal_eventually_inactive() {
     e.set_param("dampening", 0.0);
     e.set_param("brightness", 1.0);
     e.set_param("freq", 2000.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
 
     // 4 seconds of samples — well past the 1s decay and any plausible ring.
     let n = (SR as usize) * 4;
@@ -340,7 +340,7 @@ fn test_modal_clipping_rate_acceptable() {
                     e.set_param("brightness", b);
                     e.set_param("dampening", d);
                     e.set_param("decay", dec);
-                    e.trigger(1.0);
+                    e.trigger(1.0, 120.0);
 
                     let n = (SR * (dec / 1000.0 + 0.3)) as usize;
                     let mut clipped = 0usize;
@@ -419,7 +419,7 @@ fn test_explicit_modes_two_freqs() {
     // brightness = 1.0 so the rolloff doesn't suppress the second mode.
     e.set_param("brightness", 1.0);
     e.set_param("decay", 400.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
 
     let samples = run_collect(&mut e, 4800); // 100 ms
     for (i, s) in samples.iter().enumerate() {
@@ -450,7 +450,7 @@ fn test_explicit_modes_fewer_than_max() {
         ExplicitMode { freq: 700.0, q: 40.0, gain: 0.8 },
     ]));
     e.set_param("brightness", 1.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
 
     let samples = run_collect(&mut e, 4800);
     let mut max_abs = 0.0_f32;
@@ -474,13 +474,13 @@ fn test_explicit_modes_clears_when_none() {
     e.set_param("freq", 220.0);
     e.set_param("brightness", 0.7);
     e.set_param("decay", 400.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
     let _ = run_collect(&mut e, 100);
 
     // Now clear and re-trigger; engine should now use harmonic/Bessel modes
     // built off freq = 220 Hz.
     e.set_explicit_modes(None);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
     let samples = run_collect(&mut e, 4800);
     let mut max_abs = 0.0_f32;
     for s in &samples {
@@ -498,7 +498,7 @@ fn test_explicit_modes_clears_when_none() {
 fn test_modal_repeated_triggers() {
     let mut e = ModalEngine::new(SR);
     for _ in 0..5 {
-        e.trigger(1.0);
+        e.trigger(1.0, 120.0);
         for _ in 0..200 {
             let y = e.tick();
             assert!(y.is_finite(), "non-finite sample during repeated triggers");

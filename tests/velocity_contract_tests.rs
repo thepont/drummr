@@ -56,7 +56,7 @@ fn test_fm_velocity_scales_output() {
     v.mod_index.base_value = 3.0;
     v.attack = 1.0;
     v.decay = 100.0;
-    v.trigger(1.0);
+    v.trigger(1.0, 120.0);
     let peak_full = peak_abs(|| v.tick(), n);
 
     let mut v = FmVoice::new(SR);
@@ -64,7 +64,7 @@ fn test_fm_velocity_scales_output() {
     v.mod_index.base_value = 3.0;
     v.attack = 1.0;
     v.decay = 100.0;
-    v.trigger(0.25);
+    v.trigger(0.25, 120.0);
     let peak_low = peak_abs(|| v.tick(), n);
 
     assert_velocity_scales("FM", peak_full, peak_low);
@@ -81,14 +81,14 @@ fn test_phys_velocity_scales_output() {
     e.set_param("freq", 200.0);
     e.set_param("attack", 1.0);
     e.set_param("decay", 200.0);
-    e.trigger(0.3);
+    e.trigger(0.3, 120.0);
     let peak_full = peak_abs(|| e.tick(), n);
 
     let mut e = PhysEngine::new(SR);
     e.set_param("freq", 200.0);
     e.set_param("attack", 1.0);
     e.set_param("decay", 200.0);
-    e.trigger(0.075);
+    e.trigger(0.075, 120.0);
     let peak_low = peak_abs(|| e.tick(), n);
 
     assert_velocity_scales("Phys", peak_full, peak_low);
@@ -107,7 +107,7 @@ fn test_granular_velocity_scales_output() {
     e.set_param("jitter", 0.0);
     e.set_param("attack", 1.0);
     e.set_param("decay", 200.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
     let peak_full = peak_abs(|| e.tick(), n);
 
     let mut e = GranularEngine::new(SR);
@@ -117,7 +117,7 @@ fn test_granular_velocity_scales_output() {
     e.set_param("jitter", 0.0);
     e.set_param("attack", 1.0);
     e.set_param("decay", 200.0);
-    e.trigger(0.25);
+    e.trigger(0.25, 120.0);
     let peak_low = peak_abs(|| e.tick(), n);
 
     assert_velocity_scales("Granular", peak_full, peak_low);
@@ -133,7 +133,7 @@ fn test_hybrid_velocity_scales_output() {
     e.set_param("metallic", 0.5);
     e.set_param("attack", 1.0);
     e.set_param("decay", 100.0);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
     let peak_full = peak_abs(|| e.tick(), n);
 
     let mut e = HybridEngine::new(SR);
@@ -142,7 +142,7 @@ fn test_hybrid_velocity_scales_output() {
     e.set_param("metallic", 0.5);
     e.set_param("attack", 1.0);
     e.set_param("decay", 100.0);
-    e.trigger(0.25);
+    e.trigger(0.25, 120.0);
     let peak_low = peak_abs(|| e.tick(), n);
 
     assert_velocity_scales("Hybrid", peak_full, peak_low);
@@ -153,11 +153,11 @@ fn test_modal_velocity_scales_output() {
     let n = (SR * 0.1) as usize;
 
     let mut e = ModalEngine::new(SR);
-    e.trigger(1.0);
+    e.trigger(1.0, 120.0);
     let peak_full = peak_abs(|| e.tick(), n);
 
     let mut e = ModalEngine::new(SR);
-    e.trigger(0.25);
+    e.trigger(0.25, 120.0);
     let peak_low = peak_abs(|| e.tick(), n);
 
     assert_velocity_scales("Modal", peak_full, peak_low);
@@ -171,11 +171,11 @@ fn test_noise_velocity_scales_output() {
     let n = (SR * 0.1) as usize;
 
     let mut v = NoiseVoice::new(SR);
-    v.trigger(1.0);
+    v.trigger(1.0, 120.0);
     let peak_full = peak_abs(|| v.tick(), n);
 
     let mut v = NoiseVoice::new(SR);
-    v.trigger(0.25);
+    v.trigger(0.25, 120.0);
     let peak_low = peak_abs(|| v.tick(), n);
 
     assert_velocity_scales("Noise", peak_full, peak_low);

@@ -16,7 +16,7 @@ fn test_granular_high_density_doesnt_clip() {
     engine.set_param("attack", 1.0);
     engine.set_param("decay", 2000.0);
 
-    engine.trigger(1.0);
+    engine.trigger(1.0, 120.0);
 
     const RAIL: f32 = 0.999;
     const MAX_RUN: usize = 100;
@@ -63,7 +63,7 @@ fn test_granular_velocity_still_scales() {
         engine.set_param("jitter", 0.3);
         engine.set_param("attack", 1.0);
         engine.set_param("decay", 300.0);
-        engine.trigger(velocity);
+        engine.trigger(velocity, 120.0);
         let mut peak = 0.0f32;
         for _ in 0..(0.4 * 48000.0) as usize {
             peak = peak.max(engine.tick().abs());
@@ -107,7 +107,7 @@ fn test_granular_engine_output() {
     engine.set_param("decay", 200.0);
 
     // Trigger
-    engine.trigger(1.0);
+    engine.trigger(1.0, 120.0);
 
     // Check output
     let mut max_abs = 0.0f32;

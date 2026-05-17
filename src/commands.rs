@@ -43,7 +43,10 @@ fn analyze_sound(sound: &DrumSound, sample_rate: f32) -> Option<VoiceAnalysis> {
     let total_samples =
         (((decay_ms + 500.0) * sample_rate / 1000.0).max(1.0) as u64).min(1_000_000) as u32;
 
-    voice.trigger(1.0);
+    // Off-thread analysis doesn't have a live tempo handy and the analysis
+    // measurements (peak / RMS / clipping) aren't really tempo-dependent —
+    // any sane BPM works. 120 matches the SharedState default initialisation.
+    voice.trigger(1.0, 120.0);
 
     let mut peak: f32 = 0.0;
     let mut sum_sq: f64 = 0.0;
@@ -114,6 +117,9 @@ fn kit_to_json(config: &DrumKit) -> String {
                 "decay": s.decay,
                 "lfo1_freq": s.lfo1_freq.unwrap_or(1.0),
                 "lfo2_freq": s.lfo2_freq.unwrap_or(1.0),
+                "lfo1_division": s.lfo1_division,
+                "lfo2_division": s.lfo2_division,
+                "decay_division": s.decay_division,
                 "mods": s.mods
             })
         })
