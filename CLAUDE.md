@@ -63,11 +63,25 @@ Adding a new engine means: (1) implement the engine struct with `schema()`, `set
 - Named kits live in `presets/kits/*.toml`; named sound presets in `presets/sounds/*.toml`. `kit.toml` at the repo root is the live working kit and is rewritten on every parameter change.
 
 ### WebSocket command protocol (`commands.rs`)
-Messages are plain text with prefixes — not JSON envelopes. Examples:
-- Client → server: `GET_KIT`, `GET_SCHEMA:3`, `SET_PARAM:slot|name|value`, `SET_MOD:slot|name|source|depth`, `SET_LFO:slot|index|freq`, `LIST_MIDI`, `SELECT_AUDIO:<name>`, `LOAD_KIT:<name>`, `SAVE_KIT_AS:<name>`, `TEST_TRIGGER:<note>`.
-- Server → client: `KIT: <json>`, `SCHEMA:<slot>|<json>`, `MOD_STATES:<json>`, `BPM: 120.0`, `MIDI: <note>,<vel>`, `PORT: <name>`, `AUDIO_DEVICE: <name>`.
+Messages are plain text with prefixes — not JSON envelopes. The full list lives in `handle_command` (`src/commands.rs`); the UI dispatcher lives in `ui/src/App.tsx::onmessage`. The two must stay in sync — when adding a new command, edit both sides.
 
-When adding a new command, edit both `commands.rs` (Rust handler) and `ui/src/App.tsx` (the `onmessage` parser dispatches by prefix).
+Client → server (selected):
+- **Kit / param edits**: `GET_KIT`, `GET_SCHEMA:<slot>`, `SET_PARAM:slot|name|value`, `SET_MOD:slot|name|source|depth`, `SET_LFO:slot|index|freq`, `SET_BITS:slot|val`, `SET_RATE:slot|val`.
+- **Clock-aware fields**: `SET_DIVISION:slot|param|division` (param is `lfo1` / `lfo2` / `decay`; division is a `BeatDivision` variant name like `Quarter` or `Bar`), `CLEAR_DIVISION:slot|param`. Note: the generative-trigger fields (`trigger_probability`, `ghost_probability`, `ghost_offset_ms`, `ghost_velocity_factor`) are sent through plain `SET_PARAM:` — `commands.rs` routes them to `AudioCommand::SetGenerative` internally.
+- **Presets**: `LIST_KITS`, `LOAD_KIT:<name>`, `SAVE_KIT_AS:<name>`, `LIST_SOUND_PRESETS`, `SAVE_SOUND_PRESET:<name>:<slot>`, `LOAD_SOUND_PRESET:<name>:<slot>`.
+- **Mapping**: `GET_MAPPING`, `UPDATE_MAPPING:slot:note`, `SAVE_MAPPING:<json>`.
+- **Devices / discovery**: `LIST_MIDI`, `LIST_AUDIO`, `SELECT_MIDI:<index>`, `SELECT_AUDIO:<index>`.
+- **Diagnostics**: `ANALYZE_SLOT:<slot>` (off-thread peak/RMS/clipping/silent measurement), `TEST_TRIGGER:<slot>`.
+- **Sync**: `SYNC_START`, `SYNC_STOP`, `SET_AUTO_SYNC:<bool>`, `GET_SYNC_STATUS`.
+- **Preview Kit (MIDI playback)**: `LIST_MIDI_TRACKS`, `PLAY_MIDI_TRACK:<name>`, `STOP_MIDI_PLAYBACK`.
+
+Server → client (selected):
+- **Kit / schema**: `KIT: <json>` (includes all clock-aware fields — `sub_hits`, `pattern`, `mode_list`, the ghost-* and `trigger_probability`, the three `*_division` fields), `SCHEMA:<slot>|<json>`, `KIT_LIST:<csv>`, `SOUND_PRESETS:<csv>`, `KIT_ERROR:<name>:<phase>:<detail>` (emitted on `LOAD_KIT` failure).
+- **Realtime state**: `MOD_STATES:<json>` (40 ms broadcast loop), `BPM: <f32>` (100 ms loop), `MIDI: <note>,<vel>`.
+- **Devices**: `LIST_MIDI: <csv>`, `LIST_AUDIO: <csv>`, `PORT: <name>`, `AUDIO_DEVICE: <name>`.
+- **Diagnostics**: `ANALYSIS:<slot>|<json>` (peak, rms, clipped_samples, sustained_clip, silent, engine, decay_ms), `AUDIO_LEAKS:<count>` (cpal::Stream leak count from device hot-swaps).
+- **Preview Kit**: `MIDI_TRACKS:<csv>`, `MIDI_TRACK_PLAYING:<name>`, `MIDI_TRACK_STOPPED:<name>`, `MIDI_TRACK_ERROR:<name>`.
+- **Sync / mapping**: `SYNC_STATUS:<Running|Stopped>`, `MAPPING: <json>`.
 
 ### BPM / sync
 `dsp/bpm_engine.rs` infers tempo from audio input (default input device) AND MIDI note onsets. `sync.rs` creates a **virtual MIDI output port** (`drummr Sync Out`) on Linux via `midir`'s `VirtualOutput` — this is Linux-specific (ALSA/JACK); macOS will log a warning and continue without sync output.
