@@ -270,6 +270,27 @@ pub struct DrumSound {
     /// queue. Capped at `MAX_PATTERN_STEPS_PER_PRIMARY` (32) per
     /// primary.
     pub pattern: Option<Vec<PatternStep>>,
+    /// Optional probability that a primary trigger actually fires.
+    /// 1.0 (or unset) = always fires; 0.5 = ~half the hits drop; 0.0
+    /// = no hit ever fires. When the gate drops, sub-hits and
+    /// pattern steps drop with the primary (the whole hit is voided).
+    /// Cures the machine-gun-roll problem on long sequences.
+    pub trigger_probability: Option<f32>,
+    /// Optional probability of spawning a ghost note alongside an
+    /// actually-fired primary. 0.0 (or unset) = never; 0.4 = ~40%
+    /// of fired primaries also schedule a soft echo at
+    /// `ghost_offset_ms` with velocity `primary_velocity *
+    /// ghost_velocity_factor`. Independent of `trigger_probability`
+    /// — a dropped primary cannot produce a ghost.
+    pub ghost_probability: Option<f32>,
+    /// Milliseconds after the primary when the ghost note fires.
+    /// Defaults to 60 ms (a comfortable flam-into-ghost spacing) when
+    /// unset. Identical to a single `sub_hits` entry except gated by
+    /// a probability roll rather than firing every time.
+    pub ghost_offset_ms: Option<f32>,
+    /// Velocity multiplier for the ghost note. Defaults to 0.3 when
+    /// unset (the canonical "soft echo" level).
+    pub ghost_velocity_factor: Option<f32>,
 }
 
 /// Construct a single `Voice` from a `DrumSound`, applying engine-specific
@@ -381,6 +402,35 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
     Some(voice)
 }
 
+/// Resolved-at-build-time generative trigger settings for one slot.
+/// Defaults map to the pre-feature behaviour (probability=1, no ghost)
+/// so a kit that doesn't set any of the new DrumSound fields is
+/// bit-for-bit identical to the original code path.
+#[derive(Debug, Clone, Copy)]
+pub struct GenerativeSettings {
+    /// Probability in `[0, 1]` that a primary trigger fires at all.
+    pub trigger_probability: f32,
+    /// Probability in `[0, 1]` that a fired primary also spawns a
+    /// ghost note. Independent of `trigger_probability` — a dropped
+    /// primary never produces a ghost.
+    pub ghost_probability: f32,
+    /// Delay from the primary to the ghost, in milliseconds.
+    pub ghost_offset_ms: f32,
+    /// Velocity multiplier for the ghost note.
+    pub ghost_velocity_factor: f32,
+}
+
+impl Default for GenerativeSettings {
+    fn default() -> Self {
+        Self {
+            trigger_probability: 1.0,
+            ghost_probability: 0.0,
+            ghost_offset_ms: 60.0,
+            ghost_velocity_factor: 0.3,
+        }
+    }
+}
+
 /// Internal trigger event deferred to a future sample. Owned by
 /// `KitEngine::pending` so the audio thread can fire flams, drags, pattern
 /// steps, ghost notes, and any other time-shifted hit from a single
@@ -414,6 +464,11 @@ pub struct KitEngine {
     pub sub_hits: [Vec<SubHit>; 16],
     /// Per-slot rhythm pattern. See `DrumSound::pattern`.
     pub pattern: [Vec<PatternStep>; 16],
+    /// Per-slot generative-trigger settings. Resolved into the
+    /// audio-thread-friendly `GenerativeSettings` form at kit-build
+    /// time so the trigger path doesn't have to unwrap Options on
+    /// every hit.
+    pub generative: [GenerativeSettings; 16],
     /// Time-deferred trigger queue. Drained in `tick()` against
     /// `samples_processed`; entries whose `fire_at_sample` has elapsed
     /// fire their slot and are removed. Pre-allocated to
@@ -459,6 +514,12 @@ impl KitEngine {
         ];
         const EMPTY_SUB_HITS: Vec<SubHit> = Vec::new();
         const EMPTY_PATTERN: Vec<PatternStep> = Vec::new();
+        const DEFAULT_GEN: GenerativeSettings = GenerativeSettings {
+            trigger_probability: 1.0,
+            ghost_probability: 0.0,
+            ghost_offset_ms: 60.0,
+            ghost_velocity_factor: 0.3,
+        };
         Self {
             voices: [NO_VOICE; 16],
             postfx,
@@ -466,6 +527,7 @@ impl KitEngine {
             midi_map: [None; 128],
             sub_hits: [EMPTY_SUB_HITS; 16],
             pattern: [EMPTY_PATTERN; 16],
+            generative: [DEFAULT_GEN; 16],
             pending: VecDeque::with_capacity(PENDING_TRIGGER_CAPACITY),
             samples_processed: 0,
             rng: Xorshift::new(0xC10C),
@@ -559,6 +621,26 @@ impl KitEngine {
                     }
                     engine.pattern[idx] = bounded;
                 }
+
+                // Resolve generative settings. Each field defaults to
+                // its non-feature value (probability=1, ghost=0, etc.)
+                // when the DrumSound doesn't set it, so a slot opts in
+                // by setting any one field rather than all of them.
+                engine.generative[idx] = GenerativeSettings {
+                    trigger_probability: sound
+                        .trigger_probability
+                        .unwrap_or(1.0)
+                        .clamp(0.0, 1.0),
+                    ghost_probability: sound
+                        .ghost_probability
+                        .unwrap_or(0.0)
+                        .clamp(0.0, 1.0),
+                    ghost_offset_ms: sound.ghost_offset_ms.unwrap_or(60.0).max(0.0),
+                    ghost_velocity_factor: sound
+                        .ghost_velocity_factor
+                        .unwrap_or(0.3)
+                        .clamp(0.0, 1.0),
+                };
             }
         }
 
@@ -632,12 +714,42 @@ impl KitEngine {
         if slot >= 16 {
             return;
         }
+
+        // Generative gate: a single RNG roll decides BOTH whether the
+        // primary fires and (if it does) whether a ghost note spawns.
+        // One roll keeps the test sequence reproducible against a
+        // seeded RNG. The roll is consumed unconditionally so the
+        // sequence is the same regardless of which slot fires.
+        let gen_settings = self.generative[slot];
+        let roll = self.rng.next_f32();
+        if roll > gen_settings.trigger_probability {
+            // Primary suppressed; no sub-hits, no pattern, no ghost.
+            return;
+        }
+
         // Primary hit.
         if let Some(voice) = &mut self.voices[slot] {
             self.postfx[slot].reset();
             voice.trigger(velocity, bpm);
         } else {
             return;
+        }
+
+        // Ghost note: if the SAME roll falls inside the ghost
+        // probability slice, schedule a soft echo at the configured
+        // offset. Means trigger_probability and ghost_probability are
+        // not fully independent — if both are 1.0 every hit ghosts; if
+        // trigger is 1.0 and ghost is 0.4 then 40% of hits ghost; if
+        // trigger is 0.5 and ghost is 0.4 then ~40% of the SURVIVING
+        // primaries ghost (since roll is in [0, 0.5) for survivors).
+        // Documented semantic; cleaner determinism than independent
+        // rolls.
+        if gen_settings.ghost_probability > 0.0 && roll < gen_settings.ghost_probability {
+            let sr = self.sample_rate;
+            let samples_offset = (gen_settings.ghost_offset_ms * sr / 1000.0) as u64;
+            let ghost_vel =
+                (velocity * gen_settings.ghost_velocity_factor).clamp(0.0, 1.0);
+            self.queue_pending(slot, ghost_vel, samples_offset);
         }
 
         // Sub-hits: queue each entry as a pending fire at its

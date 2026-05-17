@@ -21,6 +21,10 @@ metallic = 0.2
 attack = 1.0
 decay = 180.0
 mods = [{param="freq", source="Velocity", depth=18.0}]
+# 30% of snare hits also spawn a soft ghost echo 80 ms later — adds
+# human-feel variation without programming a separate ghost track.
+ghost_probability = 0.3
+ghost_offset_ms = 80.0
 
 [[sounds]]
 name = "808 Closed Hat"

@@ -79,6 +79,10 @@ fn make_kit(name: &str, freq: f32) -> DrumKit {
             mode_list: None,
             sub_hits: None,
             pattern: None,
+            trigger_probability: None,
+            ghost_probability: None,
+            ghost_offset_ms: None,
+            ghost_velocity_factor: None,
         }],
     }
 }
@@ -112,6 +116,10 @@ fn make_sound() -> DrumSound {
         mode_list: None,
         sub_hits: None,
         pattern: None,
+        trigger_probability: None,
+        ghost_probability: None,
+        ghost_offset_ms: None,
+        ghost_velocity_factor: None,
     }
 }
 

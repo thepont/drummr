@@ -9,6 +9,9 @@ brightness = 0.25
 dampening = 0.55
 attack = 2.0
 decay = 460.0
+# 15% of hits drop entirely — sparse, organic, never quite predictable.
+# Trades clock-grid precision for atmospheric breathing room.
+trigger_probability = 0.85
 
 [[sounds]]
 name = "Twig Snap"

@@ -37,6 +37,10 @@ fn make_kick_sound(sub_hits: Option<Vec<SubHit>>) -> DrumSound {
         mode_list: None,
         sub_hits,
         pattern: None,
+        trigger_probability: None,
+        ghost_probability: None,
+        ghost_offset_ms: None,
+        ghost_velocity_factor: None,
     }
 }
 

@@ -31,6 +31,10 @@ fn test_sound_preset_serialization() {
         mode_list: None,
         sub_hits: None,
         pattern: None,
+        trigger_probability: None,
+        ghost_probability: None,
+        ghost_offset_ms: None,
+        ghost_velocity_factor: None,
     };
 
     let toml_str = toml::to_string(&sound).expect("Should serialize sound");

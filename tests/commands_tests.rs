@@ -114,6 +114,10 @@ fn make_test_kit() -> DrumKit {
                 mode_list: None,
                 sub_hits: None,
                 pattern: None,
+                trigger_probability: None,
+                ghost_probability: None,
+                ghost_offset_ms: None,
+                ghost_velocity_factor: None,
             },
             DrumSound {
                 name: "Snare".into(),
@@ -143,6 +147,10 @@ fn make_test_kit() -> DrumKit {
                 mode_list: None,
                 sub_hits: None,
                 pattern: None,
+                trigger_probability: None,
+                ghost_probability: None,
+                ghost_offset_ms: None,
+                ghost_velocity_factor: None,
             },
         ],
     }
@@ -523,6 +531,10 @@ async fn test_load_kit_replaces_snapshot() {
             mode_list: None,
             sub_hits: None,
             pattern: None,
+            trigger_probability: None,
+            ghost_probability: None,
+            ghost_offset_ms: None,
+            ghost_velocity_factor: None,
         }],
     };
     std::fs::write(

@@ -40,6 +40,10 @@ fn make_sound(engine: &str) -> DrumSound {
         mode_list: None,
         sub_hits: None,
         pattern: None,
+        trigger_probability: None,
+        ghost_probability: None,
+        ghost_offset_ms: None,
+        ghost_velocity_factor: None,
     }
 }
 
