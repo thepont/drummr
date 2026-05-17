@@ -100,14 +100,21 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Dedicated BPM broadcast loop
+    // Dedicated BPM broadcast loop. Also publishes the detected tempo to the
+    // SharedState atomic snapshot so the audio thread can drive tempo-locked
+    // LFOs and decays without needing to lock the BpmEngine. We use 120 BPM
+    // as a fallback so the snapshot is always populated with a sensible value
+    // even before the detector has seen enough onsets.
     let comm_bpm_loop = comm_engine.clone();
+    let shared_state_bpm = shared_state.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
         loop {
             interval.tick().await;
             if let Ok(mut bpm_lock) = bpm_engine_comm.try_lock() {
                 let bpm = bpm_lock.get_bpm();
+                let effective = if bpm > 0.0 { bpm } else { 120.0 };
+                shared_state_bpm.store_bpm(effective);
                 comm_bpm_loop.broadcast(format!("BPM: {:.1}", bpm));
             }
         }

@@ -6,6 +6,14 @@ pub type MidiEvent = [u8; 3];
 
 pub struct SharedState {
     mod_values: [AtomicU32; 16 * 5], // [slot * 5 + source]
+    /// Current detected tempo, stored as the raw bits of an `f32` so the audio
+    /// thread can read it lock-free every block. Written by the 10 Hz BPM
+    /// broadcast task in `main.rs` (which already holds the `BpmEngine` mutex),
+    /// read by the audio callback in `start_audio` to drive tempo-locked LFO
+    /// and decay timing (see `BeatDivision` in `dsp::timing`). Initialised to
+    /// 120 BPM so the first audio block before any MIDI has been detected
+    /// still gets a sensible default.
+    pub current_bpm_bits: AtomicU32,
     pub kit: Arc<std::sync::Mutex<KitEngine>>,
     /// Authoritative in-memory snapshot of the current kit's serializable state.
     /// All SET_* commands mutate this directly; the persistence worker receives
@@ -43,12 +51,33 @@ impl SharedState {
         const ZERO: AtomicU32 = AtomicU32::new(0);
         Self {
             mod_values: [ZERO; 16 * 5],
+            current_bpm_bits: AtomicU32::new(120.0_f32.to_bits()),
             kit: Arc::new(std::sync::Mutex::new(kit)),
             kit_snapshot: Arc::new(std::sync::Mutex::new(kit_snapshot)),
             audio_stream_leak_count: AtomicU32::new(0),
             audio_error_tx,
             midi_playback_handle: std::sync::Mutex::new(None),
         }
+    }
+
+    /// Store the latest detected BPM. Clamped to [40, 240] to keep downstream
+    /// `BeatDivision::to_seconds` from producing absurd durations when the
+    /// estimator briefly latches onto a sub-/super-octave during onset bursts.
+    /// Non-finite inputs (NaN / inf from a degenerate detector state) are
+    /// silently ignored.
+    pub fn store_bpm(&self, bpm: f32) {
+        if !bpm.is_finite() {
+            return;
+        }
+        let clamped = bpm.clamp(40.0, 240.0);
+        self.current_bpm_bits
+            .store(clamped.to_bits(), Ordering::Relaxed);
+    }
+
+    /// Read the current BPM snapshot. Lock-free; safe to call from the audio
+    /// callback once per block.
+    pub fn load_bpm(&self) -> f32 {
+        f32::from_bits(self.current_bpm_bits.load(Ordering::Relaxed))
     }
 
     pub fn set_value(&self, slot: usize, source_idx: usize, value: f32) {
