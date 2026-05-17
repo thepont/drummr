@@ -170,6 +170,7 @@ Aggressive use of systems already shipped. ~1 day total. No regression risk.
 - [ ] **No LICENSE file** — repo defaults to all-rights-reserved.
 - [ ] **Packaging paths anchored to `CARGO_MANIFEST_DIR`** — `presets/`, `kit.toml`, `mapping.toml`, `settings.toml` won't survive a packaged release binary. Make `DRUMMR_HOME` env var optional.
 - [ ] **Modal engine `_ = env_active` at `src/dsp/modal.rs:297`** — leftover from refactor; either early-out when fully decayed or remove.
+- [ ] **Clock-aware / polyrhythmic drum design** — research at `docs/research/clock_polyrhythm.md`. Atomic BPM snapshot on SharedState is the chokepoint (~10 LOC) and unblocks tempo-locked LFOs, multi-bar decays, and clock-driven sub-patterns.
 
 ---
 
