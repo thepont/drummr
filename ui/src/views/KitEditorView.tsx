@@ -48,8 +48,11 @@ type AnalysisStatus = 'clipping' | 'silent' | 'healthy';
 
 function statusFor(a: AnalysisResult | undefined): AnalysisStatus | null {
   if (!a) return null;
-  if (a.sustained_clip || a.peak >= 0.999) return 'clipping';
-  if (a.silent || a.peak < 0.05) return 'silent';
+  // A single envelope-peak sample touching unity is normal and fine; only
+  // sustained rail-locking (>= ~100 consecutive samples) is audible
+  // distortion. The backend already computes that into `sustained_clip`.
+  if (a.sustained_clip) return 'clipping';
+  if (a.silent) return 'silent';
   return 'healthy';
 }
 
