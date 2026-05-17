@@ -3,8 +3,25 @@ use crate::dsp::modal::ExplicitMode;
 use crate::dsp::noise::NoiseVoice;
 use crate::dsp::postfx::PostFx;
 use crate::dsp::timing::BeatDivision;
+use crate::dsp::utils::Xorshift;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use std::collections::VecDeque;
+
+/// Maximum number of pending triggers the queue can hold at any moment.
+/// Pre-sized at construction so `tick()` never allocates on the audio
+/// thread. 128 covers ~8 active slots each holding a full pattern (16
+/// steps) plus a few stragglers — well outside any realistic kit's needs
+/// at any single instant.
+pub const PENDING_TRIGGER_CAPACITY: usize = 128;
+
+/// Hard cap on sub-hits queued per primary trigger. Anything past this
+/// is silently dropped; prevents a runaway TOML from flooding the audio
+/// thread with thousands of deferred fires.
+pub const MAX_SUB_HITS_PER_PRIMARY: usize = 8;
+
+/// Hard cap on pattern steps queued per primary trigger.
+pub const MAX_PATTERN_STEPS_PER_PRIMARY: usize = 32;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ParamSchema {
@@ -304,6 +321,23 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
     Some(voice)
 }
 
+/// Internal trigger event deferred to a future sample. Owned by
+/// `KitEngine::pending` so the audio thread can fire flams, drags, pattern
+/// steps, ghost notes, and any other time-shifted hit from a single
+/// uniform mechanism. Never serialised — purely runtime state.
+#[derive(Debug, Clone, Copy)]
+pub struct PendingTrigger {
+    /// Slot index (0..16) to retrigger when the timer expires.
+    pub slot: usize,
+    /// Velocity to pass into `Voice::trigger`. Already includes any
+    /// `velocity_factor` scaling from the source feature.
+    pub velocity: f32,
+    /// Absolute sample index (relative to `KitEngine::samples_processed`)
+    /// at which the trigger should fire. Stored absolute so the queue
+    /// doesn't need to mutate every entry every tick.
+    pub fire_at_sample: u64,
+}
+
 pub struct KitEngine {
     pub voices: [Option<Voice>; 16],
     /// Per-slot post-FX (bitcrusher + sample-rate reducer). Always present so
@@ -311,6 +345,26 @@ pub struct KitEngine {
     pub postfx: [PostFx; 16],
     pub sample_rate: f32,
     pub midi_map: [Option<usize>; 128], // note -> slot index
+    /// Time-deferred trigger queue. Drained in `tick()` against
+    /// `samples_processed`; entries whose `fire_at_sample` has elapsed
+    /// fire their slot and are removed. Pre-allocated to
+    /// `PENDING_TRIGGER_CAPACITY` so the audio thread never reallocates.
+    pub pending: VecDeque<PendingTrigger>,
+    /// Monotonic sample counter incremented once per `tick()`. The
+    /// reference clock for `PendingTrigger::fire_at_sample`. Wraps at u64
+    /// max — irrelevant on any human-time scale (a 48 kHz stream would
+    /// take ~12 million years to wrap).
+    pub samples_processed: u64,
+    /// Per-engine RNG used by trigger-time generative features
+    /// (probability gate, ghost notes). Single shared stream so two
+    /// voices' rolls are independent in expectation but reproducible
+    /// when seeded.
+    pub rng: Xorshift,
+    /// Last BPM seen on `trigger()`. Cached so `tick()` (which has no
+    /// BPM argument) can fire pending sub-hits and pattern steps at a
+    /// sensible tempo. The audio thread already snapshots BPM per
+    /// block before draining note events, so this is always recent.
+    pub last_bpm: f32,
 }
 
 impl KitEngine {
@@ -339,6 +393,65 @@ impl KitEngine {
             postfx,
             sample_rate,
             midi_map: [None; 128],
+            pending: VecDeque::with_capacity(PENDING_TRIGGER_CAPACITY),
+            samples_processed: 0,
+            rng: Xorshift::new(0xC10C),
+            last_bpm: 120.0,
+        }
+    }
+
+    /// Reseed the per-engine RNG. Used by tests that need deterministic
+    /// sequences out of the probability / ghost-note features. Audio-thread
+    /// safe; just overwrites the existing state.
+    pub fn set_rng_seed(&mut self, seed: u32) {
+        self.rng = Xorshift::new(seed);
+    }
+
+    /// Push a deferred trigger onto the pending queue. Silently drops the
+    /// request if the queue is already at `PENDING_TRIGGER_CAPACITY` so
+    /// `tick()` is guaranteed never to allocate. Returns `true` if the
+    /// trigger was queued, `false` if the queue was full.
+    pub fn queue_pending(
+        &mut self,
+        slot: usize,
+        velocity: f32,
+        samples_from_now: u64,
+    ) -> bool {
+        if self.pending.len() >= PENDING_TRIGGER_CAPACITY {
+            return false;
+        }
+        self.pending.push_back(PendingTrigger {
+            slot,
+            velocity,
+            fire_at_sample: self.samples_processed.wrapping_add(samples_from_now),
+        });
+        true
+    }
+
+    /// Drain any pending triggers whose `fire_at_sample` has elapsed,
+    /// firing each one against its slot's voice. Called once per
+    /// `tick()` before the audio sum.
+    fn drain_pending(&mut self, bpm: f32) {
+        // Find and fire all expired entries. We swap-remove against a
+        // small temporary because firing may itself queue more deferred
+        // triggers (sub-hits on the spawned voice) — those must NOT
+        // re-fire in the same tick. Capacity is bounded; the temporary
+        // is short-lived.
+        let mut i = 0;
+        while i < self.pending.len() {
+            if self.pending[i].fire_at_sample <= self.samples_processed {
+                let entry = self.pending.swap_remove_back(i).unwrap();
+                if entry.slot < 16 {
+                    if let Some(voice) = &mut self.voices[entry.slot] {
+                        self.postfx[entry.slot].reset();
+                        voice.trigger(entry.velocity, bpm);
+                    }
+                }
+                // Don't advance `i` — swap_remove_back put a different
+                // element in this slot. Re-check it.
+            } else {
+                i += 1;
+            }
         }
     }
 
@@ -412,6 +525,11 @@ impl KitEngine {
     }
 
     pub fn trigger(&mut self, note: u8, velocity: f32, bpm: f32) {
+        // Cache BPM so `tick()` (no BPM argument) can fire any pending
+        // sub-hits or pattern steps at the same tempo we saw on the
+        // primary. Cached even if the note didn't resolve to a slot —
+        // pending entries already in flight still need a tempo.
+        self.last_bpm = bpm;
         if note < 128 {
             if let Some(slot) = self.midi_map[note as usize] {
                 if let Some(voice) = &mut self.voices[slot] {
@@ -435,6 +553,22 @@ impl KitEngine {
     }
 
     pub fn tick(&mut self) -> f32 {
+        // Bump the monotonic counter first so a "fire 100 samples from
+        // now" entry queued at sample N actually fires on the 100th
+        // subsequent tick (i.e. when `samples_processed` reaches N+100).
+        // The counter is the index of the sample currently being
+        // computed, not the count of samples already emitted.
+        self.samples_processed = self.samples_processed.wrapping_add(1);
+
+        // Drain any pending triggers whose absolute fire time has
+        // arrived. Done BEFORE the audio sum so a freshly-fired voice
+        // contributes to this same output sample (no perceived
+        // one-sample latency vs the primary).
+        if !self.pending.is_empty() {
+            let bpm = self.last_bpm;
+            self.drain_pending(bpm);
+        }
+
         let mut out = 0.0;
         for (i, voice_opt) in self.voices.iter_mut().enumerate() {
             if let Some(voice) = voice_opt {
@@ -443,5 +577,79 @@ impl KitEngine {
             }
         }
         out.clamp(-1.0, 1.0)
+    }
+}
+
+#[cfg(test)]
+mod kit_engine_pending_tests {
+    use super::*;
+
+    const SR: f32 = 48000.0;
+
+    /// Build a minimal kit with a single FM voice in slot 0 so we can
+    /// observe trigger firings via voice activity.
+    fn one_slot_kit() -> KitEngine {
+        let mut engine = KitEngine::new(SR);
+        let mut fm = FmVoice::new(SR);
+        fm.decay = 50.0;
+        engine.voices[0] = Some(Voice::Fm(fm));
+        engine
+    }
+
+    #[test]
+    fn test_pending_queue_starts_empty_and_counter_zero() {
+        let engine = KitEngine::new(SR);
+        assert_eq!(engine.pending.len(), 0);
+        assert_eq!(engine.samples_processed, 0);
+    }
+
+    #[test]
+    fn test_pending_trigger_fires_at_correct_sample() {
+        let mut engine = one_slot_kit();
+        engine.last_bpm = 120.0;
+        // Queue a trigger 100 samples into the future.
+        let queued = engine.queue_pending(0, 1.0, 100);
+        assert!(queued, "expected queue to accept entry");
+        assert_eq!(engine.pending.len(), 1);
+
+        // Tick 99 samples — should not fire.
+        for _ in 0..99 {
+            engine.tick();
+        }
+        assert_eq!(engine.pending.len(), 1, "should not have fired yet at 99 samples");
+
+        // Tick the 100th — the trigger fires.
+        engine.tick();
+        assert_eq!(engine.pending.len(), 0, "trigger should have fired");
+
+        // The voice should now be active.
+        let active = match &engine.voices[0] {
+            Some(Voice::Fm(v)) => v.is_active(),
+            _ => false,
+        };
+        assert!(active, "voice should be active after pending trigger fired");
+    }
+
+    #[test]
+    fn test_pending_queue_capacity_cap() {
+        let mut engine = KitEngine::new(SR);
+        // Fill to capacity.
+        for _ in 0..PENDING_TRIGGER_CAPACITY {
+            assert!(engine.queue_pending(0, 1.0, 1000));
+        }
+        // One more should be rejected (no allocation, returns false).
+        assert!(!engine.queue_pending(0, 1.0, 1000));
+        assert_eq!(engine.pending.len(), PENDING_TRIGGER_CAPACITY);
+    }
+
+    #[test]
+    fn test_pending_does_not_fire_when_slot_empty() {
+        let mut engine = KitEngine::new(SR);
+        // No voice in slot 0; queue should still pop cleanly without panic.
+        engine.queue_pending(0, 1.0, 5);
+        for _ in 0..10 {
+            engine.tick();
+        }
+        assert_eq!(engine.pending.len(), 0);
     }
 }
