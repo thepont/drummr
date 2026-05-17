@@ -1,5 +1,6 @@
 import { Waves, Clock } from "@phosphor-icons/react"
 import { Slider } from './ui'
+import { InfoTooltip } from './InfoTooltip'
 
 /** Beat-division name -> length in quarter notes. Mirrors
  *  `BeatDivision::to_seconds` in `src/dsp/timing.rs` so the UI can
@@ -66,6 +67,10 @@ export function ModulationPanel({
         <span className="flex items-center gap-2">
           <Waves size={14} />
           4. Modulation
+          <InfoTooltip
+            size={14}
+            text="LFOs and the mod matrix. Each slot has two LFOs that run at a chosen rate (Hz, or tempo-locked to a beat division). LFOs can be routed to any modulatable parameter from the Timbre section, with positive or negative depth."
+          />
         </span>
         <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
           Global LFO rates. Assign sources to parameters in Timbre.
@@ -77,6 +82,7 @@ export function ModulationPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">LFO 1</div>
+              <InfoTooltip text="How fast LFO 1 cycles. Lower = slower modulation. If a tempo-lock division is set, the rate is derived from the current BPM and this slider is disabled." />
               {lfo1Locked && (
                 <span
                   title={lfoHint(lfo1_division!, bpm)}
@@ -110,6 +116,7 @@ export function ModulationPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">LFO 2</div>
+              <InfoTooltip text="How fast LFO 2 cycles. Lower = slower modulation. If a tempo-lock division is set, the rate is derived from the current BPM and this slider is disabled." />
               {lfo2Locked && (
                 <span
                   title={lfoHint(lfo2_division!, bpm)}

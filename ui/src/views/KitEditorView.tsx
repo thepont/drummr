@@ -4,7 +4,45 @@ import { cn, ParamController, Button, FrequencyVisualizer, PredictiveGraph, Slid
 import { smartFormat } from '../components/format'
 import { EnvelopeEditor } from '../components/EnvelopeEditor'
 import { ModulationPanel } from '../components/ModulationPanel'
+import { InfoTooltip } from '../components/InfoTooltip'
 import type { AnalysisResult } from '../App'
+
+/**
+ * Per-parameter explainer copy. Indexed by the schema `name` returned
+ * by the backend's `Voice::schema()`. Keep these short — 1-2 sentences,
+ * meaning + range / unit. Sections themselves carry the bigger picture
+ * via their header `InfoTooltip`.
+ */
+const PARAM_INFO: Record<string, string> = {
+  freq:
+    "Fundamental frequency in Hz. The note the engine plays. Lower = bassier (kicks at 40-80 Hz). Higher = brighter (hats at 5-10 kHz).",
+  mod_ratio:
+    "FM modulator/carrier frequency ratio. Integer ratios (1.0, 2.0) produce harmonic spectra; non-integer (1.41, 1.59) produce inharmonic / metallic timbres.",
+  mod_index:
+    "Depth of frequency modulation. 0 = pure sine carrier; higher values add more sidebands -> brighter, more complex timbre.",
+  noise_level:
+    "Mixes a noise burst with the FM output for the click / sizzle layer (snare crack, hi-hat shimmer).",
+  brightness:
+    "How much high-frequency content the engine emphasises. 0 = dark / fundamental only; 1 = all overtones present.",
+  dampening:
+    "How quickly resonance dies away. 0 = long ring; 1 = short, muted hit.",
+  inharmonicity:
+    "0 = harmonic series (musical xylophone bars). 1 = Bessel-zero ratios (real circular drum membrane). In between = bell-like character.",
+  density:
+    "How many grains overlap. Low = sparse particles. High = dense cloud.",
+  grain_size:
+    "Length of each grain in ms. Short = bright / clicky. Long = smooth / textural.",
+  jitter:
+    "Random timing variation between grains. 0 = perfectly periodic. 1 = chaotic.",
+  noise_color:
+    "Filter character for the Hybrid noise component. 0 = dark / dull. 1 = bright / sharp.",
+  metallic:
+    "Mix between pitched oscillator (0) and filtered noise (1). Higher = more metallic / less tonal.",
+  attack:
+    "Time from trigger to peak, in milliseconds. Short = clicky, long = swell.",
+  decay:
+    "Time from peak to silence, in milliseconds. If a tempo-locked decay is set, this slider has no effect.",
+};
 
 interface ParamSchema {
   name: string;
@@ -409,6 +447,10 @@ export default function KitEditorView({
               <span className="flex items-center gap-2">
                 <Cpu size={14} />
                 1. Source
+                <InfoTooltip
+                  size={14}
+                  text="Chooses the synthesis engine and fundamental pitch. FM = frequency modulation (great for kicks, bells). Phys = plucked-string physical model. Granular = textural clouds. Hybrid = sine + noise blend. Modal = parallel resonator bank for tuned percussion. Noise = pure noise + envelope."
+                />
               </span>
               <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
                 Raw synthesis engine and base pitch
@@ -436,6 +478,12 @@ export default function KitEditorView({
               </div>
 
               <div>
+                <div className="flex justify-end -mb-1">
+                  <InfoTooltip
+                    label="Info about base frequency"
+                    text={PARAM_INFO.freq}
+                  />
+                </div>
                 <FrequencyVisualizer
                   value={safeFreq}
                   min={20}
@@ -464,6 +512,10 @@ export default function KitEditorView({
               <span className="flex items-center gap-2">
                 <Clock size={14} />
                 2. Shape
+                <InfoTooltip
+                  size={14}
+                  text="Envelope determines how the sound starts and decays. Attack is the time from trigger to peak (ms). Decay is the time from peak to silence (ms). If a decay division is set, decay is locked to a musical beat division at the current BPM and the slider is disabled."
+                />
               </span>
               <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
                 Drag the curve to shape attack and decay
@@ -484,12 +536,16 @@ export default function KitEditorView({
 
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 content-start">
                 <div className="p-3 bg-background/30 rounded-xl border border-border/50">
-                  <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Attack</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Attack</div>
+                    <InfoTooltip text={PARAM_INFO.attack} label="Info about attack" />
+                  </div>
                   <div className="text-sm font-mono font-bold">{safeAttack.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
                 </div>
                 <div className="p-3 bg-background/30 rounded-xl border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Decay</div>
+                    <InfoTooltip text={PARAM_INFO.decay} label="Info about decay" />
                     {decayDiv && (
                       <span
                         title={decayHint(decayDiv, bpmNum)}
@@ -522,6 +578,10 @@ export default function KitEditorView({
               <span className="flex items-center gap-2">
                 <SlidersIcon size={14} />
                 3. Timbre
+                <InfoTooltip
+                  size={14}
+                  text="Engine-specific tone controls. Brightness, dampening, and inharmonicity for Modal/Phys; mod_index, mod_ratio for FM; density, grain_size, jitter for Granular. Each knob can be modulated from Envelope, Velocity, LFO1, or LFO2."
+                />
               </span>
               <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
                 Engine-specific parameters. Add modulation slots per knob.
@@ -541,9 +601,15 @@ export default function KitEditorView({
                     ...paramMods,
                     { param: param.name, source: 'None', depth: 0 },
                   ];
+                  const info = PARAM_INFO[param.name];
 
                   return (
                     <div key={param.name}>
+                      {info && (
+                        <div className="flex justify-end -mb-2 -mt-1 pr-1">
+                          <InfoTooltip text={info} label={`Info about ${param.name}`} />
+                        </div>
+                      )}
                       <ParamController
                         label={param.name.charAt(0).toUpperCase() + param.name.slice(1).replace('_', ' ')}
                         value={selectedSound[param.name] ?? param.default}
@@ -584,6 +650,10 @@ export default function KitEditorView({
               <span className="flex items-center gap-2">
                 <Waveform size={14} />
                 5. FX
+                <InfoTooltip
+                  size={14}
+                  text="Per-slot effects and generative behaviour. Bitcrusher reduces bit depth (1-16 bits) for digital crunch. Sample-rate reducer (1-32x) introduces aliasing. Generative controls trigger probability, ghost notes, and the sub-hits / pattern recipes that fire timed retriggers."
+                />
               </span>
               <span className="flex items-center gap-3">
                 {safeBits >= 16 && safeRate <= 1 && (
@@ -598,26 +668,39 @@ export default function KitEditorView({
             </header>
 
             <div className="max-w-3xl w-full">
-              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Bitcrusher</div>
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                Bitcrusher
+                <InfoTooltip text="Post-FX lo-fi chain applied after the voice mix. Reduces bit depth (digital crunch) and divides the output sample rate (aliasing distortion) for SP-1200 / LinnDrum / early FM-drum-machine character." />
+              </div>
               <div className="p-4 bg-background/30 rounded-xl border border-border/50 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Slider
-                  label="Bit depth"
-                  value={safeBits}
-                  min={1}
-                  max={16}
-                  step={1}
-                  onChange={v => updateParam('bits', v)}
-                  format={v => `${v.toFixed(0)} bits`}
-                />
-                <Slider
-                  label="Rate divisor"
-                  value={safeRate}
-                  min={1}
-                  max={32}
-                  step={1}
-                  onChange={v => updateParam('rate', v)}
-                  format={v => `${v.toFixed(0)}x`}
-                />
+                <div className="flex flex-col gap-1">
+                  <Slider
+                    label="Bit depth"
+                    value={safeBits}
+                    min={1}
+                    max={16}
+                    step={1}
+                    onChange={v => updateParam('bits', v)}
+                    format={v => `${v.toFixed(0)} bits`}
+                  />
+                  <div className="flex justify-end">
+                    <InfoTooltip text="Bit depth for output quantization. 16 = clean. Lower = digital crunch / lo-fi character." />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Slider
+                    label="Rate divisor"
+                    value={safeRate}
+                    min={1}
+                    max={32}
+                    step={1}
+                    onChange={v => updateParam('rate', v)}
+                    format={v => `${v.toFixed(0)}x`}
+                  />
+                  <div className="flex justify-end">
+                    <InfoTooltip text="Sample-rate divisor. 1 = clean. Higher = aliasing distortion (SP-1200 / LinnDrum character)." />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -630,46 +713,69 @@ export default function KitEditorView({
               that don't use ghosting.
             */}
             <div className="max-w-3xl w-full">
-              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Generative</div>
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                Generative
+                <InfoTooltip text="Probability-based trigger gates. Trigger % is the chance the slot fires at all. Ghost % is the chance a fired primary also spawns a soft echo at the ghost offset. Sub-hits and patterns from the kit TOML also use this gate." />
+              </div>
               <div className="p-4 bg-background/30 rounded-xl border border-border/50 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Slider
-                  label="Trigger %"
-                  value={safeTrigProb}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  onChange={v => updateParam('trigger_probability' as any, v)}
-                  format={v => `${Math.round(v * 100)}%`}
-                />
-                <Slider
-                  label="Ghost %"
-                  value={safeGhostProb}
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  onChange={v => updateParam('ghost_probability' as any, v)}
-                  format={v => `${Math.round(v * 100)}%`}
-                />
+                <div className="flex flex-col gap-1">
+                  <Slider
+                    label="Trigger %"
+                    value={safeTrigProb}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    onChange={v => updateParam('trigger_probability' as any, v)}
+                    format={v => `${Math.round(v * 100)}%`}
+                  />
+                  <div className="flex justify-end">
+                    <InfoTooltip text="Chance the slot fires when triggered. 1.0 = always fires. 0.5 = ~50% of hits drop, creating sparse / generative patterns." />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Slider
+                    label="Ghost %"
+                    value={safeGhostProb}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    onChange={v => updateParam('ghost_probability' as any, v)}
+                    format={v => `${Math.round(v * 100)}%`}
+                  />
+                  <div className="flex justify-end">
+                    <InfoTooltip text="When the slot fires, chance an additional soft 'ghost' hit follows at the ghost offset. Creates flam / dragged-rim feel." />
+                  </div>
+                </div>
                 {safeGhostProb > 0 && (
                   <>
-                    <Slider
-                      label="Ghost offset"
-                      value={safeGhostOffset}
-                      min={1}
-                      max={500}
-                      step={1}
-                      onChange={v => updateParam('ghost_offset_ms' as any, v)}
-                      format={v => `${v.toFixed(0)} ms`}
-                    />
-                    <Slider
-                      label="Ghost velocity"
-                      value={safeGhostVel}
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      onChange={v => updateParam('ghost_velocity_factor' as any, v)}
-                      format={v => v.toFixed(2)}
-                    />
+                    <div className="flex flex-col gap-1">
+                      <Slider
+                        label="Ghost offset"
+                        value={safeGhostOffset}
+                        min={1}
+                        max={500}
+                        step={1}
+                        onChange={v => updateParam('ghost_offset_ms' as any, v)}
+                        format={v => `${v.toFixed(0)} ms`}
+                      />
+                      <div className="flex justify-end">
+                        <InfoTooltip text="Delay before the ghost note fires, in milliseconds. ~60 ms is a typical flam spacing." />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Slider
+                        label="Ghost velocity"
+                        value={safeGhostVel}
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        onChange={v => updateParam('ghost_velocity_factor' as any, v)}
+                        format={v => v.toFixed(2)}
+                      />
+                      <div className="flex justify-end">
+                        <InfoTooltip text="How quiet the ghost is relative to the primary. 0.3 = ghost is 30% as loud." />
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
