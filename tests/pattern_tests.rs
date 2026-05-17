@@ -6,7 +6,9 @@
 use drummr::dsp::timing::BeatDivision;
 use drummr::kit::{
     DrumKit, DrumMapping, DrumSound, KitEngine, PatternStep, MAX_PATTERN_STEPS_PER_PRIMARY,
+    PENDING_TRIGGER_CAPACITY,
 };
+use std::sync::atomic::Ordering;
 
 const SR: f32 = 48000.0;
 
@@ -398,6 +400,79 @@ fn test_pattern_uses_bpm_at_trigger_not_at_load() {
         (ratio - 2.0).abs() < 0.05,
         "trigger-time BPM resolution: 60 BPM ({}) should be 2x 120 BPM ({}); ratio={}",
         slow_at, fast_at, ratio
+    );
+}
+
+#[test]
+fn test_pending_queue_overflow_counter() {
+    // Four polymetric slots, each with a full 32-step pattern, fired in
+    // rapid succession. 4 × (32 + 8 sub-hits) = 160 attempted entries
+    // per primary; four primaries = 640 attempted, capacity = 512.
+    // We expect:
+    //   * The first 512 entries land in the queue (no allocation, no
+    //     spurious drops while there's room).
+    //   * The remainder bump `pending_overflows`.
+    //   * `queue_pending` returns false for the overflow path.
+    let mut steps = Vec::with_capacity(MAX_PATTERN_STEPS_PER_PRIMARY);
+    for i in 0..MAX_PATTERN_STEPS_PER_PRIMARY {
+        steps.push(PatternStep {
+            // Stagger via multiplier so they don't all fire in one tick.
+            division: BeatDivision::Bar,
+            velocity_factor: 1.0,
+            multiplier: (i + 1) as f32,
+        });
+    }
+    // Each slot also gets 8 sub-hits to maximise per-primary queue use.
+    let mut sound_base = make_sound(Some(steps.clone()));
+    sound_base.sub_hits = Some((0..8)
+        .map(|i| drummr::kit::SubHit {
+            offset_ms: 1000.0 + i as f32 * 10.0,
+            velocity_factor: 1.0,
+        })
+        .collect());
+
+    let sounds = vec![
+        sound_base.clone(),
+        sound_base.clone(),
+        sound_base.clone(),
+        sound_base.clone(),
+    ];
+    let mut kit = build_kit(sounds);
+
+    // Trigger all four primaries in rapid succession (same tick — no
+    // intervening tick() calls). Each primary queues up to 41 entries
+    // (32 pattern + 8 sub-hits + 1 ghost if probability set; here no
+    // ghost), so 4 × 40 = 160 queued per primary... actually let's
+    // count: 4 primaries × (32 + 8) = 160 entries. The capacity is
+    // 512, so 160 fits trivially — we need MORE.
+    //
+    // Trigger each note enough times to exceed 512 attempted entries.
+    // Each trigger attempts 40 entries; 16 triggers attempt 640, which
+    // is comfortably past the cap.
+    for _ in 0..4 {
+        for note in 36..40 {
+            kit.trigger(note, 1.0, 120.0);
+        }
+    }
+
+    let overflow_count = kit.pending_overflows.load(Ordering::Relaxed);
+    assert!(
+        overflow_count > 0,
+        "overflow counter should fire when more than {} entries are queued",
+        PENDING_TRIGGER_CAPACITY
+    );
+    assert_eq!(
+        kit.pending.len(),
+        PENDING_TRIGGER_CAPACITY,
+        "queue should hold exactly {} entries at the cap, not silently truncate further",
+        PENDING_TRIGGER_CAPACITY
+    );
+
+    // Sanity-check that the first 512 entries DID get queued (i.e. the
+    // overflow path didn't trip prematurely).
+    assert!(
+        kit.pending.len() >= 128,
+        "if this drops below the old 128 cap the test isn't proving the lift"
     );
 }
 

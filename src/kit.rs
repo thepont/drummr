@@ -7,13 +7,21 @@ use crate::dsp::utils::Xorshift;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::VecDeque;
+use std::sync::Once;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Maximum number of pending triggers the queue can hold at any moment.
 /// Pre-sized at construction so `tick()` never allocates on the audio
-/// thread. 128 covers ~8 active slots each holding a full pattern (16
-/// steps) plus a few stragglers — well outside any realistic kit's needs
-/// at any single instant.
-pub const PENDING_TRIGGER_CAPACITY: usize = 128;
+/// thread. Sized for the theoretical worst case: 16 active slots ×
+/// `MAX_PATTERN_STEPS_PER_PRIMARY` (32) pattern steps = 512. A single
+/// primary can also queue up to `MAX_SUB_HITS_PER_PRIMARY` (8) sub-hits
+/// and 1 ghost on top of its pattern steps, but those add a constant
+/// per slot rather than scaling with `MAX_PATTERN_STEPS_PER_PRIMARY`,
+/// so 512 still covers any combination short of "every slot maxed out
+/// simultaneously, mid-decay." Overflow is observed via
+/// `KitEngine::pending_overflows` and a one-shot `eprintln!` on first
+/// occurrence (see `queue_pending`).
+pub const PENDING_TRIGGER_CAPACITY: usize = 512;
 
 /// Hard cap on sub-hits queued per primary trigger. Anything past this
 /// is silently dropped; prevents a runaway TOML from flooding the audio
@@ -22,6 +30,13 @@ pub const MAX_SUB_HITS_PER_PRIMARY: usize = 8;
 
 /// Hard cap on pattern steps queued per primary trigger.
 pub const MAX_PATTERN_STEPS_PER_PRIMARY: usize = 32;
+
+/// Guards the per-session "pending queue overflowed" warning so we only
+/// print it once, on the audio thread, the first time a `queue_pending`
+/// call gets dropped. Per-engine telemetry still ticks every overflow
+/// via `KitEngine::pending_overflows`, but a single stderr line is
+/// enough for an operator to notice.
+static PENDING_OVERFLOW_WARN: Once = Once::new();
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ParamSchema {
@@ -539,6 +554,13 @@ pub struct KitEngine {
     /// sensible tempo. The audio thread already snapshots BPM per
     /// block before draining note events, so this is always recent.
     pub last_bpm: f32,
+    /// Monotonic counter of how many times `queue_pending` has had to
+    /// drop a deferred-fire request because the queue was already at
+    /// `PENDING_TRIGGER_CAPACITY`. Bumped on the audio thread; readable
+    /// off-thread for telemetry (tests, debug dashboards). A non-zero
+    /// value indicates either a runaway TOML (too many simultaneous
+    /// polymetric voices) or that the cap needs lifting.
+    pub pending_overflows: AtomicU64,
 }
 
 impl KitEngine {
@@ -582,6 +604,7 @@ impl KitEngine {
             samples_processed: 0,
             rng: Xorshift::new(0xC10C),
             last_bpm: 120.0,
+            pending_overflows: AtomicU64::new(0),
         }
     }
 
@@ -592,10 +615,16 @@ impl KitEngine {
         self.rng = Xorshift::new(seed);
     }
 
-    /// Push a deferred trigger onto the pending queue. Silently drops the
+    /// Push a deferred trigger onto the pending queue. Drops the
     /// request if the queue is already at `PENDING_TRIGGER_CAPACITY` so
     /// `tick()` is guaranteed never to allocate. Returns `true` if the
     /// trigger was queued, `false` if the queue was full.
+    ///
+    /// On overflow: bumps `self.pending_overflows` (an `AtomicU64` that
+    /// tests / dashboards can read off-thread) and emits a single
+    /// `eprintln!` for the whole session via `PENDING_OVERFLOW_WARN`.
+    /// Recurring overflows after the first are silent on stderr but
+    /// keep accumulating in the counter.
     pub fn queue_pending(
         &mut self,
         slot: usize,
@@ -603,6 +632,15 @@ impl KitEngine {
         samples_from_now: u64,
     ) -> bool {
         if self.pending.len() >= PENDING_TRIGGER_CAPACITY {
+            self.pending_overflows.fetch_add(1, Ordering::Relaxed);
+            PENDING_OVERFLOW_WARN.call_once(|| {
+                eprintln!(
+                    "drummr: pending-trigger queue overflowed at capacity {} \
+                     — dropping deferred fires. Raise PENDING_TRIGGER_CAPACITY \
+                     or reduce simultaneous polymetric voices.",
+                    PENDING_TRIGGER_CAPACITY
+                );
+            });
             return false;
         }
         self.pending.push_back(PendingTrigger {
