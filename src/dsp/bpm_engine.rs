@@ -25,16 +25,25 @@ pub struct BpmEngine {
     last_clamped_bpm: f32,
     pub is_stable: bool,
     consecutive_stable_hits: u32,
+    // Reusable scratch buffers for estimate_tempo. Cleared and re-filled
+    // each call to avoid heap churn. Sized for the worst case: number of
+    // lag steps in the parameter sweep, and MAX_ONSETS onset positions.
+    estimate_times: Vec<(f32, f32)>,
+    estimate_scores: Vec<(f32, f32)>,
 }
 
 impl BpmEngine {
     pub fn new() -> Self {
+        // Number of lag steps for the score buffer:
+        let lag_steps = ((MAX_LAG_SEC - MIN_LAG_SEC) / LAG_STEP_SEC).ceil() as usize + 1;
         Self {
             onsets: VecDeque::with_capacity(MAX_ONSETS),
             current_bpm: 0.0,
             last_clamped_bpm: 0.0,
             is_stable: false,
             consecutive_stable_hits: 0,
+            estimate_times: Vec::with_capacity(MAX_ONSETS),
+            estimate_scores: Vec::with_capacity(lag_steps),
         }
     }
 
@@ -82,23 +91,24 @@ impl BpmEngine {
         }
 
         let anchor = self.onsets.back().unwrap().t;
-        let times: Vec<(f32, f32)> = self
-            .onsets
-            .iter()
-            .map(|o| (-(anchor.duration_since(o.t).as_secs_f32()), o.weight))
-            .collect();
+        self.estimate_times.clear();
+        self.estimate_times.extend(
+            self.onsets
+                .iter()
+                .map(|o| (-(anchor.duration_since(o.t).as_secs_f32()), o.weight)),
+        );
 
         let two_sigma2 = 2.0 * KERNEL_SIGMA_SEC * KERNEL_SIGMA_SEC;
         let mut best_lag = 0.0_f32;
         let mut best_score = f32::NEG_INFINITY;
-        let mut scores: Vec<(f32, f32)> = Vec::new();
+        self.estimate_scores.clear();
 
         let mut lag = MIN_LAG_SEC;
         while lag <= MAX_LAG_SEC {
             let mut score = 0.0_f32;
-            for (i, &(ti, wi)) in times.iter().enumerate() {
+            for (i, &(ti, wi)) in self.estimate_times.iter().enumerate() {
                 let target = ti - lag;
-                for (j, &(tj, wj)) in times.iter().enumerate() {
+                for (j, &(tj, wj)) in self.estimate_times.iter().enumerate() {
                     if i == j {
                         continue;
                     }
@@ -114,7 +124,7 @@ impl BpmEngine {
             let prior =
                 (-(log_ratio * log_ratio) / (2.0 * TACTUS_SIGMA_OCT * TACTUS_SIGMA_OCT)).exp();
             let weighted = score * prior;
-            scores.push((lag, weighted));
+            self.estimate_scores.push((lag, weighted));
             if weighted > best_score {
                 best_score = weighted;
                 best_lag = lag;
@@ -126,7 +136,7 @@ impl BpmEngine {
             return;
         }
 
-        let chosen_lag = self.prefer_subharmonic(best_lag, best_score, &scores);
+        let chosen_lag = self.prefer_subharmonic(best_lag, best_score, &self.estimate_scores);
         let clamped_bpm = (60.0 / chosen_lag).clamp(40.0, 240.0);
 
         let stable_delta = (clamped_bpm - self.last_clamped_bpm).abs();
@@ -236,6 +246,37 @@ mod tests {
             bpm < 180.0,
             "expected sub-180 (preferring 120 over 240), got {}",
             bpm
+        );
+    }
+
+    #[test]
+    fn test_estimate_buffers_are_reused() {
+        let mut e = BpmEngine::new();
+        // Trigger enough onsets to populate the buffers.
+        for _ in 0..20 {
+            e.register_onset(1.0);
+            std::thread::sleep(Duration::from_millis(30));
+        }
+        let cap_times = e.estimate_times.capacity();
+        let cap_scores = e.estimate_scores.capacity();
+        // Trigger more onsets — buffers should NOT re-grow.
+        for _ in 0..20 {
+            e.register_onset(1.0);
+            std::thread::sleep(Duration::from_millis(30));
+        }
+        assert_eq!(
+            e.estimate_times.capacity(),
+            cap_times,
+            "estimate_times re-allocated after warmup (cap went from {} to {})",
+            cap_times,
+            e.estimate_times.capacity()
+        );
+        assert_eq!(
+            e.estimate_scores.capacity(),
+            cap_scores,
+            "estimate_scores re-allocated after warmup (cap went from {} to {})",
+            cap_scores,
+            e.estimate_scores.capacity()
         );
     }
 }
