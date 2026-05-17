@@ -1,4 +1,5 @@
 use crate::dsp::fm::FmVoice;
+use crate::dsp::modal::ExplicitMode;
 use crate::dsp::noise::NoiseVoice;
 use crate::dsp::postfx::PostFx;
 use serde::{Deserialize, Serialize};
@@ -169,6 +170,12 @@ pub struct DrumSound {
     pub lfo1_freq: Option<f32>,
     pub lfo2_freq: Option<f32>,
     pub mods: Option<Vec<ModEntry>>,
+    /// Optional explicit mode list for the modal engine. When present, the
+    /// modal voice uses these exact `{freq, q, gain}` triples (up to 12) in
+    /// place of the harmonic/Bessel interpolation. Ignored by all other
+    /// engine types. Named `mode_list` to avoid TOML collision with the
+    /// existing `mods` (modulation routes) field.
+    pub mode_list: Option<Vec<ExplicitMode>>,
 }
 
 /// Construct a single `Voice` from a `DrumSound`, applying engine-specific
@@ -219,6 +226,11 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             v.inharmonicity.base_value = sound.inharmonicity.unwrap_or(0.3);
             v.attack = sound.attack;
             v.decay = sound.decay;
+            // Install the explicit mode list (if any) AFTER the standard
+            // params so the explicit path is what `rebuild_modes()` sees on
+            // the next trigger. Cloning is one-shot at kit-build time and
+            // not on the audio thread.
+            v.set_explicit_modes(sound.mode_list.clone());
             Voice::Modal(v)
         }
         "noise" => {

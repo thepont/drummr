@@ -25,6 +25,7 @@ fn test_sound_preset_serialization() {
         lfo1_freq: None,
         lfo2_freq: None,
         mods: None,
+        mode_list: None,
     };
 
     let toml_str = toml::to_string(&sound).expect("Should serialize sound");

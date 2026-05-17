@@ -2,7 +2,21 @@ use crate::dsp::envelope::AdEnvelope;
 use crate::dsp::modulation::{ModAmount, ModSource, ModulatableParam};
 use crate::dsp::modulation_engine::ModulationEngine;
 use crate::dsp::utils::Xorshift;
+use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
+
+/// One entry in a `mode_list` for hardware-faithful resonator design. Lets a
+/// kit sound declare exact mode frequencies, Q, and gain instead of being
+/// forced through the 12-mode Bessel/harmonic interpolation. Iconic drum
+/// machine sounds like the 808 cowbell (540 + 800 Hz pair) and 808 cymbal
+/// (6 inharmonic squares) are documented to specific frequencies that the
+/// generic interpolation cannot reproduce.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExplicitMode {
+    pub freq: f32,
+    pub q: f32,
+    pub gain: f32,
+}
 
 /// Number of parallel modes in the resonator bank.
 const NUM_MODES: usize = 12;
@@ -143,6 +157,13 @@ pub struct ModalEngine {
     /// end of the AD envelope.
     tail_active: bool,
 
+    /// When `Some`, `rebuild_modes()` uses the explicit list (up to NUM_MODES)
+    /// instead of the harmonic/Bessel interpolation. Modes beyond the list
+    /// length are zeroed out via `base_gain = 0`. When `None`, the engine
+    /// falls back to the standard Bessel/harmonic mode synthesis for full
+    /// backward compatibility with the existing kit voices.
+    explicit_modes: Option<Vec<ExplicitMode>>,
+
     pub mod_engine: ModulationEngine,
 }
 
@@ -179,6 +200,7 @@ impl ModalEngine {
             exciter_velocity: 0.0,
             impulse_pending: false,
             tail_active: false,
+            explicit_modes: None,
             mod_engine: ModulationEngine::new(sample_rate),
         };
 
@@ -189,7 +211,39 @@ impl ModalEngine {
     /// Recompute all per-mode coefficients from the current frequency, decay
     /// envelope and inharmonicity. Cheap enough to call at trigger time and
     /// occasionally per-block, but NOT every sample.
+    ///
+    /// If `explicit_modes` is `Some`, the engine uses the supplied list of
+    /// `{freq, q, gain}` triples (up to NUM_MODES). Remaining modes are zeroed
+    /// out via `base_gain = 0`. Otherwise the standard harmonic/Bessel ratio
+    /// interpolation is used (preserving full backward compatibility for the
+    /// existing 22+ modal kit voices that don't supply a `mode_list`).
     fn rebuild_modes(&mut self) {
+        if let Some(list) = &self.explicit_modes {
+            // Explicit path. Decay-sec on each mode is informational only —
+            // Q is taken straight from the list (still clamped inside
+            // `set_coeffs` for safety). Brightness rolloff still applies in
+            // `tick()` so users keep one timbral knob; set brightness = 1.0
+            // for unaltered gains.
+            let take = list.len().min(NUM_MODES);
+            for i in 0..take {
+                let m = &list[i];
+                self.modes[i].decay_sec = 0.0;
+                self.modes[i].base_gain = m.gain;
+                self.modes[i].set_coeffs(m.freq, m.q, self.sample_rate);
+            }
+            // Zero out unused mode slots so they contribute nothing to the
+            // parallel sum. We still program valid coefficients (using the
+            // last requested freq as a harmless filler) so the biquad state
+            // can't produce garbage if it happens to be excited.
+            let filler_freq = list.last().map(|m| m.freq).unwrap_or(200.0);
+            for i in take..NUM_MODES {
+                self.modes[i].decay_sec = 0.0;
+                self.modes[i].base_gain = 0.0;
+                self.modes[i].set_coeffs(filler_freq, 2.0, self.sample_rate);
+            }
+            return;
+        }
+
         let base_freq = self.frequency.base_value.max(20.0);
         let inharm = self.inharmonicity.base_value.clamp(0.0, 1.0);
         let damp = self.dampening.base_value.clamp(0.0, 1.0);
@@ -215,6 +269,17 @@ impl ModalEngine {
             self.modes[i].base_gain = 1.0 / (1.0 + (i as f32) * 0.4);
             self.modes[i].set_coeffs(f, q, self.sample_rate);
         }
+    }
+
+    /// Install (or remove) an explicit mode list. Passing `Some(list)` switches
+    /// the engine to hardware-faithful resonator design — the next trigger (or
+    /// any change that recomputes modes) will use the explicit freq/Q/gain
+    /// values. Passing `None` restores the Bessel/harmonic interpolation.
+    /// Always rebuilds the mode bank immediately so the change takes effect
+    /// without needing a re-trigger.
+    pub fn set_explicit_modes(&mut self, modes: Option<Vec<ExplicitMode>>) {
+        self.explicit_modes = modes;
+        self.rebuild_modes();
     }
 }
 

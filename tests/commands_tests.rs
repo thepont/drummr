@@ -108,6 +108,7 @@ fn make_test_kit() -> DrumKit {
                 lfo1_freq: None,
                 lfo2_freq: None,
                 mods: None,
+                mode_list: None,
             },
             DrumSound {
                 name: "Snare".into(),
@@ -131,6 +132,7 @@ fn make_test_kit() -> DrumKit {
                 lfo1_freq: None,
                 lfo2_freq: None,
                 mods: None,
+                mode_list: None,
             },
         ],
     }
@@ -505,6 +507,7 @@ async fn test_load_kit_replaces_snapshot() {
             lfo1_freq: None,
             lfo2_freq: None,
             mods: None,
+            mode_list: None,
         }],
     };
     std::fs::write(

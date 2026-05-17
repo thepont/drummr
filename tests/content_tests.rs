@@ -78,6 +78,7 @@ fn test_invalid_engine_type_fallback() {
             lfo1_freq: None,
             lfo2_freq: None,
             mods: None,
+            mode_list: None,
         }],
     };
 

@@ -1,4 +1,4 @@
-use drummr::dsp::modal::ModalEngine;
+use drummr::dsp::modal::{ExplicitMode, ModalEngine};
 
 const SR: f32 = 48000.0;
 
@@ -376,6 +376,121 @@ fn test_modal_clipping_rate_acceptable() {
         worst.1.1,
         worst.1.2,
         worst.1.3,
+    );
+}
+
+/// Estimate the spectral centroid of a buffer using a naive Goertzel-style
+/// power sum over a small set of probe frequencies. Cheap and dependency-free,
+/// good enough to confirm energy is concentrated near explicit mode freqs.
+fn spectral_centroid(samples: &[f32], probes: &[f32], sample_rate: f32) -> f32 {
+    let n = samples.len() as f32;
+    let mut power_sum = 0.0_f32;
+    let mut weighted = 0.0_f32;
+    for &f in probes {
+        let w = 2.0 * std::f32::consts::PI * f / sample_rate;
+        // DFT bin via direct sum.
+        let mut re = 0.0_f32;
+        let mut im = 0.0_f32;
+        for (i, s) in samples.iter().enumerate() {
+            let phase = w * i as f32;
+            re += s * phase.cos();
+            im -= s * phase.sin();
+        }
+        let p = (re * re + im * im) / (n * n);
+        weighted += f * p;
+        power_sum += p;
+    }
+    if power_sum > 0.0 {
+        weighted / power_sum
+    } else {
+        0.0
+    }
+}
+
+#[test]
+fn test_explicit_modes_two_freqs() {
+    // The 808 cowbell motivation: two specific frequencies (540 + 800 Hz)
+    // that the generic Bessel/harmonic interpolation cannot reproduce.
+    let mut e = ModalEngine::new(SR);
+    e.set_explicit_modes(Some(vec![
+        ExplicitMode { freq: 540.0, q: 80.0, gain: 1.0 },
+        ExplicitMode { freq: 800.0, q: 80.0, gain: 0.9 },
+    ]));
+    // brightness = 1.0 so the rolloff doesn't suppress the second mode.
+    e.set_param("brightness", 1.0);
+    e.set_param("decay", 400.0);
+    e.trigger(1.0);
+
+    let samples = run_collect(&mut e, 4800); // 100 ms
+    for (i, s) in samples.iter().enumerate() {
+        assert!(s.is_finite(), "non-finite sample at {}: {}", i, s);
+    }
+
+    // Probe a coarse grid covering 100 Hz – 3 kHz at 100 Hz spacing.
+    let probes: Vec<f32> = (1..=30).map(|k| k as f32 * 100.0).collect();
+    let centroid = spectral_centroid(&samples, &probes, SR);
+
+    // Expected centroid is between the two mode freqs (540 and 800 Hz).
+    // Slight upward bias from the second mode contributing slightly less,
+    // and downward bias from any low-freq exciter content leaking through.
+    assert!(
+        (550.0..=800.0).contains(&centroid),
+        "spectral centroid {:.1} Hz not between 540 and 800 Hz (expected energy concentrated at explicit modes)",
+        centroid
+    );
+}
+
+#[test]
+fn test_explicit_modes_fewer_than_max() {
+    // Only 2 modes set; remaining 10 mode slots must be cleanly zeroed
+    // (no garbage / blow-ups from uninitialised state).
+    let mut e = ModalEngine::new(SR);
+    e.set_explicit_modes(Some(vec![
+        ExplicitMode { freq: 300.0, q: 40.0, gain: 1.0 },
+        ExplicitMode { freq: 700.0, q: 40.0, gain: 0.8 },
+    ]));
+    e.set_param("brightness", 1.0);
+    e.trigger(1.0);
+
+    let samples = run_collect(&mut e, 4800);
+    let mut max_abs = 0.0_f32;
+    for (i, s) in samples.iter().enumerate() {
+        assert!(s.is_finite(), "non-finite sample at {}: {}", i, s);
+        assert!(s.abs() <= 1.0001, "exceeded clamp at {}: {}", i, s);
+        max_abs = max_abs.max(s.abs());
+    }
+    assert!(max_abs > 0.0, "explicit-modes voice produced no output");
+}
+
+#[test]
+fn test_explicit_modes_clears_when_none() {
+    // After clearing the explicit list, the engine must fall back to the
+    // Bessel/harmonic interpolation and produce audible output again.
+    let mut e = ModalEngine::new(SR);
+    e.set_explicit_modes(Some(vec![
+        ExplicitMode { freq: 540.0, q: 80.0, gain: 1.0 },
+        ExplicitMode { freq: 800.0, q: 80.0, gain: 0.9 },
+    ]));
+    e.set_param("freq", 220.0);
+    e.set_param("brightness", 0.7);
+    e.set_param("decay", 400.0);
+    e.trigger(1.0);
+    let _ = run_collect(&mut e, 100);
+
+    // Now clear and re-trigger; engine should now use harmonic/Bessel modes
+    // built off freq = 220 Hz.
+    e.set_explicit_modes(None);
+    e.trigger(1.0);
+    let samples = run_collect(&mut e, 4800);
+    let mut max_abs = 0.0_f32;
+    for s in &samples {
+        assert!(s.is_finite());
+        max_abs = max_abs.max(s.abs());
+    }
+    assert!(
+        max_abs > 0.01,
+        "fallback to Bessel/harmonic produced no audible output (max_abs = {})",
+        max_abs
     );
 }
 

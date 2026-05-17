@@ -33,6 +33,7 @@ fn test_concurrent_kit_updates_race_condition() {
             lfo1_freq: None,
             lfo2_freq: None,
             mods: None,
+            mode_list: None,
         }],
     };
 
