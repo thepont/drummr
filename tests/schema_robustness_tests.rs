@@ -21,6 +21,13 @@ const NEW_FEATURE_KITS: &[&str] = &[
     "909_Warehouse",
     "Garden_3am",
     "Pattern_Demo",
+    "Clock_Demo",
+    "Cowbell_Demo",
+    "Phase_Mirror",
+    "Ghost_Maker",
+    "Cathedral_Forever",
+    "Polymeter_Madness",
+    "Stutter_Snare",
 ];
 
 fn default_mappings() -> Vec<DrumMapping> {
