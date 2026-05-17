@@ -38,6 +38,7 @@ fn test_concurrent_kit_updates_race_condition() {
             mods: None,
             mode_list: None,
             sub_hits: None,
+            pattern: None,
         }],
     };
 

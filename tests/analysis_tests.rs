@@ -71,6 +71,7 @@ fn empty_sound(name: &str, engine_type: &str) -> DrumSound {
         mods: None,
         mode_list: None,
         sub_hits: None,
+        pattern: None,
     }
 }
 

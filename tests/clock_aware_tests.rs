@@ -39,6 +39,7 @@ fn make_sound(engine: &str) -> DrumSound {
         mods: None,
         mode_list: None,
         sub_hits: None,
+        pattern: None,
     }
 }
 

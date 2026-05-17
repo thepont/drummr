@@ -171,6 +171,32 @@ pub struct ModEntry {
     pub depth: f32,
 }
 
+/// Default multiplier for `PatternStep::multiplier`. `serde(default)`
+/// uses this so older patterns without an explicit multiplier still
+/// parse as "exactly one division".
+fn default_pattern_multiplier() -> f32 {
+    1.0
+}
+
+/// A single step in a per-slot rhythm pattern. Steps are resolved to
+/// sample offsets at trigger time against the live BPM, so a pattern
+/// declared in beat divisions adapts when tempo changes. The `multiplier`
+/// lets a single declaration cover repeats — e.g. division=Sixteenth +
+/// multiplier=3.0 fires three sixteenths after the primary, without
+/// requiring a separate enum variant.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PatternStep {
+    /// Beat-division offset from the primary trigger.
+    pub division: BeatDivision,
+    /// Velocity multiplier applied to the primary's velocity.
+    pub velocity_factor: f32,
+    /// Multiplier on the division offset. Defaults to 1.0. Lets a
+    /// step say "two sixteenths" with division=Sixteenth + multiplier=2.0
+    /// rather than needing a separate Eighth step.
+    #[serde(default = "default_pattern_multiplier")]
+    pub multiplier: f32,
+}
+
 /// A single deferred re-trigger of the same slot, scheduled in real
 /// milliseconds relative to the primary hit. Used to construct the
 /// LinnDrum / TR-909 multi-tap clap (four noise bursts ~12 ms apart)
@@ -236,6 +262,14 @@ pub struct DrumSound {
     /// beyond the cap are silently dropped to keep TOML mistakes from
     /// flooding the audio thread.
     pub sub_hits: Option<Vec<SubHit>>,
+    /// Optional per-slot rhythm pattern. Each step queues a deferred
+    /// retrigger at `division * multiplier` beats after the primary,
+    /// resolved against the live BPM at trigger time. Coexists with
+    /// `sub_hits`: a slot can declare BOTH a millisecond clap envelope
+    /// AND a tempo-locked pattern; both populate the same pending
+    /// queue. Capped at `MAX_PATTERN_STEPS_PER_PRIMARY` (32) per
+    /// primary.
+    pub pattern: Option<Vec<PatternStep>>,
 }
 
 /// Construct a single `Voice` from a `DrumSound`, applying engine-specific
@@ -378,6 +412,8 @@ pub struct KitEngine {
     /// primary's recipe — those clones happen at kit-build time and
     /// only on the (non-realtime) configuration path.
     pub sub_hits: [Vec<SubHit>; 16],
+    /// Per-slot rhythm pattern. See `DrumSound::pattern`.
+    pub pattern: [Vec<PatternStep>; 16],
     /// Time-deferred trigger queue. Drained in `tick()` against
     /// `samples_processed`; entries whose `fire_at_sample` has elapsed
     /// fire their slot and are removed. Pre-allocated to
@@ -422,12 +458,14 @@ impl KitEngine {
             PostFx::new(),
         ];
         const EMPTY_SUB_HITS: Vec<SubHit> = Vec::new();
+        const EMPTY_PATTERN: Vec<PatternStep> = Vec::new();
         Self {
             voices: [NO_VOICE; 16],
             postfx,
             sample_rate,
             midi_map: [None; 128],
             sub_hits: [EMPTY_SUB_HITS; 16],
+            pattern: [EMPTY_PATTERN; 16],
             pending: VecDeque::with_capacity(PENDING_TRIGGER_CAPACITY),
             samples_processed: 0,
             rng: Xorshift::new(0xC10C),
@@ -511,6 +549,15 @@ impl KitEngine {
                         bounded.truncate(MAX_SUB_HITS_PER_PRIMARY);
                     }
                     engine.sub_hits[idx] = bounded;
+                }
+
+                // Same treatment for the per-slot rhythm pattern.
+                if let Some(pat) = sound.pattern {
+                    let mut bounded = pat;
+                    if bounded.len() > MAX_PATTERN_STEPS_PER_PRIMARY {
+                        bounded.truncate(MAX_PATTERN_STEPS_PER_PRIMARY);
+                    }
+                    engine.pattern[idx] = bounded;
                 }
             }
         }
@@ -607,6 +654,25 @@ impl KitEngine {
                 let samples_offset = (sub.offset_ms.max(0.0) * sr / 1000.0) as u64;
                 let sub_vel = (velocity * sub.velocity_factor).clamp(0.0, 1.0);
                 self.queue_pending(slot, sub_vel, samples_offset);
+            }
+        }
+
+        // Rhythm pattern: each step resolves to an offset of
+        // `division.to_seconds(bpm) * multiplier` seconds, converted
+        // to samples at the engine's sample_rate. Same bounded
+        // iteration pattern as sub-hits.
+        let pat_count = self.pattern[slot]
+            .len()
+            .min(MAX_PATTERN_STEPS_PER_PRIMARY);
+        if pat_count > 0 {
+            let sr = self.sample_rate;
+            for i in 0..pat_count {
+                let step = self.pattern[slot][i].clone();
+                let mult = step.multiplier.max(0.0);
+                let offset_sec = step.division.to_seconds(bpm) * mult;
+                let samples_offset = (offset_sec * sr).max(0.0) as u64;
+                let step_vel = (velocity * step.velocity_factor).clamp(0.0, 1.0);
+                self.queue_pending(slot, step_vel, samples_offset);
             }
         }
     }
