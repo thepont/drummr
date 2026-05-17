@@ -131,4 +131,15 @@ pub enum AudioCommand {
     /// Adjust per-slot post-FX (bitcrusher / sample-rate reducer).
     /// `param` is one of "bits", "rate".
     SetPostFx(usize, String, f32),
+    /// Adjust a generative-trigger field for a slot on the audio thread.
+    /// `param` is one of "trigger_probability", "ghost_probability",
+    /// "ghost_offset_ms", "ghost_velocity_factor". Routed via the same rtrb
+    /// ring as the other SetX commands; the audio thread mutates
+    /// `KitEngine::generative[slot]` in place.
+    SetGenerative(usize, String, f32),
+    /// Set or clear a tempo-locked beat division on a slot's voice. `param`
+    /// is one of "lfo1_division", "lfo2_division", "decay_division". A
+    /// `None` value clears the division (returns the slot to static
+    /// Hz / ms behaviour).
+    SetDivision(usize, String, Option<crate::dsp::timing::BeatDivision>),
 }

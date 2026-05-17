@@ -583,3 +583,317 @@ async fn test_save_kit_as_writes_preset() {
             .any(|p| matches!(p, PersistenceCommand::SaveKit(k) if k.name == "test_save"))
     );
 }
+
+// ---------------------------------------------------------------------------
+// Clock-aware effect field exposure (HIGH bug #6).
+//
+// The next bundle of tests cover the WS-to-UI handshake for the new
+// clock-aware fields: `sub_hits`, `pattern`, `mode_list`, `trigger_probability`,
+// `ghost_probability`, `ghost_offset_ms`, `ghost_velocity_factor`, and the
+// three BeatDivision overrides. They assert two things:
+//   1. `GET_KIT` emits these fields in the JSON broadcast.
+//   2. `SET_PARAM` / `SET_DIVISION` mutate the snapshot AND dispatch the right
+//      `AudioCommand` so the audio thread observes the change.
+// ---------------------------------------------------------------------------
+
+/// Replace the harness's first sound with one populated with every new
+/// field, so the JSON-emit tests have something to assert against.
+fn install_kit_with_new_fields(h: &mut TestHarness) {
+    use drummr::dsp::modal::ExplicitMode;
+    use drummr::dsp::timing::BeatDivision;
+    use drummr::kit::{PatternStep, SubHit};
+
+    let new_sound = DrumSound {
+        name: "Ghost".into(),
+        engine_type: Some("modal".into()),
+        freq: 200.0,
+        mod_ratio: Some(1.0),
+        mod_index: Some(1.0),
+        noise_level: Some(0.0),
+        brightness: Some(0.5),
+        dampening: Some(0.5),
+        density: None,
+        grain_size: None,
+        jitter: None,
+        noise_color: None,
+        metallic: Some(0.5),
+        inharmonicity: Some(0.3),
+        bits: Some(16.0),
+        rate: Some(1.0),
+        attack: 1.0,
+        decay: 200.0,
+        lfo1_freq: None,
+        lfo2_freq: None,
+        lfo1_division: Some(BeatDivision::Quarter),
+        lfo2_division: Some(BeatDivision::Eighth),
+        decay_division: Some(BeatDivision::Bar),
+        mods: None,
+        mode_list: Some(vec![
+            ExplicitMode {
+                freq: 200.0,
+                q: 100.0,
+                gain: 1.0,
+            },
+            ExplicitMode {
+                freq: 400.0,
+                q: 80.0,
+                gain: 0.5,
+            },
+        ]),
+        sub_hits: Some(vec![
+            SubHit {
+                offset_ms: 10.0,
+                velocity_factor: 0.8,
+            },
+            SubHit {
+                offset_ms: 22.0,
+                velocity_factor: 0.6,
+            },
+        ]),
+        pattern: Some(vec![PatternStep {
+            division: BeatDivision::Sixteenth,
+            velocity_factor: 0.7,
+            multiplier: 1.0,
+        }]),
+        trigger_probability: Some(0.85),
+        ghost_probability: Some(0.4),
+        ghost_offset_ms: Some(75.0),
+        ghost_velocity_factor: Some(0.25),
+    };
+    let mut snap = h.shared_state.kit_snapshot.lock().unwrap();
+    snap.sounds[0] = new_sound;
+}
+
+/// Strict-equality assertion for a JSON number against an expected f32. The
+/// JSON encoder widens f32 -> f64, which introduces tiny mantissa-extension
+/// drift (e.g. 0.8_f32 -> 0.800000011920929 in JSON). `assert_eq!` on the
+/// raw `serde_json::Value` catches that. This helper compares with an eps
+/// tolerance so the JSON-emit tests aren't fragile to the f32 round-trip.
+fn assert_json_num_approx(v: &serde_json::Value, expected: f64, eps: f64) {
+    let actual = v
+        .as_f64()
+        .unwrap_or_else(|| panic!("expected a JSON number, got {:?}", v));
+    assert!(
+        (actual - expected).abs() < eps,
+        "expected ~{}, got {} (diff {})",
+        expected,
+        actual,
+        (actual - expected).abs()
+    );
+}
+
+async fn get_kit_json(h: &mut TestHarness) -> serde_json::Value {
+    // Drain any stale broadcasts before the request so the assertion is
+    // unambiguous.
+    let _ = drain_broadcasts(h);
+    dispatch(h, "GET_KIT").await;
+    let msgs = drain_broadcasts(h);
+    let kit_msg = msgs
+        .iter()
+        .find(|m| m.starts_with("KIT: "))
+        .expect("should broadcast a KIT message");
+    let json = kit_msg.strip_prefix("KIT: ").unwrap();
+    serde_json::from_str(json).expect("KIT payload is JSON")
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_kit_to_json_emits_sub_hits() {
+    let mut h = build_harness();
+    install_kit_with_new_fields(&mut h);
+    let parsed = get_kit_json(&mut h).await;
+    let arr = parsed.as_array().expect("kit is array");
+    let subs = arr[0]["sub_hits"]
+        .as_array()
+        .expect("sub_hits should be a JSON array, not null/missing");
+    assert_eq!(subs.len(), 2);
+    assert_json_num_approx(&subs[0]["offset_ms"], 10.0, 1e-3);
+    assert_json_num_approx(&subs[0]["velocity_factor"], 0.8, 1e-3);
+    // Sound at slot 1 wasn't touched — its sub_hits should be null.
+    assert!(arr[1]["sub_hits"].is_null());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_kit_to_json_emits_ghost_probability() {
+    let mut h = build_harness();
+    install_kit_with_new_fields(&mut h);
+    let parsed = get_kit_json(&mut h).await;
+    let arr = parsed.as_array().expect("kit is array");
+    // Slot 0 has explicit values.
+    assert_json_num_approx(&arr[0]["trigger_probability"], 0.85, 1e-3);
+    assert_json_num_approx(&arr[0]["ghost_probability"], 0.4, 1e-3);
+    assert_json_num_approx(&arr[0]["ghost_offset_ms"], 75.0, 1e-3);
+    assert_json_num_approx(&arr[0]["ghost_velocity_factor"], 0.25, 1e-3);
+    // Slot 1 has no overrides — should emit defaults (1.0 / 0.0 / 60.0 / 0.3).
+    assert_json_num_approx(&arr[1]["trigger_probability"], 1.0, 1e-3);
+    assert_json_num_approx(&arr[1]["ghost_probability"], 0.0, 1e-3);
+    assert_json_num_approx(&arr[1]["ghost_offset_ms"], 60.0, 1e-3);
+    assert_json_num_approx(&arr[1]["ghost_velocity_factor"], 0.3, 1e-3);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_kit_to_json_emits_pattern() {
+    let mut h = build_harness();
+    install_kit_with_new_fields(&mut h);
+    let parsed = get_kit_json(&mut h).await;
+    let arr = parsed.as_array().expect("kit is array");
+    let pat = arr[0]["pattern"]
+        .as_array()
+        .expect("pattern should be a JSON array");
+    assert_eq!(pat.len(), 1);
+    assert_eq!(pat[0]["division"], "Sixteenth");
+    assert_json_num_approx(&pat[0]["velocity_factor"], 0.7, 1e-3);
+    assert_json_num_approx(&pat[0]["multiplier"], 1.0, 1e-3);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_kit_to_json_emits_mode_list() {
+    let mut h = build_harness();
+    install_kit_with_new_fields(&mut h);
+    let parsed = get_kit_json(&mut h).await;
+    let arr = parsed.as_array().expect("kit is array");
+    let modes = arr[0]["mode_list"]
+        .as_array()
+        .expect("mode_list should be a JSON array");
+    assert_eq!(modes.len(), 2);
+    assert_json_num_approx(&modes[0]["freq"], 200.0, 1e-3);
+    assert_json_num_approx(&modes[1]["freq"], 400.0, 1e-3);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_kit_to_json_emits_divisions() {
+    let mut h = build_harness();
+    install_kit_with_new_fields(&mut h);
+    let parsed = get_kit_json(&mut h).await;
+    let arr = parsed.as_array().expect("kit is array");
+    // BeatDivision serialises as its variant name (string) under serde.
+    assert_eq!(arr[0]["lfo1_division"], "Quarter");
+    assert_eq!(arr[0]["lfo2_division"], "Eighth");
+    assert_eq!(arr[0]["decay_division"], "Bar");
+    // Slot 1 has no division overrides — should serialise as null.
+    assert!(arr[1]["lfo1_division"].is_null());
+    assert!(arr[1]["decay_division"].is_null());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_set_param_trigger_probability() {
+    let mut h = build_harness();
+    dispatch(&mut h, "SET_PARAM:0:trigger_probability:0.5").await;
+
+    // Snapshot updated.
+    {
+        let snap = h.shared_state.kit_snapshot.lock().unwrap();
+        assert_eq!(snap.sounds[0].trigger_probability, Some(0.5));
+    }
+
+    // AudioCommand dispatched as SetGenerative (not SetParam), so the audio
+    // thread updates `KitEngine::generative` rather than calling
+    // `Voice::set_param` (which would no-op).
+    let cmds = drain_audio(&mut h);
+    let matched = cmds.iter().any(|c| {
+        matches!(c, AudioCommand::SetGenerative(slot, p, v)
+            if *slot == 0 && p == "trigger_probability" && (*v - 0.5).abs() < 1e-6)
+    });
+    assert!(
+        matched,
+        "expected SetGenerative(0, trigger_probability, 0.5), got {:?}",
+        cmds
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_set_param_ghost_probability() {
+    let mut h = build_harness();
+    dispatch(&mut h, "SET_PARAM:1:ghost_probability:0.6").await;
+    dispatch(&mut h, "SET_PARAM:1:ghost_offset_ms:120").await;
+    dispatch(&mut h, "SET_PARAM:1:ghost_velocity_factor:0.45").await;
+
+    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    assert_eq!(snap.sounds[1].ghost_probability, Some(0.6));
+    assert_eq!(snap.sounds[1].ghost_offset_ms, Some(120.0));
+    assert_eq!(snap.sounds[1].ghost_velocity_factor, Some(0.45));
+    drop(snap);
+
+    let cmds = drain_audio(&mut h);
+    assert!(
+        cmds.iter().any(|c| matches!(c, AudioCommand::SetGenerative(1, p, _) if p == "ghost_probability")),
+        "expected SetGenerative for ghost_probability, got {:?}",
+        cmds
+    );
+    assert!(
+        cmds.iter().any(|c| matches!(c, AudioCommand::SetGenerative(1, p, _) if p == "ghost_offset_ms")),
+        "expected SetGenerative for ghost_offset_ms"
+    );
+    assert!(
+        cmds.iter().any(|c| matches!(c, AudioCommand::SetGenerative(1, p, _) if p == "ghost_velocity_factor")),
+        "expected SetGenerative for ghost_velocity_factor"
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_set_division_decay_bar() {
+    use drummr::dsp::timing::BeatDivision;
+    let mut h = build_harness();
+    dispatch(&mut h, "SET_DIVISION:1|decay|Bar").await;
+
+    // Snapshot reflects the new division.
+    {
+        let snap = h.shared_state.kit_snapshot.lock().unwrap();
+        assert_eq!(snap.sounds[1].decay_division, Some(BeatDivision::Bar));
+    }
+
+    let cmds = drain_audio(&mut h);
+    let matched = cmds.iter().any(|c| {
+        matches!(c, AudioCommand::SetDivision(slot, p, Some(div))
+            if *slot == 1 && p == "decay_division" && *div == BeatDivision::Bar)
+    });
+    assert!(
+        matched,
+        "expected SetDivision(1, decay_division, Some(Bar)), got {:?}",
+        cmds
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_clear_division_resets_decay() {
+    use drummr::dsp::timing::BeatDivision;
+    let mut h = build_harness();
+    // Pre-set a division so we can verify the clear actually clears it.
+    {
+        let mut snap = h.shared_state.kit_snapshot.lock().unwrap();
+        snap.sounds[1].decay_division = Some(BeatDivision::Bar);
+    }
+    dispatch(&mut h, "CLEAR_DIVISION:1|decay").await;
+
+    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    assert_eq!(snap.sounds[1].decay_division, None);
+    drop(snap);
+
+    let cmds = drain_audio(&mut h);
+    let matched = cmds.iter().any(|c| {
+        matches!(c, AudioCommand::SetDivision(slot, p, None)
+            if *slot == 1 && p == "decay_division")
+    });
+    assert!(
+        matched,
+        "expected SetDivision(1, decay_division, None), got {:?}",
+        cmds
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_set_division_rejects_unknown_division_name() {
+    let mut h = build_harness();
+    // "NotAThing" is not a BeatDivision variant. Handler should silently no-op
+    // rather than panic.
+    dispatch(&mut h, "SET_DIVISION:0|decay|NotAThing").await;
+    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    assert_eq!(snap.sounds[0].decay_division, None);
+    drop(snap);
+
+    let cmds = drain_audio(&mut h);
+    assert!(
+        cmds.is_empty(),
+        "no AudioCommand should be dispatched for an unknown division, got {:?}",
+        cmds
+    );
+}

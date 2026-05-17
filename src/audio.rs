@@ -47,6 +47,12 @@ pub fn start_audio(
                         AudioCommand::SetPostFx(slot, param, val) => {
                             kit.set_postfx(slot, &param, val);
                         }
+                        AudioCommand::SetGenerative(slot, param, val) => {
+                            kit.set_generative(slot, &param, val);
+                        }
+                        AudioCommand::SetDivision(slot, param, div) => {
+                            kit.set_division(slot, &param, div);
+                        }
                     }
                 }
 

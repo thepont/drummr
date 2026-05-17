@@ -89,6 +89,14 @@ fn analyze_sound(sound: &DrumSound, sample_rate: f32) -> Option<VoiceAnalysis> {
 }
 
 /// Serialize a DrumKit snapshot into the JSON shape the UI expects for `KIT:` broadcasts.
+///
+/// Includes the clock-aware effect fields (`sub_hits`, `pattern`, `mode_list`,
+/// `trigger_probability`, `ghost_probability`, `ghost_offset_ms`,
+/// `ghost_velocity_factor`) so the UI can render generative-trigger widgets
+/// and read-only indicators for tempo-locked slots. Fields that are
+/// optional in the kit schema are emitted as their default value (for
+/// simple scalars) or `null` (for compound types) so the UI sees a uniform
+/// shape across every slot.
 fn kit_to_json(config: &DrumKit) -> String {
     let kit_data: Vec<_> = config
         .sounds
@@ -120,11 +128,51 @@ fn kit_to_json(config: &DrumKit) -> String {
                 "lfo1_division": s.lfo1_division,
                 "lfo2_division": s.lfo2_division,
                 "decay_division": s.decay_division,
-                "mods": s.mods
+                "mods": s.mods,
+                // Generative trigger fields: emit defaults so the UI can
+                // bind sliders unconditionally. The audio thread applies
+                // the same defaults in `from_config`, so what the user sees
+                // here matches what the engine does at trigger time.
+                "trigger_probability": s.trigger_probability.unwrap_or(1.0),
+                "ghost_probability": s.ghost_probability.unwrap_or(0.0),
+                "ghost_offset_ms": s.ghost_offset_ms.unwrap_or(60.0),
+                "ghost_velocity_factor": s.ghost_velocity_factor.unwrap_or(0.3),
+                // Compound clock-aware features: emit the raw structures so
+                // the UI can display step counts / contents (read-only for
+                // the first pass). `null` when unset rather than `[]` so a
+                // missing-vs-empty-vector distinction is preserved.
+                "sub_hits": s.sub_hits,
+                "pattern": s.pattern,
+                "mode_list": s.mode_list,
             })
         })
         .collect();
     serde_json::to_string(&kit_data).unwrap_or_default()
+}
+
+/// Parse a BeatDivision variant name as it appears in TOML / WS payloads
+/// (e.g. "Quarter", "Bar", "TwoBars"). Returns `None` for an unrecognised
+/// name so the SET_DIVISION handler can fall through silently rather than
+/// panic on a malformed UI message.
+fn parse_beat_division(name: &str) -> Option<crate::dsp::timing::BeatDivision> {
+    use crate::dsp::timing::BeatDivision;
+    match name {
+        "ThirtySecond" => Some(BeatDivision::ThirtySecond),
+        "SixteenthTriplet" => Some(BeatDivision::SixteenthTriplet),
+        "Sixteenth" => Some(BeatDivision::Sixteenth),
+        "SixteenthDotted" => Some(BeatDivision::SixteenthDotted),
+        "EighthTriplet" => Some(BeatDivision::EighthTriplet),
+        "Eighth" => Some(BeatDivision::Eighth),
+        "EighthDotted" => Some(BeatDivision::EighthDotted),
+        "QuarterTriplet" => Some(BeatDivision::QuarterTriplet),
+        "Quarter" => Some(BeatDivision::Quarter),
+        "QuarterDotted" => Some(BeatDivision::QuarterDotted),
+        "Half" => Some(BeatDivision::Half),
+        "Bar" => Some(BeatDivision::Bar),
+        "TwoBars" => Some(BeatDivision::TwoBars),
+        "FourBars" => Some(BeatDivision::FourBars),
+        _ => None,
+    }
 }
 
 pub async fn handle_command(
@@ -368,9 +416,18 @@ pub async fn handle_command(
             let value: f32 = parts[3].parse().unwrap_or(0.0);
             // Route bits/rate to the per-slot post-FX channel so the audio
             // thread updates the PostFx struct rather than calling the engine.
+            // Route the four generative-trigger fields to SetGenerative so
+            // the audio thread updates `KitEngine::generative[slot]` rather
+            // than (incorrectly) calling `Voice::set_param`.
             if let Ok(mut p) = cmd_producer.lock() {
                 let cmd = match param {
                     "bits" | "rate" => AudioCommand::SetPostFx(slot, param.to_string(), value),
+                    "trigger_probability"
+                    | "ghost_probability"
+                    | "ghost_offset_ms"
+                    | "ghost_velocity_factor" => {
+                        AudioCommand::SetGenerative(slot, param.to_string(), value)
+                    }
                     _ => AudioCommand::SetParam(slot, param.to_string(), value),
                 };
                 let _ = p.push(cmd);
@@ -404,6 +461,22 @@ pub async fn handle_command(
                         "decay" => sound.decay = value,
                         "lfo1_freq" => sound.lfo1_freq = Some(value),
                         "lfo2_freq" => sound.lfo2_freq = Some(value),
+                        // Generative-trigger fields. Clamp at the snapshot
+                        // boundary so persisted TOML never carries an
+                        // out-of-range probability (audio thread also clamps
+                        // defensively in `set_generative`).
+                        "trigger_probability" => {
+                            sound.trigger_probability = Some(value.clamp(0.0, 1.0));
+                        }
+                        "ghost_probability" => {
+                            sound.ghost_probability = Some(value.clamp(0.0, 1.0));
+                        }
+                        "ghost_offset_ms" => {
+                            sound.ghost_offset_ms = Some(value.max(0.0));
+                        }
+                        "ghost_velocity_factor" => {
+                            sound.ghost_velocity_factor = Some(value.clamp(0.0, 1.0));
+                        }
                         _ => {}
                     }
                     Some(snapshot.clone())
@@ -423,6 +496,76 @@ pub async fn handle_command(
                     }
                 }
                 let _ = persistence_tx.send(PersistenceCommand::SaveKit(config));
+            }
+        }
+    } else if text.starts_with("SET_DIVISION:") || text.starts_with("CLEAR_DIVISION:") {
+        // SET_DIVISION:slot|param|division  -> e.g. SET_DIVISION:3|decay|Bar
+        // CLEAR_DIVISION:slot|param         -> clears the field on the slot.
+        //
+        // `param` is the bare suffix ("lfo1", "lfo2", "decay"); the handler
+        // expands it to the full field name on the engine ("lfo1_division",
+        // etc.). Using a separate command keeps the SET_PARAM contract
+        // strictly float-valued.
+        let is_set = text.starts_with("SET_DIVISION:");
+        let payload = if is_set {
+            text.replace("SET_DIVISION:", "")
+        } else {
+            text.replace("CLEAR_DIVISION:", "")
+        };
+        let parts: Vec<&str> = payload.split('|').collect();
+        let expected_parts = if is_set { 3 } else { 2 };
+        if parts.len() == expected_parts {
+            let slot: usize = parts[0].parse().unwrap_or(usize::MAX);
+            let param_suffix = parts[1];
+            // Expand "lfo1" -> "lfo1_division", etc. Reject anything else so
+            // a stray "freq" command can't masquerade as a division setter.
+            let field = match param_suffix {
+                "lfo1" | "lfo1_division" => Some("lfo1_division"),
+                "lfo2" | "lfo2_division" => Some("lfo2_division"),
+                "decay" | "decay_division" => Some("decay_division"),
+                _ => None,
+            };
+            let division = if is_set {
+                parse_beat_division(parts[2])
+            } else {
+                None
+            };
+            // For SET_DIVISION the division must parse; for CLEAR it's
+            // unconditionally None.
+            let apply = match (is_set, division.is_some()) {
+                (true, true) => true,
+                (false, _) => true,
+                (true, false) => false,
+            };
+
+            if let (Some(field_name), true, true) = (field, apply, slot < 16) {
+                if let Ok(mut p) = cmd_producer.lock() {
+                    let _ = p.push(AudioCommand::SetDivision(
+                        slot,
+                        field_name.to_string(),
+                        division,
+                    ));
+                }
+
+                let snapshot_clone = if let Ok(mut snapshot) = shared_state.kit_snapshot.lock() {
+                    if let Some(sound) = snapshot.sounds.get_mut(slot) {
+                        match field_name {
+                            "lfo1_division" => sound.lfo1_division = division,
+                            "lfo2_division" => sound.lfo2_division = division,
+                            "decay_division" => sound.decay_division = division,
+                            _ => {}
+                        }
+                        Some(snapshot.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(config) = snapshot_clone {
+                    let _ = persistence_tx.send(PersistenceCommand::SaveKit(config));
+                }
             }
         }
     } else if text.starts_with("SET_MOD:") {

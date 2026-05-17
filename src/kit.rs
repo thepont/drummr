@@ -99,6 +99,52 @@ impl Voice {
         }
     }
 
+    /// Update one of the tempo-locked division fields on this voice. `param`
+    /// is one of "lfo1_division", "lfo2_division", "decay_division". A
+    /// `None` value clears the division, returning the slot to static
+    /// Hz / ms behaviour. Unknown params (and engines that don't carry that
+    /// particular field, like Noise on the LFO divisions) are silently
+    /// ignored.
+    pub fn set_division(&mut self, param: &str, division: Option<crate::dsp::timing::BeatDivision>) {
+        match self {
+            Voice::Fm(v) => match param {
+                "lfo1_division" => v.lfo1_division = division,
+                "lfo2_division" => v.lfo2_division = division,
+                "decay_division" => v.decay_division = division,
+                _ => {}
+            },
+            Voice::Phys(v) => match param {
+                "lfo1_division" => v.lfo1_division = division,
+                "lfo2_division" => v.lfo2_division = division,
+                "decay_division" => v.decay_division = division,
+                _ => {}
+            },
+            Voice::Granular(v) => match param {
+                "lfo1_division" => v.lfo1_division = division,
+                "lfo2_division" => v.lfo2_division = division,
+                "decay_division" => v.decay_division = division,
+                _ => {}
+            },
+            Voice::Hybrid(v) => match param {
+                "lfo1_division" => v.lfo1_division = division,
+                "lfo2_division" => v.lfo2_division = division,
+                "decay_division" => v.decay_division = division,
+                _ => {}
+            },
+            Voice::Modal(v) => match param {
+                "lfo1_division" => v.lfo1_division = division,
+                "lfo2_division" => v.lfo2_division = division,
+                "decay_division" => v.decay_division = division,
+                _ => {}
+            },
+            Voice::Noise(v) => {
+                if param == "decay_division" {
+                    v.decay_division = division;
+                }
+            }
+        }
+    }
+
     pub fn get_mod_values(&self) -> [f32; 4] {
         match self {
             Voice::Fm(v) => v.get_mod_values(),
@@ -696,6 +742,41 @@ impl KitEngine {
     pub fn set_postfx(&mut self, slot: usize, param: &str, value: f32) {
         if slot < 16 {
             self.postfx[slot].set_param(param, value);
+        }
+    }
+
+    /// Mutate one generative-trigger setting for a slot. `param` is one of
+    /// "trigger_probability", "ghost_probability", "ghost_offset_ms",
+    /// "ghost_velocity_factor". Values are clamped on entry so the audio
+    /// thread never observes out-of-range probabilities. Unknown params /
+    /// out-of-range slots are silently ignored.
+    pub fn set_generative(&mut self, slot: usize, param: &str, value: f32) {
+        if slot >= 16 {
+            return;
+        }
+        let g = &mut self.generative[slot];
+        match param {
+            "trigger_probability" => g.trigger_probability = value.clamp(0.0, 1.0),
+            "ghost_probability" => g.ghost_probability = value.clamp(0.0, 1.0),
+            "ghost_offset_ms" => g.ghost_offset_ms = value.max(0.0),
+            "ghost_velocity_factor" => g.ghost_velocity_factor = value.clamp(0.0, 1.0),
+            _ => {}
+        }
+    }
+
+    /// Mutate a tempo-locked beat division on a slot's voice. See
+    /// `Voice::set_division` for the supported `param` values. A `None`
+    /// value clears the division.
+    pub fn set_division(
+        &mut self,
+        slot: usize,
+        param: &str,
+        division: Option<crate::dsp::timing::BeatDivision>,
+    ) {
+        if slot < 16 {
+            if let Some(voice) = &mut self.voices[slot] {
+                voice.set_division(param, division);
+            }
         }
     }
 
