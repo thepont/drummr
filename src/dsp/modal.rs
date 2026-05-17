@@ -491,6 +491,23 @@ impl ModalEngine {
     pub fn is_active(&self) -> bool {
         self.amp_env.is_active() || self.exciter_remaining > 0 || self.tail_active
     }
+
+    /// Read-only view of the amp envelope's currently configured decay
+    /// length in seconds. Used by clock-aware integration tests to verify
+    /// that tempo-locked decay rewrites both the envelope AND the modal
+    /// `decay` field (so `rebuild_modes()` picks up the new per-mode Q).
+    /// Not invoked on the audio thread.
+    pub fn amp_env_decay_sec(&self) -> f32 {
+        self.amp_env.decay_sec
+    }
+
+    /// Read-only view of `self.decay` (ms). The modal trigger path writes
+    /// the resolved tempo-locked decay back to `self.decay` before calling
+    /// `rebuild_modes()` so per-mode Q values track the new envelope
+    /// length. Tests use this accessor to verify that write-back.
+    pub fn decay_ms(&self) -> f32 {
+        self.decay
+    }
 }
 
 #[cfg(test)]

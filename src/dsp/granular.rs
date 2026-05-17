@@ -231,4 +231,11 @@ impl GranularEngine {
     pub fn is_active(&self) -> bool {
         self.amp_env.is_active() || !self.grains.is_empty()
     }
+
+    /// Read-only view of the amp envelope's currently configured decay
+    /// length in seconds. Used by clock-aware integration tests; not
+    /// invoked on the audio thread.
+    pub fn amp_env_decay_sec(&self) -> f32 {
+        self.amp_env.decay_sec
+    }
 }
