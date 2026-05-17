@@ -19,6 +19,7 @@ grain_size = 60.0
 jitter = 0.5
 attack = 100.0
 decay = 1600.0
+mods = [{param="density", source="Velocity", depth=0.2}, {param="freq", source="Velocity", depth=12.0}]
 
 [[sounds]]
 name = "Drift Closed Hat"

@@ -29,6 +29,7 @@ brightness = 1.0
 dampening = 0.1
 attack = 1.0
 decay = 60.0
+mods = [{param="dampening", source="Velocity", depth=-0.05}]
 
 [[sounds]]
 name = "KS Open Hat"
@@ -38,6 +39,7 @@ brightness = 1.0
 dampening = 0.1
 attack = 1.0
 decay = 250.0
+mods = [{param="dampening", source="Velocity", depth=-0.05}, {param="brightness", source="Velocity", depth=0.1}]
 
 [[sounds]]
 name = "Marimba Tom 1"

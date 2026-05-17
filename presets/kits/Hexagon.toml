@@ -33,6 +33,7 @@ metallic = 0.7
 attack = 1.0
 decay = 70.0
 bits = 8.0
+mods = [{param="noise_color", source="Velocity", depth=0.1}]
 
 [[sounds]]
 name = "Hex Open Hat"
@@ -43,6 +44,7 @@ metallic = 0.7
 attack = 1.0
 decay = 400.0
 bits = 8.0
+mods = [{param="noise_color", source="Velocity", depth=0.1}, {param="metallic", source="Velocity", depth=0.1}]
 
 [[sounds]]
 name = "Pew Tom 1"

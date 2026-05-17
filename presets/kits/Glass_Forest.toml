@@ -10,6 +10,7 @@ mod_index = 3.0
 noise_level = 0.08
 attack = 1.0
 decay = 420.0
+mods = [{param="mod_index", source="Velocity", depth=2.0}, {param="mod_index", source="Envelope", depth=1.5}]
 
 [[sounds]]
 name = "Wine Glass"

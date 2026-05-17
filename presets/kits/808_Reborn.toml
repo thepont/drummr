@@ -43,7 +43,7 @@ decay = 400.0
 [[sounds]]
 name = "808 Tom 1"
 engine_type = "fm"
-freq = 200.0
+freq = 220.0
 mod_ratio = 0.5
 mod_index = 2.0
 attack = 1.0
@@ -52,7 +52,7 @@ decay = 350.0
 [[sounds]]
 name = "808 Tom 2"
 engine_type = "fm"
-freq = 150.0
+freq = 165.0
 mod_ratio = 0.5
 mod_index = 2.0
 attack = 1.0
@@ -70,7 +70,7 @@ decay = 480.0
 [[sounds]]
 name = "808 Tom 4"
 engine_type = "fm"
-freq = 80.0
+freq = 82.0
 mod_ratio = 0.5
 mod_index = 2.0
 attack = 1.0
