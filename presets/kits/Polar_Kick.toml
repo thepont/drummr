@@ -10,7 +10,7 @@ mod_index = 6.0
 noise_level = 0.5
 attack = 1.0
 decay = 500.0
-mods = [{param="mod_index", source="Envelope", depth=3.0}]
+mods = [{param="mod_index", source="Envelope", depth=3.0}, {param="freq", source="Envelope", depth=30.0}]
 
 [[sounds]]
 name = "Polar Snare"
@@ -56,6 +56,7 @@ mod_index = 5.0
 noise_level = 0.3
 attack = 1.0
 decay = 420.0
+mods = [{param="freq", source="Envelope", depth=40.0}]
 
 [[sounds]]
 name = "Polar Tom 2"
@@ -66,6 +67,7 @@ mod_index = 5.0
 noise_level = 0.3
 attack = 1.0
 decay = 440.0
+mods = [{param="freq", source="Envelope", depth=30.0}]
 
 [[sounds]]
 name = "Polar Tom 3"
@@ -76,6 +78,7 @@ mod_index = 5.0
 noise_level = 0.3
 attack = 1.0
 decay = 460.0
+mods = [{param="freq", source="Envelope", depth=22.0}]
 
 [[sounds]]
 name = "Polar Tom 4"
@@ -86,6 +89,7 @@ mod_index = 5.0
 noise_level = 0.3
 attack = 1.0
 decay = 480.0
+mods = [{param="freq", source="Envelope", depth=17.0}]
 
 [[sounds]]
 name = "Polar Crash"
