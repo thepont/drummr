@@ -1,0 +1,307 @@
+name = "Cathedral Forever"
+description = "Eno / Stars-of-the-Lid drone kit. Every voice rings for bars not milliseconds — decay_division on every slot, mostly Bar / TwoBars / FourBars at the live BPM. Explicit mode_list partials build a tuned bell choir; bar-and-two-bar LFOs sweep brightness so the texture breathes. Strike any one note and the room rings for the next 8 seconds at 120 BPM."
+
+# Slot 0 — Kick that decays over two bars. Very low fundamental so the
+# long tail isn't a click; modal so it pitches cleanly.
+[[sounds]]
+name = "Kick Drone (TwoBars)"
+engine_type = "modal"
+freq = 45.0
+brightness = 0.5
+dampening = 0.18
+inharmonicity = 0.0
+attack = 2.0
+decay = 1200.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 45.0,  q = 60.0, gain = 1.0 },
+    { freq = 90.0,  q = 50.0, gain = 0.55 },
+    { freq = 135.0, q = 45.0, gain = 0.3 },
+]
+lfo1_division = "TwoBars"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.15 }]
+
+# Slot 1 — Snare/bell hybrid. Bar-length decay; modal with explicit
+# two-mode list for clean pitch.
+[[sounds]]
+name = "Snare Bell (Bar)"
+engine_type = "modal"
+freq = 300.0
+brightness = 0.6
+dampening = 0.1
+inharmonicity = 0.0
+attack = 1.0
+decay = 800.0
+decay_division = "Bar"
+mode_list = [
+    { freq = 300.0, q = 30.0, gain = 1.0 },
+    { freq = 520.0, q = 25.0, gain = 0.7 },
+    { freq = 740.0, q = 22.0, gain = 0.4 },
+]
+lfo1_division = "Bar"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.12 }]
+
+# Slot 2 — Granular shimmer hat with Half-bar decay and bar-long density
+# sweep. Smaller-scale brother of the cathedral.
+[[sounds]]
+name = "Hat Shimmer (Half)"
+engine_type = "granular"
+freq = 4000.0
+density = 0.5
+grain_size = 50.0
+jitter = 0.4
+attack = 4.0
+decay = 600.0
+decay_division = "Half"
+lfo1_division = "Bar"
+mods = [{ param = "density", source = "Lfo1", depth = 0.25 }]
+
+# Slot 3 — Open hat that rings four bars. At 120 BPM that's 8 seconds.
+[[sounds]]
+name = "Open Hat (4Bars)"
+engine_type = "modal"
+freq = 2200.0
+brightness = 0.78
+dampening = 0.08
+inharmonicity = 0.0
+attack = 1.0
+decay = 1500.0
+decay_division = "FourBars"
+mode_list = [
+    { freq = 2200.0, q = 150.0, gain = 1.0 },
+    { freq = 3300.0, q = 130.0, gain = 0.55 },
+    { freq = 4400.0, q = 110.0, gain = 0.35 },
+]
+lfo1_division = "TwoBars"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.18 }]
+
+# Slots 4-7 — Chord-tuned bell toms. C-E-G-B major-7 chord, two-bar rings,
+# pattern that fires the bar-after copy quietly to cascade.
+[[sounds]]
+name = "Bell Tom C (TwoBars)"
+engine_type = "modal"
+freq = 130.81
+brightness = 0.6
+dampening = 0.08
+inharmonicity = 0.0
+attack = 2.0
+decay = 900.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 130.81, q = 100.0, gain = 1.0 },
+    { freq = 261.63, q = 90.0,  gain = 0.55 },
+    { freq = 392.0,  q = 80.0,  gain = 0.32 },
+]
+pattern = [
+    { division = "Bar", velocity_factor = 0.35, multiplier = 1.0 },
+]
+
+[[sounds]]
+name = "Bell Tom E (TwoBars)"
+engine_type = "modal"
+freq = 164.81
+brightness = 0.62
+dampening = 0.08
+inharmonicity = 0.0
+attack = 2.0
+decay = 900.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 164.81, q = 100.0, gain = 1.0 },
+    { freq = 329.63, q = 90.0,  gain = 0.55 },
+    { freq = 494.0,  q = 80.0,  gain = 0.3 },
+]
+pattern = [
+    { division = "Bar", velocity_factor = 0.3, multiplier = 1.0 },
+]
+
+[[sounds]]
+name = "Bell Tom G (TwoBars)"
+engine_type = "modal"
+freq = 196.0
+brightness = 0.65
+dampening = 0.08
+inharmonicity = 0.0
+attack = 2.0
+decay = 900.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 196.0,  q = 100.0, gain = 1.0 },
+    { freq = 392.0,  q = 90.0,  gain = 0.55 },
+    { freq = 588.0,  q = 80.0,  gain = 0.3 },
+]
+pattern = [
+    { division = "Bar", velocity_factor = 0.3, multiplier = 1.0 },
+]
+
+[[sounds]]
+name = "Bell Tom B (TwoBars)"
+engine_type = "modal"
+freq = 246.94
+brightness = 0.68
+dampening = 0.08
+inharmonicity = 0.0
+attack = 2.0
+decay = 900.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 246.94, q = 100.0, gain = 1.0 },
+    { freq = 493.88, q = 90.0,  gain = 0.55 },
+    { freq = 740.0,  q = 80.0,  gain = 0.3 },
+]
+pattern = [
+    { division = "Bar", velocity_factor = 0.3, multiplier = 1.0 },
+]
+
+# Slot 8 — Crash that rings four bars at the live BPM. ~8 s at 120.
+[[sounds]]
+name = "Crash (4Bars)"
+engine_type = "modal"
+freq = 660.0
+brightness = 0.8
+dampening = 0.05
+inharmonicity = 0.0
+attack = 3.0
+decay = 1800.0
+decay_division = "FourBars"
+mode_list = [
+    { freq = 660.0,  q = 250.0, gain = 1.0 },
+    { freq = 990.0,  q = 220.0, gain = 0.6 },
+    { freq = 1485.0, q = 200.0, gain = 0.4 },
+    { freq = 1980.0, q = 180.0, gain = 0.25 },
+]
+lfo1_division = "TwoBars"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.2 }]
+
+# Slot 9 — Ride bell, two-bar ring, quarter-dotted LFO.
+[[sounds]]
+name = "Ride Bell (2Bars + D4 LFO)"
+engine_type = "modal"
+freq = 1320.0
+brightness = 0.7
+dampening = 0.1
+inharmonicity = 0.0
+attack = 1.0
+decay = 1200.0
+decay_division = "TwoBars"
+lfo1_division = "QuarterDotted"
+mode_list = [
+    { freq = 1320.0, q = 150.0, gain = 1.0 },
+    { freq = 1980.0, q = 130.0, gain = 0.5 },
+    { freq = 2640.0, q = 110.0, gain = 0.3 },
+]
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.2 }]
+
+# Slot 10 — Tuned bell C5. Two-bar ring with cascading sub-bar pattern.
+[[sounds]]
+name = "Bell C5 (Cascade)"
+engine_type = "modal"
+freq = 523.25
+brightness = 0.7
+dampening = 0.08
+inharmonicity = 0.0
+attack = 1.0
+decay = 1000.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 523.25, q = 150.0, gain = 1.0 },
+    { freq = 1046.5, q = 130.0, gain = 0.55 },
+    { freq = 1570.0, q = 110.0, gain = 0.3 },
+]
+pattern = [
+    { division = "Bar", velocity_factor = 0.35, multiplier = 1.0 },
+    { division = "TwoBars", velocity_factor = 0.2, multiplier = 1.0 },
+]
+
+# Slot 11 — Tuned bell E5.
+[[sounds]]
+name = "Bell E5 (TwoBars)"
+engine_type = "modal"
+freq = 659.25
+brightness = 0.72
+dampening = 0.08
+inharmonicity = 0.0
+attack = 1.0
+decay = 1000.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 659.25,  q = 150.0, gain = 1.0 },
+    { freq = 1318.5,  q = 130.0, gain = 0.5 },
+    { freq = 1977.75, q = 110.0, gain = 0.28 },
+]
+lfo1_division = "Bar"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.15 }]
+
+# Slot 12 — Tuned bell G5.
+[[sounds]]
+name = "Bell G5 (TwoBars)"
+engine_type = "modal"
+freq = 784.0
+brightness = 0.74
+dampening = 0.08
+inharmonicity = 0.0
+attack = 1.0
+decay = 1000.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 784.0,  q = 150.0, gain = 1.0 },
+    { freq = 1568.0, q = 130.0, gain = 0.5 },
+    { freq = 2352.0, q = 110.0, gain = 0.28 },
+]
+lfo1_division = "TwoBars"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.15 }]
+
+# Slot 13 — Glass bell B5. Four-bar ring.
+[[sounds]]
+name = "Glass Bell B5 (4Bars)"
+engine_type = "modal"
+freq = 987.77
+brightness = 0.76
+dampening = 0.06
+inharmonicity = 0.0
+attack = 1.0
+decay = 1500.0
+decay_division = "FourBars"
+mode_list = [
+    { freq = 987.77, q = 250.0, gain = 1.0 },
+    { freq = 1480.0, q = 220.0, gain = 0.55 },
+    { freq = 2300.0, q = 200.0, gain = 0.35 },
+]
+lfo1_division = "TwoBars"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.18 }]
+
+# Slot 14 — Sub-octave drone (E2). FourBars decay; the slowest voice in
+# the kit. Sits underneath everything.
+[[sounds]]
+name = "Sub Drone (4Bars)"
+engine_type = "phys"
+freq = 82.41
+brightness = 0.35
+dampening = 0.65
+attack = 8.0
+decay = 1800.0
+decay_division = "FourBars"
+lfo1_division = "FourBars"
+lfo2_division = "TwoBars"
+mods = [
+    { param = "brightness", source = "Lfo1", depth = 0.15 },
+    { param = "dampening",  source = "Lfo2", depth = 0.1 },
+]
+
+# Slot 15 — Wood block tick — the ONE short voice in the kit. Provides
+# rhythmic edges against the wall of ring. Bar-length decay still ties it
+# to the clock.
+[[sounds]]
+name = "Wood Block (Bar)"
+engine_type = "modal"
+freq = 1500.0
+brightness = 0.88
+dampening = 0.45
+inharmonicity = 0.0
+attack = 1.0
+decay = 200.0
+decay_division = "Bar"
+mode_list = [
+    { freq = 1500.0, q = 50.0, gain = 1.0 },
+    { freq = 2400.0, q = 45.0, gain = 0.35 },
+]

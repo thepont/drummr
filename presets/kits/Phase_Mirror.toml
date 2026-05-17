@@ -1,0 +1,291 @@
+name = "Phase Mirror"
+description = "Steve Reich's Piano Phase reimagined as a drum kit. Two identical kicks where slot 1's sub-hit drifts just off the grid (multiplier=1.005) so the two voices slowly slide out of phase across a passage. Snare/hat/tom voices have multi-bar decay_division tails so they ring through the phasing kicks like a halo. Slots 8-15 are a bell choir with explicit mode_list partials plus bar-and-two-bar tempo-locked LFOs slowly shifting their brightness. Designed to be played with a steady quarter-note loop and let the kit do the rest."
+
+# Slot 0 — Reference FM kick. Locked to the grid; slot 1 will drift against it.
+[[sounds]]
+name = "Kick (Anchor)"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.05
+attack = 1.0
+decay = 220.0
+
+# Slot 1 — The mirror kick. Identical voice, but a sixteenth-note sub-hit
+# fires with multiplier=1.005 — almost exactly a 16th later, but ~0.5%
+# off. Over many beats the offset accumulates audibly: Reich's phasing,
+# but in the time domain of every primary hit.
+[[sounds]]
+name = "Kick (Mirror Drift)"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.05
+attack = 1.0
+decay = 220.0
+pattern = [
+    { division = "Sixteenth", velocity_factor = 0.85, multiplier = 1.005 },
+    { division = "Eighth",    velocity_factor = 0.55, multiplier = 1.005 },
+]
+ghost_probability = 0.18
+ghost_offset_ms = 70.0
+ghost_velocity_factor = 0.35
+
+# Slot 2 — Snare that rings two bars at the live BPM. The long tail
+# overlaps the phasing kicks and turns micro-offsets into a slowly
+# beating texture.
+[[sounds]]
+name = "Snare (TwoBars Ring)"
+engine_type = "modal"
+freq = 240.0
+brightness = 0.7
+dampening = 0.18
+inharmonicity = 0.18
+attack = 1.0
+decay = 350.0
+decay_division = "TwoBars"
+mode_list = [
+    { freq = 240.0, q = 30.0, gain = 1.0 },
+    { freq = 380.0, q = 28.0, gain = 0.7 },
+    { freq = 520.0, q = 25.0, gain = 0.45 },
+]
+ghost_probability = 0.3
+ghost_offset_ms = 95.0
+ghost_velocity_factor = 0.32
+
+# Slot 3 — Closed hat with Bar-locked decay and a quarter-note LFO
+# shimmer on brightness.
+[[sounds]]
+name = "Hat (Bar Halo)"
+engine_type = "modal"
+freq = 1760.0
+brightness = 0.78
+dampening = 0.45
+inharmonicity = 0.12
+attack = 1.0
+decay = 180.0
+decay_division = "Bar"
+lfo1_division = "Quarter"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.2 }]
+
+# Slot 4 — Open hat ringing four bars, drifting brightness over a bar.
+[[sounds]]
+name = "Open Hat (4Bars)"
+engine_type = "modal"
+freq = 1760.0
+brightness = 0.82
+dampening = 0.16
+inharmonicity = 0.12
+attack = 1.0
+decay = 500.0
+decay_division = "FourBars"
+lfo1_division = "Bar"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.18 }]
+
+# Slot 5 — Tom Low, two-bar ring. C2 root of the bell choir.
+[[sounds]]
+name = "Tom Low (TwoBars)"
+engine_type = "modal"
+freq = 65.41
+brightness = 0.6
+dampening = 0.15
+inharmonicity = 0.12
+attack = 1.0
+decay = 450.0
+decay_division = "TwoBars"
+ghost_probability = 0.15
+ghost_offset_ms = 110.0
+ghost_velocity_factor = 0.3
+
+# Slot 6 — Tom Mid (G2). Two-bar ring, slow LFO drift.
+[[sounds]]
+name = "Tom Mid (TwoBars)"
+engine_type = "modal"
+freq = 98.0
+brightness = 0.65
+dampening = 0.15
+inharmonicity = 0.12
+attack = 1.0
+decay = 450.0
+decay_division = "TwoBars"
+lfo1_division = "Bar"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.15 }]
+
+# Slot 7 — Tom High (C3). Bar ring.
+[[sounds]]
+name = "Tom High (Bar)"
+engine_type = "modal"
+freq = 130.81
+brightness = 0.7
+dampening = 0.16
+inharmonicity = 0.12
+attack = 1.0
+decay = 380.0
+decay_division = "Bar"
+
+# Slot 8 — Bell Choir: C4 root, two-bar Bar-locked decay, two-bar LFO
+# on brightness so the bell breathes once per two bars.
+[[sounds]]
+name = "Bell C4"
+engine_type = "modal"
+freq = 261.63
+brightness = 0.65
+dampening = 0.1
+inharmonicity = 0.0
+attack = 1.0
+decay = 800.0
+decay_division = "TwoBars"
+lfo1_division = "TwoBars"
+lfo2_division = "Bar"
+mode_list = [
+    { freq = 261.63, q = 120.0, gain = 1.0 },
+    { freq = 523.25, q = 100.0, gain = 0.55 },
+    { freq = 784.0,  q = 90.0,  gain = 0.35 },
+]
+mods = [
+    { param = "brightness",   source = "Lfo1", depth = 0.18 },
+    { param = "inharmonicity", source = "Lfo2", depth = 0.05 },
+]
+
+# Slot 9 — Bell E4.
+[[sounds]]
+name = "Bell E4"
+engine_type = "modal"
+freq = 329.63
+brightness = 0.7
+dampening = 0.1
+inharmonicity = 0.0
+attack = 1.0
+decay = 800.0
+decay_division = "TwoBars"
+lfo1_division = "TwoBars"
+mode_list = [
+    { freq = 329.63, q = 120.0, gain = 1.0 },
+    { freq = 659.25, q = 100.0, gain = 0.55 },
+    { freq = 988.0,  q = 90.0,  gain = 0.32 },
+]
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.18 }]
+
+# Slot 10 — Bell G4.
+[[sounds]]
+name = "Bell G4"
+engine_type = "modal"
+freq = 392.0
+brightness = 0.7
+dampening = 0.1
+inharmonicity = 0.0
+attack = 1.0
+decay = 800.0
+decay_division = "TwoBars"
+lfo1_division = "Bar"
+mode_list = [
+    { freq = 392.0, q = 120.0, gain = 1.0 },
+    { freq = 784.0, q = 100.0, gain = 0.55 },
+    { freq = 1175.0, q = 90.0, gain = 0.3 },
+]
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.18 }]
+
+# Slot 11 — Bell B4 with a bar-locked LFO at a different phase from
+# slot 10, plus a slow ghost drift.
+[[sounds]]
+name = "Bell B4"
+engine_type = "modal"
+freq = 493.88
+brightness = 0.72
+dampening = 0.1
+inharmonicity = 0.0
+attack = 1.0
+decay = 800.0
+decay_division = "TwoBars"
+lfo1_division = "Bar"
+lfo2_division = "TwoBars"
+mode_list = [
+    { freq = 493.88, q = 120.0, gain = 1.0 },
+    { freq = 987.77, q = 100.0, gain = 0.5 },
+    { freq = 1480.0, q = 90.0,  gain = 0.28 },
+]
+mods = [
+    { param = "brightness",    source = "Lfo1", depth = 0.18 },
+    { param = "inharmonicity", source = "Lfo2", depth = 0.04 },
+]
+ghost_probability = 0.2
+ghost_offset_ms = 130.0
+ghost_velocity_factor = 0.3
+
+# Slot 12 — Crash bell, 4-bar ring, slow bar-length LFO.
+[[sounds]]
+name = "Crash Bell (4Bars)"
+engine_type = "modal"
+freq = 880.0
+brightness = 0.78
+dampening = 0.07
+inharmonicity = 0.0
+attack = 2.0
+decay = 1200.0
+decay_division = "FourBars"
+lfo1_division = "TwoBars"
+mode_list = [
+    { freq = 880.0, q = 200.0, gain = 1.0 },
+    { freq = 1320.0, q = 180.0, gain = 0.55 },
+    { freq = 1980.0, q = 160.0, gain = 0.35 },
+    { freq = 2640.0, q = 140.0, gain = 0.22 },
+]
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.2 }]
+
+# Slot 13 — Mirror bell. Drifts via the same Sixteenth+1.005 pattern
+# trick as the kick — but on a bell. Creates a slow flange-ish double.
+[[sounds]]
+name = "Bell C5 (Drift)"
+engine_type = "modal"
+freq = 523.25
+brightness = 0.7
+dampening = 0.12
+inharmonicity = 0.0
+attack = 1.0
+decay = 700.0
+decay_division = "Bar"
+mode_list = [
+    { freq = 523.25, q = 100.0, gain = 1.0 },
+    { freq = 1046.5, q = 80.0,  gain = 0.5 },
+]
+pattern = [
+    { division = "Eighth",  velocity_factor = 0.55, multiplier = 1.005 },
+    { division = "Quarter", velocity_factor = 0.4,  multiplier = 1.01 },
+]
+
+# Slot 14 — Wood block tick that maps the phasing onto a percussive grid.
+[[sounds]]
+name = "Wood Tick"
+engine_type = "modal"
+freq = 1100.0
+brightness = 0.85
+dampening = 0.55
+inharmonicity = 0.0
+attack = 1.0
+decay = 60.0
+mode_list = [
+    { freq = 1100.0, q = 40.0, gain = 1.0 },
+    { freq = 1850.0, q = 40.0, gain = 0.35 },
+]
+trigger_probability = 0.85
+
+# Slot 15 — Shimmer pad: granular voice with bar-and-two-bar LFOs and a
+# four-bar decay. Sits underneath the rest as a slow drifting wash.
+[[sounds]]
+name = "Shimmer (4Bars)"
+engine_type = "granular"
+freq = 1200.0
+density = 0.55
+grain_size = 60.0
+jitter = 0.4
+attack = 8.0
+decay = 1200.0
+decay_division = "FourBars"
+lfo1_division = "Bar"
+lfo2_division = "TwoBars"
+mods = [
+    { param = "density",    source = "Lfo1", depth = 0.2 },
+    { param = "grain_size", source = "Lfo2", depth = 20.0 },
+]
