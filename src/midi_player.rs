@@ -11,7 +11,7 @@
 //! live MIDI input uses, so all downstream logic (mapping, BPM detection,
 //! voice triggering) is identical to a real MIDI controller.
 
-use crate::state::MidiEvent;
+use crate::state::{MidiEvent, SharedState};
 use anyhow::{Result, anyhow};
 use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rtrb::Producer;
@@ -72,11 +72,26 @@ struct ScheduledNote {
     velocity: u8,
 }
 
+/// Result of parsing a MIDI file: scheduled note-ons plus the track's
+/// authoritative tempo (BPM) so clock-aware kits can sync their decays /
+/// LFOs / patterns to the demo track instead of the user's stale live BPM.
+struct ParsedTrack {
+    notes: Vec<ScheduledNote>,
+    bpm: f32,
+}
+
+/// Convert a tempo expressed as microseconds-per-quarter to BPM.
+fn us_per_quarter_to_bpm(us: u32) -> f32 {
+    if us == 0 { 120.0 } else { 60_000_000.0 / (us as f32) }
+}
+
 /// Parse a MIDI file into a flat, time-sorted list of note-on events with
 /// absolute microsecond offsets. Honours tempo meta-events; for `Timing::Metrical`
 /// files we walk all tracks merged by absolute tick and apply tempo changes as
 /// we encounter them. For `Timing::Timecode` files we use the SMPTE rate directly.
-fn parse_events(path: &Path) -> Result<Vec<ScheduledNote>> {
+/// Also returns the track's first tempo (or 120 BPM if none present) so the
+/// audio path can lock clock-aware kits to the playing track.
+fn parse_events(path: &Path) -> Result<ParsedTrack> {
     let bytes = std::fs::read(path)?;
     let smf = Smf::parse(&bytes).map_err(|e| anyhow!("parse {}: {}", path.display(), e))?;
 
@@ -93,6 +108,11 @@ fn parse_events(path: &Path) -> Result<Vec<ScheduledNote>> {
     flat.sort_by_key(|(t, _)| *t);
 
     let mut out: Vec<ScheduledNote> = Vec::new();
+    // Record the first tempo encountered so we can broadcast it to the audio
+    // thread when playback starts. Most Groove MIDI files have a single tempo
+    // at tick 0; for files with multiple tempos we use the first one as the
+    // representative BPM (the curated tracks don't vary tempo mid-file).
+    let mut first_tempo_us: Option<u32> = None;
 
     match smf.header.timing {
         Timing::Metrical(tpq) => {
@@ -113,6 +133,9 @@ fn parse_events(path: &Path) -> Result<Vec<ScheduledNote>> {
                 match kind {
                     TrackEventKind::Meta(MetaMessage::Tempo(t)) => {
                         cur_tempo = u32::from(t);
+                        if first_tempo_us.is_none() {
+                            first_tempo_us = Some(u32::from(t));
+                        }
                     }
                     TrackEventKind::Midi { message, .. } => {
                         if let MidiMessage::NoteOn { key, vel } = message {
@@ -141,6 +164,8 @@ fn parse_events(path: &Path) -> Result<Vec<ScheduledNote>> {
                 return Err(anyhow!("invalid SMPTE timing"));
             }
             let us_per_tick = 1_000_000.0_f64 / (fps_f * subframe_f);
+            // SMPTE-timed files have no tempo meta; assume the default.
+            first_tempo_us = Some(DEFAULT_TEMPO_US_PER_QUARTER);
             for (abs_tick, kind) in flat {
                 if let TrackEventKind::Midi { message, .. } = kind {
                     if let MidiMessage::NoteOn { key, vel } = message {
@@ -161,7 +186,8 @@ fn parse_events(path: &Path) -> Result<Vec<ScheduledNote>> {
             }
         }
     }
-    Ok(out)
+    let bpm = us_per_quarter_to_bpm(first_tempo_us.unwrap_or(DEFAULT_TEMPO_US_PER_QUARTER));
+    Ok(ParsedTrack { notes: out, bpm })
 }
 
 /// Public entry point. Loads `<name>.mid` from `presets/midi/`, parses note-on
@@ -169,20 +195,29 @@ fn parse_events(path: &Path) -> Result<Vec<ScheduledNote>> {
 /// at its scheduled time. The caller stores the JoinHandle and aborts it on
 /// stop / replacement. `on_finish` is invoked once the last note has been
 /// pushed (used to broadcast `MIDI_TRACK_STOPPED`).
+///
+/// The track's recorded tempo is also written to `shared_state.store_bpm()`
+/// so clock-aware kits (decay_division, pattern, lfo*_division) sync to the
+/// demo track rather than the user's stale live BPM.
 pub fn spawn_playback(
     name: &str,
     midi_producer: Arc<std::sync::Mutex<Producer<MidiEvent>>>,
+    shared_state: Arc<SharedState>,
     on_finish: impl FnOnce() + Send + 'static,
 ) -> Result<tokio::task::JoinHandle<()>> {
     let path = resolve_track(name)?;
-    let events = parse_events(&path)?;
-    if events.is_empty() {
+    let parsed = parse_events(&path)?;
+    // Tell the audio path the track's BPM so clock-aware kits adopt it
+    // immediately, before the first note fires.
+    shared_state.store_bpm(parsed.bpm);
+    if parsed.notes.is_empty() {
         // Empty schedule: still broadcast MIDI_TRACK_STOPPED so the UI resets.
         return Ok(tokio::spawn(async move {
             on_finish();
         }));
     }
 
+    let events = parsed.notes;
     let handle = tokio::spawn(async move {
         let start = Instant::now();
         for ev in events {

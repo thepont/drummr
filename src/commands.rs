@@ -727,7 +727,7 @@ pub async fn handle_command(
             comm.broadcast(format!("MIDI_TRACK_STOPPED:{}", name_for_finish));
         };
 
-        match crate::midi_player::spawn_playback(&name, midi_producer.clone(), on_finish) {
+        match crate::midi_player::spawn_playback(&name, midi_producer.clone(), shared_state.clone(), on_finish) {
             Ok(handle) => {
                 if let Ok(mut slot) = shared_state.midi_playback_handle.lock() {
                     *slot = Some(handle);

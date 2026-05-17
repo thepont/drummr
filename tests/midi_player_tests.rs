@@ -369,7 +369,10 @@ async fn test_midi_player_parses_known_track() {
     // arrival test covers that.
     let (prod, mut cons) = rtrb::RingBuffer::<MidiEvent>::new(1024);
     let prod = Arc::new(std::sync::Mutex::new(prod));
-    let handle = midi_player::spawn_playback("rock_100_beat", prod.clone(), || {})
+    // spawn_playback now writes the track's BPM to SharedState. Use a throwaway
+    // harness purely to construct a valid SharedState.
+    let h = build_harness();
+    let handle = midi_player::spawn_playback("rock_100_beat", prod.clone(), h.shared_state.clone(), || {})
         .expect("rock_100_beat should parse and schedule");
 
     // Give the scheduler some time to flush its initial bar.
@@ -395,6 +398,36 @@ async fn test_midi_player_parses_known_track() {
         );
     }
 
+    handle.abort();
+}
+
+#[tokio::test]
+async fn test_playback_writes_track_bpm_to_shared_state() {
+    // Clock-aware kits read BPM from shared_state.load_bpm() at trigger time.
+    // The MIDI player must publish the playing track's recorded tempo so
+    // tempo-locked decays / patterns / LFOs sync to the demo, not the user's
+    // stale live BPM.
+    let h = build_harness();
+    h.shared_state.store_bpm(60.0); // Seed an obviously-wrong value.
+
+    let (prod, _cons) = rtrb::RingBuffer::<MidiEvent>::new(1024);
+    let prod = Arc::new(std::sync::Mutex::new(prod));
+    let handle = midi_player::spawn_playback(
+        "rock_100_beat",
+        prod.clone(),
+        h.shared_state.clone(),
+        || {},
+    )
+    .expect("rock_100_beat should parse and schedule");
+
+    // The BPM write happens synchronously inside spawn_playback before the
+    // task is returned; no sleep needed.
+    let bpm = h.shared_state.load_bpm();
+    assert!(
+        (bpm - 100.0).abs() < 5.0,
+        "expected ~100 BPM after playing rock_100_beat, got {}",
+        bpm
+    );
     handle.abort();
 }
 
