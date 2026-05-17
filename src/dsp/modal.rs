@@ -213,20 +213,28 @@ impl ModalEngine {
             decay_division: None,
         };
 
-        me.rebuild_modes();
+        me.rebuild_modes(me.decay);
         me
     }
 
-    /// Recompute all per-mode coefficients from the current frequency, decay
-    /// envelope and inharmonicity. Cheap enough to call at trigger time and
-    /// occasionally per-block, but NOT every sample.
+    /// Recompute all per-mode coefficients from the current frequency, the
+    /// supplied decay length, and inharmonicity. Cheap enough to call at
+    /// trigger time and occasionally per-block, but NOT every sample.
+    ///
+    /// `decay_ms` is the resolved decay length in milliseconds to base
+    /// per-mode Q values on. Callers must pass either `self.decay` (the
+    /// static UI / TOML value) when no override is active, or the resolved
+    /// tempo-locked length when `decay_division` is set. Threading this as
+    /// a parameter instead of reading `self.decay` directly is what lets
+    /// `trigger()` use a tempo-locked envelope length without destroying
+    /// the user's slider value (HIGH #5 fix).
     ///
     /// If `explicit_modes` is `Some`, the engine uses the supplied list of
     /// `{freq, q, gain}` triples (up to NUM_MODES). Remaining modes are zeroed
     /// out via `base_gain = 0`. Otherwise the standard harmonic/Bessel ratio
     /// interpolation is used (preserving full backward compatibility for the
     /// existing 22+ modal kit voices that don't supply a `mode_list`).
-    fn rebuild_modes(&mut self) {
+    fn rebuild_modes(&mut self, decay_ms: f32) {
         if let Some(list) = &self.explicit_modes {
             // Explicit path. Decay-sec on each mode is informational only —
             // Q is taken straight from the list (still clamped inside
@@ -258,7 +266,7 @@ impl ModalEngine {
         let damp = self.dampening.base_value.clamp(0.0, 1.0);
         // dampening = 0 -> full decay; dampening = 1 -> 10% of base decay.
         let decay_scale = 1.0 - 0.9 * damp;
-        let base_decay_sec = (self.decay / 1000.0).max(0.005) * decay_scale;
+        let base_decay_sec = (decay_ms / 1000.0).max(0.005) * decay_scale;
 
         for i in 0..NUM_MODES {
             let harmonic = HARMONIC_RATIOS[i];
@@ -288,7 +296,9 @@ impl ModalEngine {
     /// without needing a re-trigger.
     pub fn set_explicit_modes(&mut self, modes: Option<Vec<ExplicitMode>>) {
         self.explicit_modes = modes;
-        self.rebuild_modes();
+        // No active decay_division override on this path — pass through the
+        // current static decay so existing voices keep their slider value.
+        self.rebuild_modes(self.decay);
     }
 }
 
@@ -352,16 +362,23 @@ impl ModalEngine {
         if velocity > 0.0 {
             self.mod_engine.velocity = velocity;
             // Tempo-locked decay overrides the static `decay` (ms) when set.
-            // Modal voices store the resolved decay back into `self.decay`
-            // (ms) so `rebuild_modes()` — which uses `self.decay` to compute
-            // per-mode Q values — picks up the live-tempo length.
-            if let Some(div) = self.decay_division {
-                self.decay = div.to_seconds(bpm) * 1000.0;
-            }
+            // Compute the effective length locally and thread it through
+            // `rebuild_modes` rather than writing it back to `self.decay` —
+            // the previous behaviour was to permanently overwrite the user's
+            // slider value, so a subsequent UI edit was silently clobbered
+            // on the next trigger. Keeping `self.decay` intact means
+            // SET_PARAM:decay:X on a tempo-locked slot still updates the
+            // stored slider position (and takes audible effect the moment
+            // `decay_division` is cleared), even though the division wins
+            // for the current trigger.
+            let effective_decay_ms = match self.decay_division {
+                Some(div) => div.to_seconds(bpm) * 1000.0,
+                None => self.decay,
+            };
             self.amp_env
-                .set_params(self.attack / 1000.0, self.decay / 1000.0);
+                .set_params(self.attack / 1000.0, effective_decay_ms / 1000.0);
             self.amp_env.trigger();
-            self.rebuild_modes();
+            self.rebuild_modes(effective_decay_ms);
 
             if let Some(div) = self.lfo1_division {
                 self.mod_engine.set_lfo(1, div.to_hz(bpm));
@@ -450,21 +467,26 @@ impl ModalEngine {
         match param {
             "freq" => {
                 self.frequency.base_value = value.clamp(20.0, 4000.0);
-                self.rebuild_modes();
+                self.rebuild_modes(self.decay);
             }
             "brightness" => self.brightness.base_value = value.clamp(0.0, 1.0),
             "dampening" => {
                 self.dampening.base_value = value.clamp(0.0, 1.0);
-                self.rebuild_modes();
+                self.rebuild_modes(self.decay);
             }
             "inharmonicity" => {
                 self.inharmonicity.base_value = value.clamp(0.0, 1.0);
-                self.rebuild_modes();
+                self.rebuild_modes(self.decay);
             }
             "attack" => self.attack = value,
             "decay" => {
                 self.decay = value;
-                self.rebuild_modes();
+                // Note: when `decay_division` is set, the next trigger will
+                // still use the division-resolved length — but the user's
+                // slider value is now stored, ready to take effect when the
+                // division is cleared. Pre-fix this write was clobbered on
+                // the next trigger; now it persists.
+                self.rebuild_modes(self.decay);
             }
             _ => {}
         }

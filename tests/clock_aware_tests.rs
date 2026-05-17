@@ -398,31 +398,102 @@ fn test_hybrid_decay_quarter_at_120() {
 }
 
 #[test]
-fn test_modal_decay_writes_back_to_self_decay() {
-    // The modal trigger path is unique: it overwrites `self.decay` (ms) with
-    // the resolved tempo-locked value before `rebuild_modes()` runs, so the
-    // per-mode Q values track the new envelope length. Verify directly via
-    // the `decay_ms()` accessor.
+fn test_modal_decay_preserves_self_decay_on_division_override() {
+    // Post HIGH #5 fix: when `decay_division` is set, the modal trigger path
+    // computes the resolved decay locally and threads it into
+    // `rebuild_modes(decay_ms)` — it does NOT write back to `self.decay`.
+    // The audible envelope length still reflects the division (here Bar @
+    // 120 BPM = 2.0 s) but the static `self.decay` field is preserved so a
+    // subsequent SET_PARAM:slot:decay:X edit isn't silently clobbered on
+    // the next trigger.
     let mut sound = make_sound("modal");
-    sound.decay = 400.0; // would otherwise stay at 400 ms
+    sound.decay = 400.0; // user's slider value; must be preserved
     sound.decay_division = Some(BeatDivision::Bar);
     let mut voice = drummr::kit::voice_from_sound(&sound, SR).expect("modal voice");
     voice.trigger(1.0, 120.0);
 
-    // Bar @ 120 = 2 s = 2000 ms.
+    // self.decay must remain at the original 400 ms — the division does NOT
+    // overwrite the slider value (this is the regression behaviour).
     let ms = match &voice {
         Voice::Modal(v) => v.decay_ms(),
         _ => panic!("expected modal voice"),
     };
     assert!(
-        (ms - 2000.0).abs() < 1e-3,
-        "modal self.decay should be written back to 2000 ms; got {}",
+        (ms - 400.0).abs() < 1e-3,
+        "modal self.decay should be preserved at 400 ms (the original slider value); got {}",
         ms
     );
 
-    // And the amp envelope also picks it up (in seconds).
+    // But the amp envelope IS driven by the division (Bar @ 120 = 2.0 s).
     let d = voice_decay_sec(&voice).expect("modal decay");
     assert!((d - 2.0).abs() < 1e-4, "modal amp_env decay = {}, expected 2.0", d);
+}
+
+#[test]
+fn test_modal_decay_slider_still_works_with_division() {
+    // Regression: HIGH #5. The pre-fix modal trigger path wrote the
+    // division-resolved decay back to `self.decay`, so a subsequent
+    // SET_PARAM:slot:decay:X edit was silently clobbered on the next
+    // trigger. With the fix, `self.decay` stays at the user's slider
+    // value; the division wins for the current trigger, but the slider
+    // edit is preserved (and audible the moment the division is cleared).
+    //
+    // Case A: decay = 400 ms + decay_division = Bar @ 120 BPM (= 2.0 s).
+    // The division wins. SET_PARAM:decay:1000 then triggers again — the
+    // audible decay is STILL ~2.0 s (the division wins), AND self.decay
+    // now reads 1000 ms (the slider edit was preserved).
+    let mut sound = make_sound("modal");
+    sound.decay = 400.0;
+    sound.decay_division = Some(BeatDivision::Bar);
+    let mut voice = drummr::kit::voice_from_sound(&sound, SR).expect("modal voice A");
+    voice.trigger(1.0, 120.0);
+
+    let d_initial = voice_decay_sec(&voice).expect("amp env");
+    assert!(
+        (d_initial - 2.0).abs() < 1e-4,
+        "Bar @ 120 should give 2.0 s decay on first trigger; got {}",
+        d_initial
+    );
+
+    // Slider edit: SET_PARAM:decay:1000. Pre-fix: ignored on next trigger.
+    voice.set_param("decay", 1000.0);
+    voice.trigger(1.0, 120.0);
+
+    let d_after_edit = voice_decay_sec(&voice).expect("amp env");
+    assert!(
+        (d_after_edit - 2.0).abs() < 1e-4,
+        "division still wins on next trigger; expected 2.0 s, got {}",
+        d_after_edit
+    );
+
+    // self.decay should reflect the slider edit even though the audible
+    // length came from the division. This is the crux of the fix: the
+    // user's slider value is no longer silently clobbered.
+    let ms = match &voice {
+        Voice::Modal(v) => v.decay_ms(),
+        _ => panic!("expected modal voice"),
+    };
+    assert!(
+        (ms - 1000.0).abs() < 1e-3,
+        "self.decay should hold the slider value (1000 ms); got {}",
+        ms
+    );
+
+    // Case B: same starting decay = 400 ms but NO division. SET_PARAM
+    // takes effect immediately on next trigger — audible decay is ~1.0 s.
+    let mut sound2 = make_sound("modal");
+    sound2.decay = 400.0;
+    sound2.decay_division = None;
+    let mut voice2 = drummr::kit::voice_from_sound(&sound2, SR).expect("modal voice B");
+    voice2.set_param("decay", 1000.0);
+    voice2.trigger(1.0, 120.0);
+
+    let d_no_div = voice_decay_sec(&voice2).expect("amp env");
+    assert!(
+        (d_no_div - 1.0).abs() < 1e-3,
+        "no division → slider value wins; expected 1.0 s, got {}",
+        d_no_div
+    );
 }
 
 #[test]
