@@ -897,3 +897,81 @@ async fn test_set_division_rejects_unknown_division_name() {
         cmds
     );
 }
+
+// ---------------------------------------------------------------------------
+// LOAD_KIT error reporting (MEDIUM bug #13).
+//
+// Previously LOAD_KIT silently fell through on either `fs::read_to_string` or
+// `toml::from_str` failure, leaving the UI's kit list showing the now-stale
+// selection with no feedback. The handler now emits a
+// `KIT_ERROR:<name>:<phase>:<detail>` broadcast on either failure, and
+// preserves the existing snapshot/kit state (no partial mutation).
+// ---------------------------------------------------------------------------
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_load_kit_missing_file_broadcasts_error() {
+    let _cwd = CwdGuard::new();
+    let mut h = build_harness();
+
+    // Capture the pre-load snapshot identity so we can assert the snapshot
+    // wasn't mutated.
+    let before_name = h.shared_state.kit_snapshot.lock().unwrap().name.clone();
+
+    dispatch(&mut h, "LOAD_KIT:nonexistent_kit_xyz_xyz").await;
+
+    let msgs = drain_broadcasts(&mut h);
+    let err = msgs
+        .iter()
+        .find(|m| m.starts_with("KIT_ERROR:nonexistent_kit_xyz_xyz:read failed:"))
+        .expect(&format!(
+            "expected KIT_ERROR broadcast for missing file, got {:?}",
+            msgs
+        ));
+    // The error string must include both the kit name and the "read failed:"
+    // phase prefix so the UI can parse it.
+    assert!(err.starts_with("KIT_ERROR:nonexistent_kit_xyz_xyz:read failed:"));
+
+    // No KIT: broadcast on failure.
+    assert!(
+        !msgs.iter().any(|m| m.starts_with("KIT: ")),
+        "no KIT: broadcast should be emitted on failure, got {:?}",
+        msgs
+    );
+
+    // Snapshot unchanged.
+    assert_eq!(h.shared_state.kit_snapshot.lock().unwrap().name, before_name);
+    // No persistence side effects.
+    assert!(drain_persistence(&mut h).is_empty());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_load_kit_malformed_toml_broadcasts_error() {
+    let _cwd = CwdGuard::new();
+    let mut h = build_harness();
+
+    // Pre-create a malformed kit file under presets/kits/.
+    std::fs::create_dir_all("presets/kits").unwrap();
+    let bad_path = "presets/kits/_test_malformed_xyz.toml";
+    std::fs::write(bad_path, "this is = not valid =\n[unterminated").unwrap();
+
+    let before_name = h.shared_state.kit_snapshot.lock().unwrap().name.clone();
+
+    dispatch(&mut h, "LOAD_KIT:_test_malformed_xyz").await;
+
+    let msgs = drain_broadcasts(&mut h);
+    let err = msgs
+        .iter()
+        .find(|m| m.starts_with("KIT_ERROR:_test_malformed_xyz:parse failed:"))
+        .expect(&format!(
+            "expected KIT_ERROR broadcast for malformed TOML, got {:?}",
+            msgs
+        ));
+    assert!(err.starts_with("KIT_ERROR:_test_malformed_xyz:parse failed:"));
+
+    // No KIT: broadcast and no state change.
+    assert!(!msgs.iter().any(|m| m.starts_with("KIT: ")));
+    assert_eq!(h.shared_state.kit_snapshot.lock().unwrap().name, before_name);
+    assert!(drain_persistence(&mut h).is_empty());
+
+    // CwdGuard's tempdir will be dropped at end of test, cleaning up the file.
+}

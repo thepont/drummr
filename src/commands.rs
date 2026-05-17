@@ -395,17 +395,36 @@ pub async fn handle_command(
         }
     } else if text.starts_with("LOAD_KIT:") {
         let kit_name = text.replace("LOAD_KIT:", "");
-        if let Ok(content) = std::fs::read_to_string(format!("presets/kits/{}.toml", kit_name)) {
-            if let Ok(config) = toml::from_str::<DrumKit>(&content) {
-                let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
-                let new_kit = KitEngine::from_config(config.clone(), sample_rate, load_mappings());
-                if let Ok(mut k_lock) = shared_state.kit.lock() {
-                    *k_lock = new_kit;
+        // Explicit error paths so the UI knows when a load failed. Previously
+        // both `read_to_string` and `toml::from_str` errors silently fell
+        // through, leaving the UI showing the old kit selected with no
+        // feedback. We now emit a `KIT_ERROR:<name>:<phase>:<detail>` broadcast
+        // and log to stderr on either failure mode; the success path is
+        // unchanged.
+        let path = format!("presets/kits/{}.toml", kit_name);
+        match std::fs::read_to_string(&path) {
+            Ok(content) => match toml::from_str::<DrumKit>(&content) {
+                Ok(config) => {
+                    let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
+                    let new_kit =
+                        KitEngine::from_config(config.clone(), sample_rate, load_mappings());
+                    if let Ok(mut k_lock) = shared_state.kit.lock() {
+                        *k_lock = new_kit;
+                    }
+                    if let Ok(mut snap) = shared_state.kit_snapshot.lock() {
+                        *snap = config.clone();
+                    }
+                    comm_engine.broadcast(format!("KIT: {}", kit_to_json(&config)));
                 }
-                if let Ok(mut snap) = shared_state.kit_snapshot.lock() {
-                    *snap = config.clone();
+                Err(e) => {
+                    eprintln!("LOAD_KIT {}: parse failed: {}", kit_name, e);
+                    comm_engine
+                        .broadcast(format!("KIT_ERROR:{}:parse failed: {}", kit_name, e));
                 }
-                comm_engine.broadcast(format!("KIT: {}", kit_to_json(&config)));
+            },
+            Err(e) => {
+                eprintln!("LOAD_KIT {}: read failed: {}", kit_name, e);
+                comm_engine.broadcast(format!("KIT_ERROR:{}:read failed: {}", kit_name, e));
             }
         }
     } else if text.starts_with("SET_PARAM:") {
