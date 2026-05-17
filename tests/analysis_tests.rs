@@ -194,14 +194,15 @@ async fn test_analyze_silent_voice() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn test_analyze_clipping_voice() {
-    // Granular at density=0.95 / grain_size=80 / decay=2000 produces a dense
-    // stream of grains summed without an internal clamp. With many simultaneous
-    // grains feeding into `mixed`, the output exceeds the 0.999 rail for long
-    // consecutive runs -- well past the 100-sample sustained_clip threshold.
-    let mut sound = empty_sound("Clipper", "granular");
-    sound.density = Some(0.95);
-    sound.grain_size = Some(80.0);
-    sound.jitter = Some(0.2);
+    // Hybrid at low metallic / low noise_color sums three sub-oscillators
+    // (weights 1.0 + 0.7 + 0.4 = 2.1) plus the low-passed noise tail. With
+    // env*velocity at unity, the raw mix peaks well above 1.0 and the engine's
+    // master clamp produces sustained rail-lock over the full envelope --
+    // exactly what the analyzer should catch and flag.
+    let mut sound = empty_sound("Clipper", "hybrid");
+    sound.freq = 80.0;
+    sound.noise_color = Some(0.05);
+    sound.metallic = Some(0.0);
     sound.attack = 1.0;
     sound.decay = 2000.0;
 
@@ -220,17 +221,17 @@ async fn test_analyze_clipping_voice() {
     let clipped = payload["clipped_samples"].as_u64().expect("clipped_samples is numeric");
     assert!(
         peak >= 0.999,
-        "hot granular voice should peak at the rail, got {}; payload={}",
+        "hot hybrid voice should peak at the rail, got {}; payload={}",
         peak, payload
     );
     assert!(
         clipped > 100,
-        "hot granular voice should clip many samples, got {}; payload={}",
+        "hot hybrid voice should clip many samples, got {}; payload={}",
         clipped, payload
     );
     assert_eq!(
         payload["sustained_clip"], true,
-        "hot granular voice should report sustained_clip=true; payload={}",
+        "hot hybrid voice should report sustained_clip=true; payload={}",
         payload
     );
 }

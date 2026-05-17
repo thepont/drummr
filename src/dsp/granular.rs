@@ -155,11 +155,13 @@ impl GranularEngine {
         }
 
         let mut mixed = 0.0;
+        let mut active = 0u32;
         let mut i = 0;
         while i < self.grains.len() {
             let g = &mut self.grains[i];
             let idx = (g.pos as usize) % self.noise_buffer.len();
             mixed += self.noise_buffer[idx] * g.life;
+            active += 1;
 
             g.pos += g.inc;
             g.life -= g.decay;
@@ -171,7 +173,13 @@ impl GranularEngine {
             }
         }
 
-        mixed * env * self.velocity * 0.5
+        // Normalize the grain sum by sqrt(active_count) so density doesn't blow
+        // up the peak. With up to 32 grains summing independently, the raw sum
+        // can hit 4-5x; sqrt-normalization keeps peaks near unity across the
+        // full density / grain_size parameter space while preserving the
+        // "thicker cloud = denser texture" character.
+        let norm = (active as f32).max(1.0).sqrt();
+        (mixed / norm) * env * self.velocity * 0.5
     }
 
     pub fn set_param(&mut self, param: &str, value: f32) {
