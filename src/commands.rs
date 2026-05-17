@@ -782,16 +782,16 @@ pub async fn handle_command(
                         // cpal::Stream is !Send + !Sync so we can't stash the
                         // previous stream in SharedState and drop it here.
                         // SELECT_AUDIO unavoidably leaks the old stream until
-                        // process exit; track and warn so it's observable.
+                        // process exit; track and log so it's observable.
+                        // See docs/backend_leaks.md HIGH #1.
                         let prior = shared_state
                             .audio_stream_leak_count
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        if prior > 0 {
-                            eprintln!(
-                                "warning: leaked {} prior cpal::Stream(s) via SELECT_AUDIO; previous device may stay busy until process exit",
-                                prior
-                            );
-                        }
+                        eprintln!(
+                            "[audio] leaking cpal::Stream (total leaks this session: {}); reason: user device switch; adopted device: '{}'",
+                            prior + 1,
+                            name
+                        );
                         std::mem::forget(out_stream);
                         true
                     }

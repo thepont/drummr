@@ -80,8 +80,14 @@ async fn main() -> Result<()> {
     println!("Starting drummr engine...");
 
     let comm_clone_loop = comm_engine.clone();
+    let shared_state_leaks = shared_state.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(40));
+        // Tick counter so we can downsample the leak broadcast (which is only
+        // useful as a diagnostic banner — no need to publish it at 25 Hz).
+        // 25 ticks = ~1 s between AUDIO_LEAKS broadcasts.
+        let mut tick: u32 = 0;
+        let mut last_leak_broadcast: u32 = 0;
         loop {
             interval.tick().await;
             let flat_values = shared_state_comm.get_values();
@@ -99,6 +105,22 @@ async fn main() -> Result<()> {
                 serde_json::to_string(&values).unwrap_or_default()
             );
             comm_clone_loop.broadcast(msg);
+
+            // Surface the cpal::Stream leak counter to the UI as a diagnostic
+            // signal. Only broadcast when (a) we've leaked at least one stream
+            // this session and (b) the count has changed since the last
+            // broadcast — keeps the wire traffic at zero on a healthy session.
+            // See `docs/backend_leaks.md` HIGH #1 / MEDIUM #3.
+            tick = tick.wrapping_add(1);
+            if tick % 25 == 0 {
+                let leaks = shared_state_leaks
+                    .audio_stream_leak_count
+                    .load(std::sync::atomic::Ordering::Relaxed);
+                if leaks > 0 && leaks != last_leak_broadcast {
+                    comm_clone_loop.broadcast(format!("AUDIO_LEAKS:{}", leaks));
+                    last_leak_broadcast = leaks;
+                }
+            }
         }
     });
 
@@ -257,16 +279,18 @@ async fn main() -> Result<()> {
                 );
                 // cpal::Stream is !Send + !Sync, so we cannot stash it in
                 // SharedState to drop later. Leak it consciously and track
-                // the count -- this is the first leak per session.
+                // the count -- this is the first leak per session. Logged
+                // with cause + adopted device so a flaky session is auditable
+                // post-mortem from stderr alone. See docs/backend_leaks.md
+                // HIGH #1.
                 let prior = shared_state
                     .audio_stream_leak_count
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                if prior > 0 {
-                    eprintln!(
-                        "warning: leaked {} prior cpal::Stream(s); device {} may stay busy until process exit",
-                        prior, name
-                    );
-                }
+                eprintln!(
+                    "[audio] leaking cpal::Stream (total leaks this session: {}); reason: initial setup; adopted device: '{}'",
+                    prior + 1,
+                    name
+                );
                 std::mem::forget(out_stream);
                 comm_engine.broadcast(format!("AUDIO_DEVICE: {}", name));
                 let mut s = Settings::load();
@@ -301,17 +325,93 @@ async fn main() -> Result<()> {
     let cmd_prod_rec = cmd_prod.clone();
     let error_tx_for_recovery = audio_error_tx.clone();
     tokio::spawn(async move {
+        // Recovery rate limiter. Each iteration leaks one cpal::Stream (see
+        // docs/backend_leaks.md HIGH #1 — `cpal::Stream` is `!Send` so we
+        // can't store it for clean drop; mem::forget is the documented
+        // workaround). Without bounds, a stuck-failing USB device could
+        // disconnect every 500 ms forever — that's ~370 MB/hr of pinned
+        // heap and one OS thread per leak, exhausting the per-process
+        // thread cap in ~8 minutes.
+        //
+        // Defense-in-depth: cap consecutive failures within FAILURE_WINDOW
+        // and apply exponential backoff between retries. The mem::forget
+        // itself stays — the architectural fix needs a single-threaded
+        // audio controller task, out of scope here.
+        const FAILURE_WINDOW: std::time::Duration = std::time::Duration::from_secs(30);
+        const MAX_CONSECUTIVE_FAILURES: u32 = 10;
+        const BACKOFF_MIN_MS: u64 = 500;
+        const BACKOFF_MAX_MS: u64 = 30_000;
+        const COOLDOWN_AFTER_GIVEUP_MS: u64 = 60_000;
+
+        let mut consecutive_failures: u32 = 0;
+        let mut last_failure_at: Option<std::time::Instant> = None;
+        let mut backoff_ms: u64 = BACKOFF_MIN_MS;
+
         while audio_error_rx.recv().await.is_some() {
             // Drain bursts -- a single device disconnect can trip the error
-            // callback multiple times before cpal stops calling it.
+            // callback multiple times before cpal stops calling it. The
+            // `audio_error_tx` is a single-producer-on-the-audio-thread
+            // channel; this drains any duplicate signals queued while we
+            // were either sleeping in backoff or doing the previous swap.
             while audio_error_rx.try_recv().is_ok() {}
-            eprintln!("[audio recovery] device error -- attempting hot swap...");
+
+            // Update the consecutive-failure counter. If the previous
+            // failure was inside FAILURE_WINDOW, this is a streak; if it
+            // was longer ago, reset — the device has been stable in the
+            // interim and we should treat this as a fresh problem.
+            let now = std::time::Instant::now();
+            let in_streak = last_failure_at
+                .map(|t| now.duration_since(t) < FAILURE_WINDOW)
+                .unwrap_or(false);
+            if in_streak {
+                consecutive_failures = consecutive_failures.saturating_add(1);
+            } else {
+                consecutive_failures = 1;
+                backoff_ms = BACKOFF_MIN_MS;
+            }
+            last_failure_at = Some(now);
+
+            // Hard rate cap: if a device has failed > MAX_CONSECUTIVE_FAILURES
+            // times in FAILURE_WINDOW, stop churning. Tell the UI and pause
+            // recovery for COOLDOWN_AFTER_GIVEUP_MS so we don't burn CPU
+            // and leak cpal::Streams indefinitely. After the cooldown the
+            // next error signal will try again from scratch (the elapsed
+            // time will reset the streak).
+            if consecutive_failures > MAX_CONSECUTIVE_FAILURES {
+                eprintln!(
+                    "[audio recovery] giving up after {} consecutive failures in {:?}; pausing recovery for {} ms (device appears unrecoverable)",
+                    consecutive_failures, FAILURE_WINDOW, COOLDOWN_AFTER_GIVEUP_MS
+                );
+                comm_engine_rec.broadcast(
+                    "AUDIO_DEVICE: (failed: device disconnected repeatedly)".to_string(),
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(
+                    COOLDOWN_AFTER_GIVEUP_MS,
+                ))
+                .await;
+                // Drain any signals that piled up during the cooldown — we
+                // want the *next* recv().await to see a fresh error, not a
+                // stale one queued during the pause.
+                while audio_error_rx.try_recv().is_ok() {}
+                // Reset so the next attempt starts from a clean slate.
+                consecutive_failures = 0;
+                last_failure_at = None;
+                backoff_ms = BACKOFF_MIN_MS;
+                continue;
+            }
+
+            eprintln!(
+                "[audio recovery] device error (attempt {}/{}) -- attempting hot swap...",
+                consecutive_failures, MAX_CONSECUTIVE_FAILURES
+            );
 
             let host = cpal::default_host();
             let devices: Vec<_> = match host.output_devices() {
                 Ok(d) => d.collect(),
                 Err(e) => {
                     eprintln!("[audio recovery] enumerate failed: {}", e);
+                    tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                    backoff_ms = (backoff_ms * 2).min(BACKOFF_MAX_MS);
                     continue;
                 }
             };
@@ -331,6 +431,8 @@ async fn main() -> Result<()> {
                 Some(d) => d,
                 None => {
                     eprintln!("[audio recovery] no output devices available");
+                    tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                    backoff_ms = (backoff_ms * 2).min(BACKOFF_MAX_MS);
                     continue;
                 }
             };
@@ -358,32 +460,38 @@ async fn main() -> Result<()> {
             ) {
                 Ok(stream) => {
                     let name = device.name().unwrap_or_default();
-                    eprintln!("[audio recovery] switched to '{}'", name);
                     let prior = shared_state_rec
                         .audio_stream_leak_count
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    if prior > 0 {
-                        eprintln!(
-                            "warning: leaked {} prior cpal::Stream(s) via recovery; previous device(s) may stay busy until process exit",
-                            prior
-                        );
-                    }
+                    eprintln!(
+                        "[audio] leaking cpal::Stream (total leaks this session: {}); reason: device disconnect recovery; adopted device: '{}'",
+                        prior + 1,
+                        name
+                    );
                     std::mem::forget(stream);
                     comm_engine_rec.broadcast(format!("AUDIO_DEVICE: {}", name));
                     let mut s = Settings::load();
                     s.last_audio_device = Some(name);
                     let _ = s.save();
+                    // start_audio succeeded — but this iteration was still a
+                    // *recovery from an error*, so we keep the streak. Only
+                    // a FAILURE_WINDOW of quiet (no more error signals) will
+                    // reset it. The backoff is bumped regardless: if the new
+                    // device also fails instantly, we want the next attempt
+                    // to wait longer.
                 }
-                Err(e) => eprintln!("[audio recovery] start_audio failed: {}", e),
+                Err(e) => {
+                    eprintln!("[audio recovery] start_audio failed: {}", e);
+                }
             }
 
-            // Pace recovery. If the replacement device ALSO errors instantly
-            // on stream start, the error callback will refill the channel
-            // before we get back to recv().await. Without this sleep the
-            // loop hot-spins: error -> enumerate -> swap rings -> start_audio
-            // -> instant error -> repeat, leaking a cpal::Stream and burning
-            // CPU on every iteration. 500ms caps the restart rate at 2/sec.
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            // Exponential backoff: 500ms -> 1s -> 2s -> 4s -> 8s -> 16s ->
+            // 30s (cap). On a stuck-failing device this drops the retry
+            // rate from 2/sec (the old fixed 500ms) to ~2/min once we hit
+            // the cap, so leaks accrete at most ~30 in the worst minute
+            // before the rate cap kicks in entirely.
+            tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+            backoff_ms = (backoff_ms * 2).min(BACKOFF_MAX_MS);
         }
     });
 
