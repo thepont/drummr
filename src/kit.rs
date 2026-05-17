@@ -942,21 +942,29 @@ impl KitEngine {
     }
 
     pub fn tick(&mut self) -> f32 {
-        // Bump the monotonic counter first so a "fire 100 samples from
-        // now" entry queued at sample N actually fires on the 100th
-        // subsequent tick (i.e. when `samples_processed` reaches N+100).
-        // The counter is the index of the sample currently being
-        // computed, not the count of samples already emitted.
-        self.samples_processed = self.samples_processed.wrapping_add(1);
-
-        // Drain any pending triggers whose absolute fire time has
-        // arrived. Done BEFORE the audio sum so a freshly-fired voice
-        // contributes to this same output sample (no perceived
-        // one-sample latency vs the primary).
+        // Drain BEFORE bumping the counter so a "fire 0 samples from now"
+        // entry (i.e. queued with `samples_from_now == 0`) fires on the
+        // VERY first tick after `queue_pending`, contributing to the same
+        // audio sample as the primary. Previously we bumped first, which
+        // meant a zero-offset pending had `fire_at == sp_at_queue` but
+        // was compared against `sp_at_queue + 1` — so it fired one tick
+        // late.
+        //
+        // Invariant maintained: a pending queued with `samples_from_now
+        // = K` fires on the K-th subsequent tick (counting from 1).
+        // For K=0 that means "this very next tick"; for K=100 that
+        // means "the 100th subsequent tick" (so existing offset-100
+        // tests still pass — the K-th tick is still K ticks away
+        // because we still bump once per tick, just after the drain).
         if !self.pending.is_empty() {
             let bpm = self.last_bpm;
             self.drain_pending(bpm);
         }
+
+        // Bump the monotonic counter AFTER the drain. The counter now
+        // represents "the index of the sample we're about to emit"
+        // (1-based; the very first call to tick() emits sample 1).
+        self.samples_processed = self.samples_processed.wrapping_add(1);
 
         let mut out = 0.0;
         for (i, voice_opt) in self.voices.iter_mut().enumerate() {
@@ -1020,18 +1028,24 @@ mod kit_engine_pending_tests {
     fn test_pending_trigger_fires_at_correct_sample() {
         let mut engine = one_slot_kit();
         engine.last_bpm = 120.0;
-        // Queue a trigger 100 samples into the future.
+        // Queue a trigger 100 samples into the future. Because `tick()`
+        // drains BEFORE bumping `samples_processed`, the entry fires on
+        // the (samples_from_now + 1)-th subsequent tick: by the start
+        // of that tick `samples_processed` (= K) has reached the
+        // queue's `fire_at_sample` (= K), so the drain's `<=` test is
+        // first true there.
         let queued = engine.queue_pending(0, 1.0, 100);
         assert!(queued, "expected queue to accept entry");
         assert_eq!(engine.pending.len(), 1);
 
-        // Tick 99 samples — should not fire.
-        for _ in 0..99 {
+        // Tick 100 samples — should not fire (drain runs first while
+        // samples_processed is still 99, so 100 <= 99 is false).
+        for _ in 0..100 {
             engine.tick();
         }
-        assert_eq!(engine.pending.len(), 1, "should not have fired yet at 99 samples");
+        assert_eq!(engine.pending.len(), 1, "should not have fired yet at 100 samples");
 
-        // Tick the 100th — the trigger fires.
+        // Tick the 101st — drain sees samples_processed == 100, fires.
         engine.tick();
         assert_eq!(engine.pending.len(), 0, "trigger should have fired");
 

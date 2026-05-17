@@ -341,7 +341,10 @@ fn test_pattern_step_at_40_bpm() {
 
 #[test]
 fn test_multiplier_zero() {
-    // multiplier=0 yields a 0-second offset -> fires within 1 tick.
+    // multiplier=0 yields a 0-sample offset. With the drain-before-bump
+    // ordering, a zero-offset pending fires on the very first
+    // subsequent tick (drain index 1), contributing to the same audio
+    // sample as the primary's first emitted sample.
     let step = PatternStep {
         division: BeatDivision::Quarter,
         velocity_factor: 1.0,
@@ -350,10 +353,46 @@ fn test_multiplier_zero() {
     let mut kit = build_kit(vec![make_sound(Some(vec![step]))]);
     kit.trigger(36, 1.0, 120.0);
     assert_eq!(kit.pending.len(), 1);
-    // Should fire within at most a handful of samples — but definitely
-    // not loop forever and definitely not panic.
     let drain = first_drain_index(&mut kit, 32).expect("multiplier=0 should fire promptly");
-    assert!(drain <= 2, "multiplier=0 should fire within 1-2 samples; got {}", drain);
+    assert!(drain <= 1, "multiplier=0 should fire on the first subsequent tick; got {}", drain);
+}
+
+#[test]
+fn test_zero_offset_fires_same_sample() {
+    // A zero-offset pending fires on the first tick after `trigger()`,
+    // i.e. the same audio sample that carries the primary's first
+    // output. Verify by:
+    //   1. Triggering a multiplier=0 pattern primary.
+    //   2. Ticking exactly once.
+    //   3. Confirming the pending queue is empty (drained on this tick).
+    //
+    // The drain-before-bump ordering in `tick()` is what makes this
+    // possible — previously the bump-first ordering pushed the drain
+    // one tick later than the primary.
+    let step = PatternStep {
+        division: BeatDivision::Quarter,
+        velocity_factor: 1.0,
+        multiplier: 0.0,
+    };
+    let mut kit = build_kit(vec![make_sound(Some(vec![step]))]);
+    kit.trigger(36, 1.0, 120.0);
+    assert_eq!(
+        kit.pending.len(),
+        1,
+        "primary should have queued the zero-offset pending"
+    );
+
+    // Single tick: drain runs at sp=0, fire_at=0, 0 <= 0 → fires.
+    kit.tick();
+    assert_eq!(
+        kit.pending.len(),
+        0,
+        "zero-offset pending should fire on the very first subsequent tick"
+    );
+    assert_eq!(
+        kit.samples_processed, 1,
+        "tick() should have emitted exactly one sample"
+    );
 }
 
 #[test]
@@ -371,7 +410,7 @@ fn test_multiplier_negative() {
     assert_eq!(kit.pending.len(), 1);
     let drain = first_drain_index(&mut kit, 32)
         .expect("negative multiplier should clamp & fire promptly");
-    assert!(drain <= 2, "negative multiplier should fire within 1-2 samples; got {}", drain);
+    assert!(drain <= 1, "negative multiplier should fire on the first subsequent tick; got {}", drain);
 }
 
 #[test]

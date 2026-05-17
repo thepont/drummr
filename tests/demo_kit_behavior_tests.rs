@@ -264,8 +264,10 @@ fn test_drain_during_tick_loop() {
 fn test_buffer_aligned_subhit_doesnt_miss() {
     // Queue a sub-hit at sample 128 — exactly one buffer at a 128-sample
     // buffer size. Tick forward in 128-sample chunks and verify the
-    // sub-hit fired inside the SECOND chunk (samples 129..256), never
-    // pushed to a later buffer.
+    // sub-hit fires by the end of the SECOND chunk (samples 129..256),
+    // never pushed to a third buffer. This anchors the buffer-boundary
+    // behaviour: a sub-hit landing exactly on a buffer edge must not be
+    // silently dropped or deferred beyond one extra buffer.
     use drummr::kit::{DrumSound, SubHit};
     let offset_samples = 128u64;
     let offset_ms = (offset_samples as f32 / SR) * 1000.0;
@@ -312,15 +314,32 @@ fn test_buffer_aligned_subhit_doesnt_miss() {
     assert_eq!(kit.pending.len(), 1);
 
     // First buffer of 128 ticks. The sub-hit's fire_at_sample is
-    // start + 128. tick() bumps the counter BEFORE draining, so at the
-    // 128th tick we have samples_processed = start + 128, which matches
-    // fire_at_sample exactly -> the sub-hit fires inside this buffer.
+    // start + 128. tick() drains BEFORE bumping the counter, so at the
+    // 128th tick the drain runs while samples_processed is still 127
+    // (128 <= 127 is false) and the sub-hit does NOT fire inside this
+    // first buffer. The bump-after-drain ordering is what makes
+    // zero-offset sub-hits fire on the same audio sample as the
+    // primary; the cost is that exact-buffer-boundary entries land in
+    // the next buffer.
+    for _ in 0..128 {
+        kit.tick();
+    }
+    assert_eq!(
+        kit.pending.len(),
+        1,
+        "sub-hit at sample 128 should still be pending at end of first buffer"
+    );
+
+    // Second buffer: on its FIRST tick the drain runs at sp=128 and
+    // 128 <= 128 fires the sub-hit. By the end of the second buffer
+    // the queue must be empty — i.e. the sub-hit is never deferred
+    // beyond one buffer past its target.
     for _ in 0..128 {
         kit.tick();
     }
     assert!(
         kit.pending.is_empty(),
-        "sub-hit at sample 128 must fire inside the first 128-sample buffer; pending={}",
+        "sub-hit at sample 128 must fire inside the second 128-sample buffer; pending={}",
         kit.pending.len()
     );
 }
@@ -379,15 +398,26 @@ fn test_drain_pending_per_tick_is_consistent() {
     kit.trigger(36, 1.0, 120.0);
     assert_eq!(kit.pending.len(), 5);
 
-    // Tick 5 times — pending should go 5, 4, 3, 2, 1, 0.
-    let mut observed = Vec::with_capacity(6);
+    // Tick 6 times — sub-hits are queued at sp=0 with samples_offset =
+    // 1..=5 (fire_at_sample = 1..=5). `tick()` drains BEFORE bumping
+    // `samples_processed`, so:
+    //   tick 1: drain at sp=0 (no entry has fire_at <= 0)  -> len=5
+    //   tick 2: drain at sp=1 (fire_at=1 fires)            -> len=4
+    //   tick 3: drain at sp=2 (fire_at=2 fires)            -> len=3
+    //   tick 4: drain at sp=3 (fire_at=3 fires)            -> len=2
+    //   tick 5: drain at sp=4 (fire_at=4 fires)            -> len=1
+    //   tick 6: drain at sp=5 (fire_at=5 fires)            -> len=0
+    // The invariant under test is "exactly one drain per tick once
+    // they start firing" — i.e. the queue never falls behind on
+    // 1-sample-staggered fire times.
+    let mut observed = Vec::with_capacity(7);
     observed.push(kit.pending.len());
-    for _ in 0..5 {
+    for _ in 0..6 {
         kit.tick();
         observed.push(kit.pending.len());
     }
     assert_eq!(
-        observed, vec![5, 4, 3, 2, 1, 0],
+        observed, vec![5, 5, 4, 3, 2, 1, 0],
         "expected one sub-hit to drain per tick on 1-sample staggered offsets"
     );
 }
