@@ -73,8 +73,6 @@ struct TestHarness {
     cmd_consumer: Consumer<AudioCommand>,
     persistence_tx: mpsc::UnboundedSender<PersistenceCommand>,
     persistence_rx: mpsc::UnboundedReceiver<PersistenceCommand>,
-    event_consumer: Arc<TokioMutex<Option<Consumer<MidiEvent>>>>,
-    cmd_consumer_slot: Arc<TokioMutex<Option<Consumer<AudioCommand>>>>,
     bpm_engine: Arc<TokioMutex<BpmEngine>>,
     sync_engine: Arc<SyncEngine>,
     sample_rate: f32,
@@ -183,19 +181,11 @@ fn build_harness() -> TestHarness {
     let (midi_tx, _midi_rx) = mpsc::unbounded_channel::<String>();
     let midi_engine = Arc::new(TokioMutex::new(MidiEngine::new()));
 
-    let (midi_producer, midi_consumer) = RingBuffer::<MidiEvent>::new(64);
+    let (midi_producer, _midi_consumer) = RingBuffer::<MidiEvent>::new(64);
     let midi_producer = Arc::new(StdMutex::new(midi_producer));
-    let event_consumer = Arc::new(TokioMutex::new(Some(midi_consumer)));
 
     let (cmd_producer, cmd_consumer) = RingBuffer::<AudioCommand>::new(64);
     let cmd_producer = Arc::new(StdMutex::new(cmd_producer));
-    // The dispatcher takes a separate "consumer slot" used for SELECT_AUDIO
-    // re-wiring. We give it a placeholder ring (unused in the tests we run).
-    let (_dummy_prod, dummy_cons) = RingBuffer::<AudioCommand>::new(1);
-    let cmd_consumer_slot = Arc::new(TokioMutex::new(Some(dummy_cons)));
-    // We hold the *actual* `cmd_consumer` for assertion, separate from the
-    // slot Option above.
-    drop(_dummy_prod);
 
     let (persistence_tx, persistence_rx) = mpsc::unbounded_channel::<PersistenceCommand>();
 
@@ -213,8 +203,6 @@ fn build_harness() -> TestHarness {
         cmd_consumer,
         persistence_tx,
         persistence_rx,
-        event_consumer,
-        cmd_consumer_slot,
         bpm_engine,
         sync_engine,
         sample_rate,
@@ -233,8 +221,6 @@ async fn dispatch(h: &mut TestHarness, cmd: &str) {
         h.shared_state.clone(),
         h.persistence_tx.clone(),
         h.sample_rate,
-        h.event_consumer.clone(),
-        h.cmd_consumer_slot.clone(),
         h.bpm_engine.clone(),
         h.sync_engine.clone(),
     )

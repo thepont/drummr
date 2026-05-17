@@ -185,11 +185,17 @@ pub async fn handle_command(
     shared_state: Arc<SharedState>,
     persistence_tx: mpsc::UnboundedSender<PersistenceCommand>,
     sample_rate: f32,
-    event_consumer: Arc<Mutex<Option<rtrb::Consumer<MidiEvent>>>>,
-    cmd_consumer: Arc<Mutex<Option<rtrb::Consumer<AudioCommand>>>>,
     bpm_engine: Arc<Mutex<crate::dsp::bpm_engine::BpmEngine>>,
     sync_engine: Arc<crate::sync::SyncEngine>,
 ) {
+    // NOTE: the `event_consumer` / `cmd_consumer` Arc<Mutex<Option<Consumer>>>
+    // parameters used to live here. They were captured solely for SELECT_AUDIO
+    // to (in theory) re-extract the consumer halves at hot-swap time, but the
+    // original Options were emptied during the `main.rs` handshake and never
+    // re-populated — SELECT_AUDIO and the audio-recovery task both recreate
+    // fresh ring buffers and pass the new Consumers directly into
+    // `start_audio`. The wrappers were dead post-handshake (see MEDIUM #12 in
+    // docs/bugs.md), so they have been dropped from the signature.
     if text == "LIST_MIDI" {
         if let Ok(ports) = MidiEngine::list_ports() {
             comm_engine.broadcast(format!("LIST_MIDI: {}", ports.join(",")));
@@ -801,12 +807,6 @@ pub async fn handle_command(
                     settings.last_audio_device = Some(name.clone());
                     let _ = settings.save();
                 }
-                // The stale Option<Consumer> wrappers in `event_consumer` /
-                // `cmd_consumer` are never re-used after the initial start; we
-                // intentionally leave them alone to avoid touching `Mutex` awaits
-                // while a `cpal::Stream` is on the stack.
-                let _ = event_consumer; // silence unused-capture lint
-                let _ = cmd_consumer;
             }
         }
     } else if text.starts_with("ANALYZE_SLOT:") {

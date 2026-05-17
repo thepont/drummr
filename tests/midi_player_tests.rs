@@ -37,8 +37,6 @@ struct TestHarness {
     cmd_producer: Arc<StdMutex<Producer<AudioCommand>>>,
     persistence_tx: mpsc::UnboundedSender<PersistenceCommand>,
     _persistence_rx: mpsc::UnboundedReceiver<PersistenceCommand>,
-    event_consumer: Arc<TokioMutex<Option<Consumer<MidiEvent>>>>,
-    cmd_consumer_slot: Arc<TokioMutex<Option<Consumer<AudioCommand>>>>,
     bpm_engine: Arc<TokioMutex<BpmEngine>>,
     sync_engine: Arc<SyncEngine>,
     sample_rate: f32,
@@ -109,18 +107,9 @@ fn build_harness() -> TestHarness {
     // dropping events; the production buffer is 1024-deep for the same reason.
     let (midi_producer, midi_consumer) = RingBuffer::<MidiEvent>::new(1024);
     let midi_producer = Arc::new(StdMutex::new(midi_producer));
-    // The dispatcher takes a `Option<Consumer<MidiEvent>>` slot for SELECT_AUDIO
-    // re-wiring; the Preview Kit path never touches it. Hand it a placeholder
-    // empty ring so the harness compiles.
-    let (_dummy_evt_prod, dummy_evt_cons) = RingBuffer::<MidiEvent>::new(1);
-    let event_consumer = Arc::new(TokioMutex::new(Some(dummy_evt_cons)));
-    drop(_dummy_evt_prod);
 
     let (cmd_producer, _cmd_consumer) = RingBuffer::<AudioCommand>::new(64);
     let cmd_producer = Arc::new(StdMutex::new(cmd_producer));
-    let (_dummy_cmd_prod, dummy_cmd_cons) = RingBuffer::<AudioCommand>::new(1);
-    let cmd_consumer_slot = Arc::new(TokioMutex::new(Some(dummy_cmd_cons)));
-    drop(_dummy_cmd_prod);
 
     let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceCommand>();
 
@@ -138,8 +127,6 @@ fn build_harness() -> TestHarness {
         cmd_producer,
         persistence_tx,
         _persistence_rx,
-        event_consumer,
-        cmd_consumer_slot,
         bpm_engine,
         sync_engine,
         sample_rate,
@@ -158,8 +145,6 @@ async fn dispatch(h: &TestHarness, cmd: &str) {
         h.shared_state.clone(),
         h.persistence_tx.clone(),
         h.sample_rate,
-        h.event_consumer.clone(),
-        h.cmd_consumer_slot.clone(),
         h.bpm_engine.clone(),
         h.sync_engine.clone(),
     )

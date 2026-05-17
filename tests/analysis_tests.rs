@@ -20,7 +20,7 @@ use drummr::midi::MidiEngine;
 use drummr::persistence::PersistenceCommand;
 use drummr::state::{AudioCommand, MidiEvent, SharedState};
 use drummr::sync::SyncEngine;
-use rtrb::{Consumer, Producer, RingBuffer};
+use rtrb::{Producer, RingBuffer};
 use tokio::sync::{Mutex as TokioMutex, mpsc};
 
 struct TestHarness {
@@ -33,8 +33,6 @@ struct TestHarness {
     cmd_producer: Arc<StdMutex<Producer<AudioCommand>>>,
     persistence_tx: mpsc::UnboundedSender<PersistenceCommand>,
     _persistence_rx: mpsc::UnboundedReceiver<PersistenceCommand>,
-    event_consumer: Arc<TokioMutex<Option<Consumer<MidiEvent>>>>,
-    cmd_consumer_slot: Arc<TokioMutex<Option<Consumer<AudioCommand>>>>,
     bpm_engine: Arc<TokioMutex<BpmEngine>>,
     sync_engine: Arc<SyncEngine>,
     sample_rate: f32,
@@ -98,15 +96,11 @@ fn build_harness_with_kit(kit: DrumKit) -> TestHarness {
     let (midi_tx, _midi_rx) = mpsc::unbounded_channel::<String>();
     let midi_engine = Arc::new(TokioMutex::new(MidiEngine::new()));
 
-    let (midi_producer, midi_consumer) = RingBuffer::<MidiEvent>::new(64);
+    let (midi_producer, _midi_consumer) = RingBuffer::<MidiEvent>::new(64);
     let midi_producer = Arc::new(StdMutex::new(midi_producer));
-    let event_consumer = Arc::new(TokioMutex::new(Some(midi_consumer)));
 
     let (cmd_producer, _cmd_consumer) = RingBuffer::<AudioCommand>::new(64);
     let cmd_producer = Arc::new(StdMutex::new(cmd_producer));
-    let (_dummy_prod, dummy_cons) = RingBuffer::<AudioCommand>::new(1);
-    let cmd_consumer_slot = Arc::new(TokioMutex::new(Some(dummy_cons)));
-    drop(_dummy_prod);
 
     let (persistence_tx, _persistence_rx) = mpsc::unbounded_channel::<PersistenceCommand>();
     let bpm_engine = Arc::new(TokioMutex::new(BpmEngine::new()));
@@ -122,8 +116,6 @@ fn build_harness_with_kit(kit: DrumKit) -> TestHarness {
         cmd_producer,
         persistence_tx,
         _persistence_rx,
-        event_consumer,
-        cmd_consumer_slot,
         bpm_engine,
         sync_engine,
         sample_rate,
@@ -142,8 +134,6 @@ async fn dispatch(h: &mut TestHarness, cmd: &str) {
         h.shared_state.clone(),
         h.persistence_tx.clone(),
         h.sample_rate,
-        h.event_consumer.clone(),
-        h.cmd_consumer_slot.clone(),
         h.bpm_engine.clone(),
         h.sync_engine.clone(),
     )

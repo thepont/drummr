@@ -39,9 +39,11 @@ async fn main() -> Result<()> {
     let comm_clone = comm_engine.clone();
     let midi_tx_clone = midi_tx.clone();
     let midi_producer_clone = midi_producer.clone();
-    let event_consumer_clone = event_consumer_wrapped.clone();
-    let cmd_consumer_clone = cmd_consumer_wrapped.clone();
     let cmd_prod_clone = cmd_prod.clone();
+    // event_consumer_wrapped / cmd_consumer_wrapped are NOT cloned for the
+    // WS dispatcher: handle_command never reads them, and after the initial
+    // handshake below they're permanently `None` (the Consumer halves are
+    // owned by the leaked cpal stream callback). See MEDIUM #12.
 
     // Use a fixed sample rate for now or fetch it from a default device
     let sample_rate = 48000.0;
@@ -140,8 +142,6 @@ async fn main() -> Result<()> {
             let comm = comm_clone.clone();
             let m_tx = midi_tx_clone.clone();
             let m_prod = midi_producer_clone.clone();
-            let e_cons = event_consumer_clone.clone();
-            let c_cons = cmd_consumer_clone.clone();
             let c_prod = cmd_prod_clone.clone();
             let ss_audio = shared_state_audio.clone();
             let p_tx = persistence_tx.clone();
@@ -159,8 +159,6 @@ async fn main() -> Result<()> {
                     ss_audio,
                     p_tx,
                     sample_rate,
-                    e_cons,
-                    c_cons,
                     bpm,
                     sync,
                 )
