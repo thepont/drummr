@@ -707,11 +707,17 @@ pub async fn handle_command(
     } else if text.starts_with("PLAY_MIDI_TRACK:") {
         let name = text.replace("PLAY_MIDI_TRACK:", "");
         // Abort any prior playback first so the new track starts cleanly.
+        // Also drop BPM ownership so a parse failure on the new track
+        // doesn't leave the snapshot pinned to the previous track's tempo.
+        // `spawn_playback` re-asserts ownership on success.
         if let Ok(mut slot) = shared_state.midi_playback_handle.lock() {
             if let Some(h) = slot.take() {
                 h.abort();
             }
         }
+        shared_state
+            .playback_owns_bpm
+            .store(false, std::sync::atomic::Ordering::Relaxed);
 
         // The on_finish callback runs after the last scheduled note has been
         // pushed. It clears the SharedState handle slot (so a subsequent
@@ -751,6 +757,14 @@ pub async fn handle_command(
             false
         };
         if aborted {
+            // The on_finish callback never fires on abort (the task is killed
+            // mid-loop), so clear BPM ownership here ourselves. The natural-
+            // finish path already does this inside the spawned task; on abort
+            // the task is killed before reaching that line, so we'd otherwise
+            // leak ownership and the broadcast loop would stay locked out.
+            shared_state
+                .playback_owns_bpm
+                .store(false, std::sync::atomic::Ordering::Relaxed);
             // The on_finish callback never fires on abort (the task is killed
             // mid-loop), so broadcast the stop here ourselves. The name field
             // is intentionally empty -- the UI just needs to know "playback

@@ -432,6 +432,82 @@ async fn test_playback_writes_track_bpm_to_shared_state() {
 }
 
 #[tokio::test]
+async fn test_playback_bpm_not_clobbered_by_broadcast_loop() {
+    // Regression: HIGH #1. The 100 ms broadcast loop in main.rs used to call
+    // `store_bpm(effective)` unconditionally every 100 ms, with `effective`
+    // falling back to 120.0 when the live BpmEngine had no detected tempo
+    // (which is the case in this test harness — no live MIDI input is being
+    // fed through). That clobbered the track's BPM within ~100 ms of
+    // PLAY_MIDI_TRACK firing. The fix uses a `playback_owns_bpm` atomic to
+    // tell the broadcast loop to skip its store while playback is active.
+    //
+    // This test simulates the broadcast loop by directly calling
+    // `store_bpm(120.0)` (the fallback) repeatedly during the same window.
+    // With the fix in place, those calls are no-ops because the dispatch
+    // also asserts the ownership flag; without the fix, the BPM would
+    // immediately revert from ~140 to 120.
+    let h = build_harness();
+    h.shared_state.store_bpm(60.0); // Pre-seed an obviously-wrong value.
+
+    let (prod, _cons) = rtrb::RingBuffer::<MidiEvent>::new(1024);
+    let prod = Arc::new(std::sync::Mutex::new(prod));
+    let handle = midi_player::spawn_playback(
+        "rock_140_fill",
+        prod.clone(),
+        h.shared_state.clone(),
+        || {},
+    )
+    .expect("rock_140_fill should parse and schedule");
+
+    // After spawn_playback returns the BPM is 140 AND the ownership flag is set.
+    let bpm_immediate = h.shared_state.load_bpm();
+    assert!(
+        (bpm_immediate - 140.0).abs() < 5.0,
+        "expected ~140 BPM immediately after spawn_playback, got {}",
+        bpm_immediate
+    );
+    assert!(
+        h.shared_state
+            .playback_owns_bpm
+            .load(std::sync::atomic::Ordering::Relaxed),
+        "playback should claim BPM ownership immediately after spawn"
+    );
+
+    // Simulate what the 100 ms broadcast loop in main.rs does after the fix:
+    // it reads playback_owns_bpm and skips the store if true. We model the
+    // ENTIRE loop here (flag check + conditional store) to verify the
+    // contract on SharedState rather than just trusting main.rs.
+    //
+    // Run for 250 ms — long enough that the original bug would have called
+    // store_bpm(120.0) at least twice and clobbered the track BPM. We sleep
+    // 50 ms per iteration so this completes well inside the test budget.
+    for _ in 0..5 {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        if !h
+            .shared_state
+            .playback_owns_bpm
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
+            h.shared_state.store_bpm(120.0);
+        }
+    }
+
+    let bpm_after = h.shared_state.load_bpm();
+    assert!(
+        (bpm_after - 140.0).abs() < 5.0,
+        "expected ~140 BPM still after 250ms of simulated broadcast ticks, got {} (playback BPM was clobbered by the broadcast loop)",
+        bpm_after
+    );
+
+    handle.abort();
+    // Cleanup: clear the flag so subsequent tests in the same process don't
+    // see leaked ownership.
+    h.shared_state
+        .playback_owns_bpm
+        .store(false, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[tokio::test]
 async fn test_natural_end_broadcasts_stopped() {
     let mut h = build_harness();
     // rock_140_fill is the smallest curated track (~454 bytes); at 140 BPM

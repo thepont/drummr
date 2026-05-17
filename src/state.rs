@@ -1,6 +1,6 @@
 use crate::kit::{DrumKit, KitEngine};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 pub type MidiEvent = [u8; 3];
 
@@ -40,6 +40,19 @@ pub struct SharedState {
     /// is also cleared by the playback task itself on natural completion
     /// (via the `on_finish` callback passed into spawn_playback).
     pub midi_playback_handle: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// True while a Preview-Kit MIDI playback task "owns" the BPM snapshot.
+    /// Set by `midi_player::spawn_playback` after it writes the track's
+    /// authoritative tempo into `current_bpm_bits`; cleared on natural
+    /// finish, manual stop (STOP_MIDI_PLAYBACK), and on replacement by a
+    /// subsequent PLAY_MIDI_TRACK (which itself re-sets the flag with the
+    /// new track's tempo). The 100 ms BPM broadcast loop in `main.rs`
+    /// checks this flag and skips its `store_bpm(effective)` call when it
+    /// is true, preventing the live-BPM-detector fallback (120.0) from
+    /// clobbering the track's recorded tempo within ~100 ms of playback
+    /// start. Lock-free Relaxed ordering is sufficient — a stale read at
+    /// the boundary just means one extra tick of the wrong BPM, which is
+    /// harmless.
+    pub playback_owns_bpm: AtomicBool,
 }
 
 impl SharedState {
@@ -57,6 +70,7 @@ impl SharedState {
             audio_stream_leak_count: AtomicU32::new(0),
             audio_error_tx,
             midi_playback_handle: std::sync::Mutex::new(None),
+            playback_owns_bpm: AtomicBool::new(false),
         }
     }
 

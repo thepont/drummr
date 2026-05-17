@@ -17,6 +17,7 @@ use midly::{MetaMessage, MidiMessage, Smf, Timing, TrackEventKind};
 use rtrb::Producer;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use tokio::time::{Duration, Instant, sleep_until};
 
 const PRESETS_MIDI_DIR: &str = "presets/midi";
@@ -208,16 +209,27 @@ pub fn spawn_playback(
     let path = resolve_track(name)?;
     let parsed = parse_events(&path)?;
     // Tell the audio path the track's BPM so clock-aware kits adopt it
-    // immediately, before the first note fires.
+    // immediately, before the first note fires. Take ownership of the BPM
+    // snapshot here so the 100 ms broadcast loop in main.rs doesn't clobber
+    // the track's recorded tempo with the live-detector fallback (120.0).
+    // Order matters: set the flag BEFORE the store so the broadcast loop
+    // can never observe the new value with an unclaimed flag.
+    shared_state
+        .playback_owns_bpm
+        .store(true, Ordering::Relaxed);
     shared_state.store_bpm(parsed.bpm);
     if parsed.notes.is_empty() {
         // Empty schedule: still broadcast MIDI_TRACK_STOPPED so the UI resets.
+        // Also relinquish BPM ownership so the live detector can resume.
+        let ss = shared_state.clone();
         return Ok(tokio::spawn(async move {
+            ss.playback_owns_bpm.store(false, Ordering::Relaxed);
             on_finish();
         }));
     }
 
     let events = parsed.notes;
+    let ss = shared_state.clone();
     let handle = tokio::spawn(async move {
         let start = Instant::now();
         for ev in events {
@@ -230,6 +242,11 @@ pub fn spawn_playback(
                 let _ = p.push([0x90, ev.note, ev.velocity]);
             }
         }
+        // Natural finish: relinquish BPM ownership so the live detector can
+        // resume publishing the user-facing tempo. Abort paths (STOP /
+        // replacement) do this from the command handler — the spawned task
+        // is killed before this line runs in those cases.
+        ss.playback_owns_bpm.store(false, Ordering::Relaxed);
         on_finish();
     });
     Ok(handle)

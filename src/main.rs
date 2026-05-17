@@ -114,7 +114,21 @@ async fn main() -> Result<()> {
             if let Ok(mut bpm_lock) = bpm_engine_comm.try_lock() {
                 let bpm = bpm_lock.get_bpm();
                 let effective = if bpm > 0.0 { bpm } else { 120.0 };
-                shared_state_bpm.store_bpm(effective);
+                // Skip the snapshot write while a Preview-Kit MIDI playback
+                // task owns the BPM. The MIDI player publishes the track's
+                // authoritative tempo into `current_bpm_bits` synchronously
+                // from spawn_playback; without this guard the unconditional
+                // store would clobber that value (with the 120.0 fallback)
+                // within ~100 ms of playback starting, defeating clock-aware
+                // kit sync. The broadcast itself still goes out so the UI
+                // can show the live-detector reading alongside the playback
+                // tempo if it wants.
+                if !shared_state_bpm
+                    .playback_owns_bpm
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                {
+                    shared_state_bpm.store_bpm(effective);
+                }
                 comm_bpm_loop.broadcast(format!("BPM: {:.1}", bpm));
             }
         }
