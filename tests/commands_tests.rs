@@ -112,6 +112,7 @@ fn make_test_kit() -> DrumKit {
                 decay_division: None,
                 mods: None,
                 mode_list: None,
+                sub_hits: None,
             },
             DrumSound {
                 name: "Snare".into(),
@@ -139,6 +140,7 @@ fn make_test_kit() -> DrumKit {
                 decay_division: None,
                 mods: None,
                 mode_list: None,
+                sub_hits: None,
             },
         ],
     }
@@ -517,6 +519,7 @@ async fn test_load_kit_replaces_snapshot() {
             decay_division: None,
             mods: None,
             mode_list: None,
+            sub_hits: None,
         }],
     };
     std::fs::write(

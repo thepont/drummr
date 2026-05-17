@@ -123,6 +123,13 @@ mod_index = 0.0
 noise_level = 1.0
 attack = 1.0
 decay = 200.0
+# Classic TR-909 4-tap clap envelope: four noise bursts ~11-13 ms apart
+# with a decay-shaped velocity falloff. Fires from a single MIDI note.
+sub_hits = [
+    { offset_ms = 11.0, velocity_factor = 0.85 },
+    { offset_ms = 23.0, velocity_factor = 0.70 },
+    { offset_ms = 35.0, velocity_factor = 0.55 },
+]
 
 [[sounds]]
 name = "909 Rim"

@@ -139,6 +139,14 @@ impl FmVoice {
         self.amp_env.is_active()
     }
 
+    /// Read-only accessor for the latest velocity passed to `trigger`.
+    /// Exposed to integration tests so they can verify that a
+    /// re-trigger from the kit's pending queue carried the expected
+    /// velocity_factor scaling. Not used by audio code.
+    pub fn velocity_for_test(&self) -> f32 {
+        self.velocity
+    }
+
     pub fn schema(&self) -> Vec<crate::kit::ParamSchema> {
         vec![
             crate::kit::ParamSchema {

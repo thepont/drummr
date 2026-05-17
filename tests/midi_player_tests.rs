@@ -75,6 +75,7 @@ fn make_minimal_kit() -> DrumKit {
             decay_division: None,
             mods: None,
             mode_list: None,
+            sub_hits: None,
         }],
     }
 }

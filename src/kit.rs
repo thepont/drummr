@@ -171,6 +171,24 @@ pub struct ModEntry {
     pub depth: f32,
 }
 
+/// A single deferred re-trigger of the same slot, scheduled in real
+/// milliseconds relative to the primary hit. Used to construct the
+/// LinnDrum / TR-909 multi-tap clap (four noise bursts ~12 ms apart)
+/// and similar flam / drag effects without writing a sequencer in
+/// TOML. The offset is in milliseconds because clap multi-taps are
+/// real-time phenomena, not musical-time ones — they don't stretch
+/// with BPM. See `PatternStep` for the BPM-locked variant.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SubHit {
+    /// Delay from the primary trigger, in milliseconds.
+    pub offset_ms: f32,
+    /// Multiplier on the primary trigger's velocity (0.0..=1.0+).
+    /// Cap-style claps typically use a decay curve like 1.0, 0.85,
+    /// 0.70, 0.55 to mimic the natural release of the original
+    /// envelope.
+    pub velocity_factor: f32,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DrumSound {
     pub name: String,
@@ -210,6 +228,14 @@ pub struct DrumSound {
     /// engine types. Named `mode_list` to avoid TOML collision with the
     /// existing `mods` (modulation routes) field.
     pub mode_list: Option<Vec<ExplicitMode>>,
+    /// Optional fixed-millisecond multi-taps. Each entry queues an
+    /// additional retrigger of the same slot at `offset_ms` after the
+    /// primary, scaled by `velocity_factor`. Used for the classic
+    /// 4-tap clap envelope and analogous flam / drag effects.
+    /// Capped at `MAX_SUB_HITS_PER_PRIMARY` (8) per primary; entries
+    /// beyond the cap are silently dropped to keep TOML mistakes from
+    /// flooding the audio thread.
+    pub sub_hits: Option<Vec<SubHit>>,
 }
 
 /// Construct a single `Voice` from a `DrumSound`, applying engine-specific
@@ -345,6 +371,13 @@ pub struct KitEngine {
     pub postfx: [PostFx; 16],
     pub sample_rate: f32,
     pub midi_map: [Option<usize>; 128], // note -> slot index
+    /// Per-slot deferred-fire metadata used by trigger-time features
+    /// (sub-hits, patterns, ghost notes). Indexed by slot. Owned by
+    /// the engine so the audio thread doesn't reach back into the
+    /// (synchronously-locked) `DrumSound` config to resolve each
+    /// primary's recipe — those clones happen at kit-build time and
+    /// only on the (non-realtime) configuration path.
+    pub sub_hits: [Vec<SubHit>; 16],
     /// Time-deferred trigger queue. Drained in `tick()` against
     /// `samples_processed`; entries whose `fire_at_sample` has elapsed
     /// fire their slot and are removed. Pre-allocated to
@@ -388,11 +421,13 @@ impl KitEngine {
             PostFx::new(),
             PostFx::new(),
         ];
+        const EMPTY_SUB_HITS: Vec<SubHit> = Vec::new();
         Self {
             voices: [NO_VOICE; 16],
             postfx,
             sample_rate,
             midi_map: [None; 128],
+            sub_hits: [EMPTY_SUB_HITS; 16],
             pending: VecDeque::with_capacity(PENDING_TRIGGER_CAPACITY),
             samples_processed: 0,
             rng: Xorshift::new(0xC10C),
@@ -466,6 +501,17 @@ impl KitEngine {
                 engine.voices[idx] = Some(voice);
                 engine.postfx[idx].set_bits(sound.bits.unwrap_or(16.0));
                 engine.postfx[idx].set_rate(sound.rate.unwrap_or(1.0));
+
+                // Copy sub-hits into the engine. Cap defensively at
+                // MAX_SUB_HITS_PER_PRIMARY so the per-trigger queueing
+                // path never has to re-check.
+                if let Some(subs) = sound.sub_hits {
+                    let mut bounded = subs;
+                    if bounded.len() > MAX_SUB_HITS_PER_PRIMARY {
+                        bounded.truncate(MAX_SUB_HITS_PER_PRIMARY);
+                    }
+                    engine.sub_hits[idx] = bounded;
+                }
             }
         }
 
@@ -530,15 +576,37 @@ impl KitEngine {
         // primary. Cached even if the note didn't resolve to a slot —
         // pending entries already in flight still need a tempo.
         self.last_bpm = bpm;
-        if note < 128 {
-            if let Some(slot) = self.midi_map[note as usize] {
-                if let Some(voice) = &mut self.voices[slot] {
-                    // Clear stale decimator state before the new hit so the
-                    // leading edge isn't coloured by the previous voice's tail
-                    // held inside the sample-rate reducer.
-                    self.postfx[slot].reset();
-                    voice.trigger(velocity, bpm);
-                }
+        if note >= 128 {
+            return;
+        }
+        let Some(slot) = self.midi_map[note as usize] else {
+            return;
+        };
+        if slot >= 16 {
+            return;
+        }
+        // Primary hit.
+        if let Some(voice) = &mut self.voices[slot] {
+            self.postfx[slot].reset();
+            voice.trigger(velocity, bpm);
+        } else {
+            return;
+        }
+
+        // Sub-hits: queue each entry as a pending fire at its
+        // millisecond offset. The MAX_SUB_HITS cap is already applied
+        // at kit-build time (in `from_config`), so this loop is
+        // bounded; we also re-cap here so a runtime mutation can't
+        // bypass the audio-thread guarantee. Index-based iteration
+        // sidesteps the borrow conflict with `queue_pending`.
+        let sub_count = self.sub_hits[slot].len().min(MAX_SUB_HITS_PER_PRIMARY);
+        if sub_count > 0 {
+            let sr = self.sample_rate;
+            for i in 0..sub_count {
+                let sub = self.sub_hits[slot][i].clone();
+                let samples_offset = (sub.offset_ms.max(0.0) * sr / 1000.0) as u64;
+                let sub_vel = (velocity * sub.velocity_factor).clamp(0.0, 1.0);
+                self.queue_pending(slot, sub_vel, samples_offset);
             }
         }
     }

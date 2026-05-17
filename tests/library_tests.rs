@@ -29,6 +29,7 @@ fn test_sound_preset_serialization() {
         decay_division: None,
         mods: None,
         mode_list: None,
+        sub_hits: None,
     };
 
     let toml_str = toml::to_string(&sound).expect("Should serialize sound");

@@ -82,6 +82,7 @@ fn test_invalid_engine_type_fallback() {
             decay_division: None,
             mods: None,
             mode_list: None,
+            sub_hits: None,
         }],
     };
 
