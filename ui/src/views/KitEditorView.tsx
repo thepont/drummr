@@ -289,6 +289,33 @@ export default function KitEditorView({
         const safeLfo2 = selectedSound.lfo2_freq ?? 1.0;
         const safeBits = selectedSound.bits ?? 16;
         const safeRate = selectedSound.rate ?? 1;
+        // Clock-aware effect fields. Defaults mirror the backend
+        // (kit_to_json / GenerativeSettings::default) so a kit without
+        // overrides shows non-firing ghosts and always-on triggers, which
+        // matches what the audio engine does at runtime.
+        const safeTrigProb = selectedSound.trigger_probability ?? 1.0;
+        const safeGhostProb = selectedSound.ghost_probability ?? 0.0;
+        const safeGhostOffset = selectedSound.ghost_offset_ms ?? 60.0;
+        const safeGhostVel = selectedSound.ghost_velocity_factor ?? 0.3;
+        const lfo1Div: string | null = selectedSound.lfo1_division ?? null;
+        const lfo2Div: string | null = selectedSound.lfo2_division ?? null;
+        const decayDiv: string | null = selectedSound.decay_division ?? null;
+        const subHits: Array<{ offset_ms: number; velocity_factor: number }> =
+          selectedSound.sub_hits ?? [];
+        const patternSteps: Array<{ division: string; velocity_factor: number; multiplier: number }> =
+          selectedSound.pattern ?? [];
+        const modeList: Array<{ freq: number; q: number; gain: number }> =
+          selectedSound.mode_list ?? [];
+        // A slot is "clock-aware" if any of the new fields is non-default.
+        // We use this to gate rendering the Clock section so kits without
+        // any of these features don't grow a new always-empty subsection.
+        const hasClockFeatures =
+          lfo1Div !== null ||
+          lfo2Div !== null ||
+          decayDiv !== null ||
+          subHits.length > 0 ||
+          patternSteps.length > 0 ||
+          modeList.length > 0;
         const timbreParams = schemas[selectedSoundId]?.filter(p => !['freq', 'attack', 'decay', 'bits', 'rate'].includes(p.name)) ?? [];
         const selectedAnalysis = selectedSlotIndex !== -1 ? analysis[selectedSlotIndex] : undefined;
         const selectedStatus = statusFor(selectedAnalysis);
@@ -525,7 +552,142 @@ export default function KitEditorView({
                 />
               </div>
             </div>
+
+            {/*
+              Generative subsection: probability + ghost-note controls.
+              Wired through the existing SET_PARAM dispatch (see Phase A
+              extension to SET_PARAM in commands.rs). Ghost-related
+              sliders are hidden when ghost_probability == 0 since they
+              have no audible effect — keeps the panel clean for kits
+              that don't use ghosting.
+            */}
+            <div className="max-w-3xl w-full">
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Generative</div>
+              <div className="p-4 bg-background/30 rounded-xl border border-border/50 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Slider
+                  label="Trigger %"
+                  value={safeTrigProb}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={v => updateParam('trigger_probability' as any, v)}
+                  format={v => `${Math.round(v * 100)}%`}
+                />
+                <Slider
+                  label="Ghost %"
+                  value={safeGhostProb}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onChange={v => updateParam('ghost_probability' as any, v)}
+                  format={v => `${Math.round(v * 100)}%`}
+                />
+                {safeGhostProb > 0 && (
+                  <>
+                    <Slider
+                      label="Ghost offset"
+                      value={safeGhostOffset}
+                      min={1}
+                      max={500}
+                      step={1}
+                      onChange={v => updateParam('ghost_offset_ms' as any, v)}
+                      format={v => `${v.toFixed(0)} ms`}
+                    />
+                    <Slider
+                      label="Ghost velocity"
+                      value={safeGhostVel}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      onChange={v => updateParam('ghost_velocity_factor' as any, v)}
+                      format={v => v.toFixed(2)}
+                    />
+                  </>
+                )}
+              </div>
+            </div>
           </section>
+
+          {/*
+            6. Clock-aware indicators. Read-only display of the tempo-locked
+            and compound clock-aware fields on this slot. Editing
+            sub_hits / pattern / mode_list / divisions requires a richer
+            UI than a single slider, so we surface them as informational
+            badges -- enough to address "this kit has hidden features I
+            can't see" (HIGH bug #6) without committing to a full editor
+            in this pass. The decay-division warning indirectly addresses
+            HIGH #5 by telling the user their slider is overridden.
+          */}
+          {hasClockFeatures && (
+            <section className="bg-card/30 border border-border rounded-3xl p-5 flex flex-col gap-3">
+              <header className="flex items-center justify-between gap-2 text-xs font-black text-primary uppercase tracking-[0.18em]">
+                <span className="flex items-center gap-2">
+                  <Clock size={14} />
+                  6. Clock
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground italic normal-case tracking-normal hidden md:inline">
+                  Tempo-locked overrides &amp; generative recipes (read-only)
+                </span>
+              </header>
+
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                {lfo1Div && (
+                  <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary font-mono">
+                    LFO1 ⏱ {lfo1Div}
+                  </span>
+                )}
+                {lfo2Div && (
+                  <span className="px-2.5 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary font-mono">
+                    LFO2 ⏱ {lfo2Div}
+                  </span>
+                )}
+                {decayDiv && (
+                  <span
+                    title="Decay slider has no effect while this division is set"
+                    className="px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono"
+                  >
+                    ⏱ Decay locked to {decayDiv} (slider has no effect)
+                  </span>
+                )}
+                {subHits.length > 0 && (
+                  <details className="px-2.5 py-1 rounded-full bg-card border border-border text-muted-foreground font-mono cursor-pointer">
+                    <summary>⚡ {subHits.length} sub-hits</summary>
+                    <div className="mt-2 text-[10px] font-mono space-y-0.5">
+                      {subHits.map((s, i) => (
+                        <div key={i}>
+                          +{s.offset_ms.toFixed(1)} ms × {s.velocity_factor.toFixed(2)}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+                {patternSteps.length > 0 && (
+                  <details className="px-2.5 py-1 rounded-full bg-card border border-border text-muted-foreground font-mono cursor-pointer">
+                    <summary>⚡ {patternSteps.length}-step pattern</summary>
+                    <div className="mt-2 text-[10px] font-mono space-y-0.5">
+                      {patternSteps.map((p, i) => (
+                        <div key={i}>
+                          {p.division} ×{p.multiplier.toFixed(1)} @ {p.velocity_factor.toFixed(2)}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+                {modeList.length > 0 && (
+                  <details className="px-2.5 py-1 rounded-full bg-card border border-border text-muted-foreground font-mono cursor-pointer">
+                    <summary>🔔 {modeList.length} explicit modes</summary>
+                    <div className="mt-2 text-[10px] font-mono space-y-0.5">
+                      {modeList.map((m, i) => (
+                        <div key={i}>
+                          {m.freq.toFixed(1)} Hz · Q={m.q.toFixed(1)} · g={m.gain.toFixed(2)}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            </section>
+          )}
 
         </div>
         );
