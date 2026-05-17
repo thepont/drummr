@@ -426,13 +426,27 @@ impl ModalEngine {
         // Sum the parallel bandpass bank. Higher modes are attenuated by a
         // brightness-controlled rolloff: brightness=0 keeps only the
         // fundamental, brightness=1 leaves all modes near unity.
+        //
+        // Two micro-opts vs. the textbook loop:
+        //   * Incremental `rolloff *= brightness` instead of `powi(i)` every
+        //     sample. `powi` for small integer exponents lowers to a chain
+        //     of mul + sqrt on x86_64; the multiply chain is strictly
+        //     cheaper and the per-mode error is bounded (i <= 11).
+        //   * Skip `Mode::process` when `base_gain == 0` (zero-padded slot
+        //     from an explicit `mode_list` shorter than NUM_MODES). The
+        //     biquad's contribution is multiplied by 0 anyway and the
+        //     filter state stays zero because input is also zero. This is
+        //     the path Cathedral_Forever / Phase_Mirror's bell voices hit
+        //     (3-6 modes specified out of 12).
         let mut sum = 0.0;
+        let mut rolloff = 1.0_f32;
         for i in 0..NUM_MODES {
-            // Mode gain rolloff. brightness in [0,1].
-            // gain = base_gain * (brightness ^ i) gives a clean exponential rolloff.
-            let rolloff = brightness.powi(i as i32);
-            let g = self.modes[i].base_gain * rolloff;
-            sum += self.modes[i].process(x) * g;
+            let base = self.modes[i].base_gain;
+            if base != 0.0 {
+                let g = base * rolloff;
+                sum += self.modes[i].process(x) * g;
+            }
+            rolloff *= brightness;
         }
 
         let out = sum * env;

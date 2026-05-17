@@ -1,152 +1,180 @@
-name = "Organic Thunder"
-description = "Earthy, 16-sound resonant collection focused on PhysEngine."
+name = "Glass Forest"
+description = "Crystalline pitched percussion built from tuned glass and ice. Pitch-stable hits — playable melodically. Weightless spectrum (110Hz floor, no sub-bass); wine glass + bowls have gentle 4.5Hz vibrato; modal bells pushed to inharmonicity 0.98 for wild upper-partial shimmer."
 
 [[sounds]]
-name = "Wooden Kick"
-engine_type = "phys"
-freq = 52.0
-brightness = 0.75
-dampening = 0.25
-attack = 2.0
-decay = 550.0
-
-[[sounds]]
-name = "Bamboo Snare"
-engine_type = "phys"
-freq = 210.0
-brightness = 0.44999998807907104
-dampening = 0.44999998807907104
-attack = 1.0
-decay = 220.0
-
-[[sounds]]
-name = "Clay Click"
+name = "Iceberg"
 engine_type = "fm"
-freq = 1150.0
-mod_ratio = 4.199999809265137
-mod_index = 2.5
+freq = 110.0
+mod_ratio = 0.5
+mod_index = 3.0
 noise_level = 0.07999999821186066
-attack = 0.10000000149011612
-decay = 25.0
+attack = 1.0
+decay = 420.0
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Velocity"
+depth = 2.0
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Envelope"
+depth = 1.5
 
 [[sounds]]
-name = "Cave Tom Low"
+name = "Wine Glass"
 engine_type = "phys"
-freq = 75.0
-brightness = 0.20000000298023224
-dampening = 0.30000001192092896
-attack = 8.0
+freq = 750.0
+brightness = 0.8999999761581421
+dampening = 0.18000000715255737
+attack = 1.0
+decay = 240.0
+lfo1_freq = 4.5
+
+[[sounds.mods]]
+param = "freq"
+source = "Lfo1"
+depth = 2.5
+
+[[sounds]]
+name = "Hailstone"
+engine_type = "granular"
+freq = 7500.0
+density = 0.949999988079071
+grain_size = 2.0
+jitter = 0.5
+attack = 1.0
+decay = 50.0
+
+[[sounds]]
+name = "Sleet Patter"
+engine_type = "granular"
+freq = 7500.0
+density = 0.8999999761581421
+grain_size = 3.0
+jitter = 0.6499999761581421
+attack = 1.0
+decay = 260.0
+
+[[sounds]]
+name = "Frozen Bell"
+engine_type = "phys"
+freq = 660.0
+brightness = 1.0
+dampening = 0.11999999731779099
+attack = 1.0
+decay = 520.0
+
+[[sounds]]
+name = "Mid Glass"
+engine_type = "phys"
+freq = 470.0
+brightness = 0.7799999713897705
+dampening = 0.2800000011920929
+attack = 2.0
+decay = 720.0
+
+[[sounds]]
+name = "Low Glass"
+engine_type = "phys"
+freq = 340.0
+brightness = 0.5799999833106995
+dampening = 0.41999998688697815
+attack = 3.0
 decay = 900.0
 
 [[sounds]]
-name = "Cave Tom Mid"
+name = "Deep Crystal"
 engine_type = "phys"
-freq = 110.0
-brightness = 0.20000000298023224
-dampening = 0.30000001192092896
-attack = 6.0
-decay = 700.0
+freq = 240.0
+brightness = 0.4000000059604645
+dampening = 0.550000011920929
+attack = 4.0
+decay = 1100.0
 
 [[sounds]]
-name = "Cave Tom High"
+name = "Shatter"
+engine_type = "hybrid"
+freq = 6500.0
+noise_color = 0.8999999761581421
+metallic = 1.0
+attack = 1.0
+decay = 1800.0
+
+[[sounds]]
+name = "Glass Bowl"
+engine_type = "modal"
+freq = 880.0
+brightness = 0.6499999761581421
+dampening = 0.07999999821186066
+inharmonicity = 0.9800000190734863
+attack = 1.0
+decay = 2000.0
+lfo2_freq = 0.699999988079071
+
+[[sounds.mods]]
+param = "inharmonicity"
+source = "Lfo2"
+depth = 0.029999999329447746
+
+[[sounds]]
+name = "Ice Crack"
+engine_type = "hybrid"
+freq = 3000.0
+noise_color = 0.800000011920929
+metallic = 1.0
+attack = 2.0
+decay = 220.0
+
+[[sounds]]
+name = "Glass Click"
 engine_type = "phys"
-freq = 160.0
-brightness = 0.20000000298023224
-dampening = 0.30000001192092896
-attack = 4.0
+freq = 2800.0
+brightness = 1.0
+dampening = 0.5
+attack = 1.0
+decay = 30.0
+
+[[sounds]]
+name = "Singing Bowl"
+engine_type = "modal"
+freq = 440.0
+brightness = 0.6000000238418579
+dampening = 0.05999999865889549
+inharmonicity = 0.9800000190734863
+attack = 2.0
+decay = 1500.0
+lfo1_freq = 3.5
+
+[[sounds.mods]]
+param = "freq"
+source = "Lfo1"
+depth = 1.5
+
+[[sounds]]
+name = "Wind Chime Hi"
+engine_type = "phys"
+freq = 4500.0
+brightness = 1.0
+dampening = 0.10000000149011612
+attack = 1.0
 decay = 500.0
 
 [[sounds]]
-name = "Forest Snap"
-engine_type = "hybrid"
-freq = 800.0
-noise_color = 0.4000000059604645
-metallic = 0.20000000298023224
-attack = 0.5
-decay = 80.0
-
-[[sounds]]
-name = "Gravel Shake"
-engine_type = "granular"
-freq = 300.0
-density = 0.6000000238418579
-grain_size = 40.0
-jitter = 0.8999999761581421
-attack = 1.0
-decay = 200.0
-
-[[sounds]]
-name = "Deep Log"
+name = "Wind Chime Lo"
 engine_type = "phys"
-freq = 40.0
-brightness = 0.10000000149011612
+freq = 2200.0
+brightness = 1.0
 dampening = 0.10000000149011612
-attack = 15.0
-decay = 1200.0
-
-[[sounds]]
-name = "Stone Hit"
-engine_type = "hybrid"
-freq = 120.0
-noise_color = 0.20000000298023224
-metallic = 0.10000000149011612
 attack = 1.0
-decay = 150.0
+decay = 650.0
 
 [[sounds]]
-name = "Rain Grain"
+name = "Snow Crunch"
 engine_type = "granular"
-freq = 1500.0
-density = 0.30000001192092896
-grain_size = 10.0
-jitter = 0.5
-attack = 5.0
-decay = 1000.0
-
-[[sounds]]
-name = "Hollow Bone"
-engine_type = "phys"
-freq = 600.0
-brightness = 0.6000000238418579
-dampening = 0.699999988079071
-attack = 1.0
-decay = 300.0
-
-[[sounds]]
-name = "Dry Leaf"
-engine_type = "granular"
-freq = 2000.0
-density = 0.800000011920929
-grain_size = 8.0
-jitter = 0.6000000238418579
-attack = 0.5
-decay = 60.0
-
-[[sounds]]
-name = "Mountain Echo"
-engine_type = "fm"
-freq = 880.0
-mod_ratio = 1.6180000305175781
-mod_index = 4.0
-noise_level = 0.10000000149011612
-attack = 20.0
-decay = 800.0
-
-[[sounds]]
-name = "Root Crack"
-engine_type = "hybrid"
-freq = 1500.0
-noise_color = 0.8999999761581421
-metallic = 0.0
-attack = 0.5
-decay = 40.0
-
-[[sounds]]
-name = "Water Drop"
-engine_type = "fm"
-freq = 1000.0
-mod_ratio = 0.5
-mod_index = 20.0
-noise_level = 0.0
-attack = 0.10000000149011612
+freq = 5500.0
+density = 0.699999988079071
+grain_size = 5.0
+jitter = 0.8999999761581421
+attack = 2.0
 decay = 150.0

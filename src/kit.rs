@@ -617,11 +617,19 @@ impl KitEngine {
     /// firing each one against its slot's voice. Called once per
     /// `tick()` before the audio sum.
     fn drain_pending(&mut self, bpm: f32) {
-        // Find and fire all expired entries. We swap-remove against a
-        // small temporary because firing may itself queue more deferred
-        // triggers (sub-hits on the spawned voice) — those must NOT
-        // re-fire in the same tick. Capacity is bounded; the temporary
-        // is short-lived.
+        // Iterate with `swap_remove_back` so we don't pay an O(N) shift
+        // on every fire. Today this is safe: `voice.trigger` runs the
+        // engine-level `trigger()` (not `KitEngine::trigger`), so it
+        // never pushes new entries onto `self.pending`. Any element
+        // swapped into position `i` was already in the queue before
+        // this drain started, so re-checking it just resolves a stale
+        // entry that was always pending in this tick.
+        //
+        // If any future change makes `voice.trigger` (or anything it
+        // calls) spawn new pending entries — e.g. recursive flams, or
+        // re-entering `KitEngine::trigger` — this loop will need a
+        // fixed snapshot of the original length to avoid re-checking
+        // just-pushed entries that should fire next tick.
         let mut i = 0;
         while i < self.pending.len() {
             if self.pending[i].fire_at_sample <= self.samples_processed {
@@ -820,15 +828,27 @@ impl KitEngine {
             return;
         }
 
-        // Ghost note: if the SAME roll falls inside the ghost
-        // probability slice, schedule a soft echo at the configured
-        // offset. Means trigger_probability and ghost_probability are
-        // not fully independent — if both are 1.0 every hit ghosts; if
-        // trigger is 1.0 and ghost is 0.4 then 40% of hits ghost; if
-        // trigger is 0.5 and ghost is 0.4 then ~40% of the SURVIVING
-        // primaries ghost (since roll is in [0, 0.5) for survivors).
-        // Documented semantic; cleaner determinism than independent
-        // rolls.
+        // Ghost note: the SAME roll that gated the primary also gates
+        // the ghost. Because the primary survived, `roll <=
+        // trigger_probability` is already known; the ghost additionally
+        // requires `roll < ghost_probability`. This couples the two
+        // gates — exact conditional rates:
+        //   * If ghost_probability <= trigger_probability, the fraction
+        //     of SURVIVORS that ghost is
+        //     `ghost_probability / trigger_probability`.
+        //     e.g. trigger=0.5, ghost=0.4 → 0.4/0.5 = 80% of survivors
+        //     ghost. (Not 40% — both gates pass on the same roll.)
+        //   * If ghost_probability > trigger_probability, every survivor
+        //     ghosts (the survivor's roll is already in
+        //     [0, trigger_probability], which is a subset of
+        //     [0, ghost_probability)).
+        // The unconditional ghost rate (per hit, not per survivor) is
+        // `min(trigger_probability, ghost_probability)` because a hit
+        // ghosts iff `roll < min(trigger_p, ghost_p)`. This shared-roll
+        // semantic is intentional: one RNG draw per primary keeps the
+        // sequence reproducible against a seeded RNG. Authors who want
+        // statistically-independent gates should set
+        // `ghost_probability = trigger_probability * desired_conditional`.
         if gen_settings.ghost_probability > 0.0 && roll < gen_settings.ghost_probability {
             let sr = self.sample_rate;
             let samples_offset = (gen_settings.ghost_offset_ms * sr / 1000.0) as u64;
@@ -903,8 +923,32 @@ impl KitEngine {
         let mut out = 0.0;
         for (i, voice_opt) in self.voices.iter_mut().enumerate() {
             if let Some(voice) = voice_opt {
-                let raw = if voice.is_active() { voice.tick() } else { 0.0 };
-                out += self.postfx[i].process(raw);
+                // Inactive-voice fast-path: no engine work AND no PostFx
+                // process call. The previous code still piped 0.0 through
+                // `postfx.process` for every silent slot, which was an
+                // unconditional branch + float math 16 times per sample on
+                // top of the engine cost. With ~half the voices typically
+                // idle on a busy passage that doubled the unavoidable
+                // overhead of the mix loop. PostFx state is naturally
+                // quiescent when input is zero (the decimator's hold
+                // sample is whatever it last latched, and the bitcrusher
+                // is stateless), so dropping these process calls is
+                // bit-identical at the mix bus.
+                if !voice.is_active() {
+                    continue;
+                }
+                let raw = voice.tick();
+                let postfx = &mut self.postfx[i];
+                // PostFx pass-through fast-path: when bits/rate are at
+                // defaults the process call is a single branch returning
+                // its input. Hoisting that branch up to the mix loop
+                // dodges the function-call overhead and one float compare
+                // for every active voice that hasn't opted in to lo-fi.
+                out += if postfx.is_passthrough() {
+                    raw
+                } else {
+                    postfx.process(raw)
+                };
             }
         }
         out.clamp(-1.0, 1.0)

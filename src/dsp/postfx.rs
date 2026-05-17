@@ -6,6 +6,11 @@ pub struct PostFx {
     pub rate: f32,
     hold_counter: u32,
     held_sample: f32,
+    /// Cached "neither bitcrush nor decimation is doing anything" flag so the
+    /// audio thread can skip the entire process body in the common case where
+    /// the slot leaves PostFx at defaults. Recomputed on every `set_bits` /
+    /// `set_rate` so the flag and the float fields can never disagree.
+    is_passthrough: bool,
 }
 
 impl PostFx {
@@ -15,11 +20,20 @@ impl PostFx {
             rate: 1.0,
             hold_counter: 0,
             held_sample: 0.0,
+            is_passthrough: true,
         }
+    }
+
+    /// Recompute the passthrough flag from the current bits / rate values.
+    /// Kept private so callers can't desync it from the float fields.
+    #[inline(always)]
+    fn refresh_passthrough(&mut self) {
+        self.is_passthrough = self.bits >= 16.0 && self.rate.floor() <= 1.0;
     }
 
     pub fn set_bits(&mut self, bits: f32) {
         self.bits = bits.clamp(1.0, 16.0);
+        self.refresh_passthrough();
     }
 
     pub fn set_rate(&mut self, rate: f32) {
@@ -28,6 +42,7 @@ impl PostFx {
             // Force immediate refresh on next process.
             self.hold_counter = 0;
         }
+        self.refresh_passthrough();
     }
 
     /// Clear the decimator hold state. Called on voice trigger so a new hit
@@ -49,8 +64,25 @@ impl PostFx {
         }
     }
 
+    /// Cheap predicate: true while both bit crusher and decimator are at
+    /// defaults (16 bits, rate 1.0). The audio thread uses this to skip
+    /// the entire mix-PostFx-process call when the slot is configured for
+    /// pass-through, which is the common case for kits that don't opt in
+    /// to lo-fi effects.
+    #[inline(always)]
+    pub fn is_passthrough(&self) -> bool {
+        self.is_passthrough
+    }
+
     #[inline(always)]
     pub fn process(&mut self, x: f32) -> f32 {
+        // Fast-path: with bits=16 and rate=1 there is nothing to do. Most
+        // shipped voices stay at defaults, so skipping the float math + the
+        // hold-counter modulo per sample is worth a dedicated branch. The
+        // flag is maintained by `set_bits` / `set_rate` so it can never lie.
+        if self.is_passthrough {
+            return x;
+        }
         // Sample-rate reduction (zero-order hold).
         let divisor = self.rate.floor().max(1.0) as u32;
         let current = if divisor <= 1 {
