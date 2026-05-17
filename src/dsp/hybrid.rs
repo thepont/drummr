@@ -97,9 +97,13 @@ impl HybridEngine {
     }
 
     pub fn trigger(&mut self, velocity: f32, bpm: f32) {
-        self.velocity = velocity;
-        self.mod_engine.velocity = velocity;
+        // Gate velocity writes on velocity > 0.0: a v=0 sub-hit / pattern
+        // step / ghost would otherwise silence the still-ringing primary
+        // because tick() multiplies the mixed output by `self.velocity`.
+        // See `FmVoice::trigger` for the full rationale.
         if velocity > 0.0 {
+            self.velocity = velocity;
+            self.mod_engine.velocity = velocity;
             let decay_sec = match self.decay_division {
                 Some(div) => div.to_seconds(bpm),
                 None => self.decay / 1000.0,

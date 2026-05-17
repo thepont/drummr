@@ -29,12 +29,21 @@ impl NoiseVoice {
     }
 
     pub fn trigger(&mut self, velocity: f32, bpm: f32) {
-        self.velocity = velocity;
-        if let Some(div) = self.decay_division {
-            let decay_sec = div.to_seconds(bpm);
-            self.amp_env.set_params(self.amp_env.attack_sec, decay_sec);
+        // Gate the whole trigger body on velocity > 0.0. The other engines
+        // already have this guard; NoiseVoice was the lone exception. A
+        // pending sub-hit / pattern fire at velocity 0 would otherwise both
+        // stomp `self.velocity` (silencing the still-ringing voice via the
+        // `* self.velocity` in `tick()`) AND restart the envelope from
+        // attack — a strictly worse variant of the bug fixed across the
+        // other engines.
+        if velocity > 0.0 {
+            self.velocity = velocity;
+            if let Some(div) = self.decay_division {
+                let decay_sec = div.to_seconds(bpm);
+                self.amp_env.set_params(self.amp_env.attack_sec, decay_sec);
+            }
+            self.amp_env.trigger();
         }
-        self.amp_env.trigger();
     }
 
     pub fn tick(&mut self) -> f32 {

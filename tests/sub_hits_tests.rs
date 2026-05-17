@@ -325,6 +325,73 @@ fn test_sub_hit_negative_offset_clamped_to_zero() {
 }
 
 #[test]
+fn test_velocity_zero_subhit_doesnt_silence_primary() {
+    // Regression: HIGH #2. Every engine's `trigger()` used to execute
+    // `self.velocity = velocity;` (and `self.mod_engine.velocity = velocity;`)
+    // BEFORE the `if velocity > 0.0` guard. So a pending sub-hit / pattern
+    // step / ghost that resolved to velocity 0 would overwrite the still-
+    // decaying primary's velocity to 0 and silence the voice mid-decay,
+    // because `tick()` multiplies output by `self.velocity`.
+    //
+    // Build a kit with sub_hits = [{offset_ms=10, velocity_factor=0}] and a
+    // long-ish decay (500 ms). Trigger at velocity 1.0. The primary should
+    // be audible during the first 200ms window AND continue to be audible
+    // in the second 200ms window (10-410ms), because the sub-hit at
+    // velocity 0 must NOT mute the primary mid-decay.
+    //
+    // Use a long primary decay (500ms) so the envelope is still well above
+    // the noise floor in both windows. With the bug present, the second
+    // window peak drops to ~0 because `self.velocity = 0.0` muted the
+    // multiply at sample ~480 (10 ms into the decay). With the fix, the
+    // velocity write is gated and the envelope continues naturally.
+    let mut sound = make_kick_sound(Some(vec![SubHit {
+        offset_ms: 10.0,
+        velocity_factor: 0.0,
+    }]));
+    sound.decay = 500.0; // long enough to be audible through both windows
+    let mut kit = build_kit(vec![sound]);
+
+    kit.trigger(36, 1.0, 120.0);
+
+    // First window: 0..200ms.
+    let win_samples = (SR * 0.200) as usize;
+    let mut peak_first = 0.0_f32;
+    for _ in 0..win_samples {
+        let y = kit.tick().abs();
+        if y > peak_first {
+            peak_first = y;
+        }
+    }
+    assert!(
+        peak_first > 0.05,
+        "first window peak should be substantial (>0.05); got {} — primary likely never produced output",
+        peak_first
+    );
+
+    // Second window: 200..400ms. By now the sub-hit at 10ms (velocity 0)
+    // has fired. With the bug present, peak_second collapses to ~0; with
+    // the fix, the envelope is still naturally decaying and audible.
+    let mut peak_second = 0.0_f32;
+    for _ in 0..win_samples {
+        let y = kit.tick().abs();
+        if y > peak_second {
+            peak_second = y;
+        }
+    }
+
+    // The envelope is still decaying naturally in the second window. With a
+    // 500ms decay, samples at 200-400ms are still 20-60% of peak — we
+    // demand at least 20% to ensure the primary wasn't silenced.
+    let threshold = peak_first * 0.20;
+    assert!(
+        peak_second > threshold,
+        "second window peak ({}) should be > 20% of first window peak ({}) — primary was silenced by v=0 sub-hit",
+        peak_second,
+        peak_first
+    );
+}
+
+#[test]
 fn test_sub_hit_huge_offset() {
     // 60 second offset = 2,880,000 samples @ 48 kHz. Well within u64.
     // We do NOT drive forward 60 seconds; we just verify the math at

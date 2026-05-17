@@ -66,9 +66,16 @@ impl FmVoice {
     }
 
     pub fn trigger(&mut self, velocity: f32, bpm: f32) {
-        self.velocity = velocity;
-        self.mod_engine.velocity = velocity;
+        // Velocity writes are gated by `velocity > 0.0`: a sub-hit / pattern
+        // step / ghost can resolve to velocity 0 (e.g. velocity_factor = 0)
+        // while the primary's envelope is still ringing. Writing 0 to
+        // `self.velocity` would mute the in-flight voice mid-decay because
+        // `tick()` multiplies the output by `self.velocity`. Same gate
+        // applies to `mod_engine.velocity` for symmetry with the active
+        // voice's velocity-modulation routing.
         if velocity > 0.0 {
+            self.velocity = velocity;
+            self.mod_engine.velocity = velocity;
             self.carrier_phase = 0.0;
             self.mod_phase = 0.0;
             // Tempo-locked decay overrides the static `decay` (ms) when set.

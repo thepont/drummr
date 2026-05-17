@@ -345,8 +345,12 @@ impl ModalEngine {
     }
 
     pub fn trigger(&mut self, velocity: f32, bpm: f32) {
-        self.mod_engine.velocity = velocity;
+        // Gate the mod_engine velocity write on velocity > 0.0: a v=0 sub-hit
+        // / pattern step / ghost while the modal tail is still ringing would
+        // otherwise corrupt the velocity-modulation source for the active
+        // voice. See `FmVoice::trigger` for the full rationale.
         if velocity > 0.0 {
+            self.mod_engine.velocity = velocity;
             // Tempo-locked decay overrides the static `decay` (ms) when set.
             // Modal voices store the resolved decay back into `self.decay`
             // (ms) so `rebuild_modes()` — which uses `self.decay` to compute
