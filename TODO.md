@@ -271,6 +271,32 @@ Plus: [x] **Modal_Demo** preset showcasing the modal engine.
 
 ---
 
+## Research deliverables
+
+Persisted research from earlier conversation passes. Recommendations here motivate the FX-related items in `Track B`, the producer reference tracks, and several of the kit-differentiation items.
+
+- **Rhythm-enhancing effects** — `docs/research/effects.md`. Top-5 ranked FX adds (plate reverb on a new stereo bus, per-voice transient shaper, per-voice tilt EQ, per-voice drive, master bus compressor), top-3 rhythm-specific FX (BPM-locked ping-pong, probabilistic stutter, gated reverb), producer cross-reference (Phil Collins, Boards of Canada, Burial, Aphex Twin, SP-1200), drummr-specific synergies pairing existing engines/kits with recommended FX, and an implementation dependency tree showing stereo as the chokepoint.
+
+### FX gaps from `docs/research/effects.md` not yet tracked above
+
+Cross-referenced against existing TODO entries; the items below are the new ones — recommendations already covered by `Track B` are noted in-line.
+
+- [ ] **Per-voice transient shaper** (P2) — SPL-style differential-envelope shaper, two scalar knobs (`attack`, `sustain`), level-independent (no threshold). Directly fixes the `P1 — Kit differentiation` finding that 72% of voices share `attack = 1.0 ms`. ~120 LOC, ~1.5 µs/voice, zero infra deps. See `docs/research/effects.md` §A2.
+- [ ] **Per-voice 2-band tilt EQ via SVF** (P2) — TPT/Chamberlin state-variable filter wrapped as a low-shelf + high-shelf pair, single `tilt ∈ [-1,+1]` knob, or split `low_gain`/`high_gain`. Reusable SVF block also unblocks `Synth Methods #5 Self-oscillating SVF`. ~100 LOC, ~3 µs/voice. Distinct from `Track B step 5`'s per-kit master EQ. See `docs/research/effects.md` §A3.
+- [ ] **Master bus compressor (glue + optional kick-keyed sidechain)** (P2) — feedforward, 2:1–4:1, smoothed envelope (~10ms/100ms), with an optional sidechain key wire from any voice slot. Self-keyed = SSL-glue character across kits; kick-keyed = four-on-the-floor pump. Gap in `Track B step 1` (which lists reverb + pan but omits master dynamics). ~180 LOC, ~5 µs/buffer. See `docs/research/effects.md` §A5.
+- [ ] **Probabilistic stutter / beat-repeat** (P3) — on voice trigger, with low probability `p` (~0.05–0.15), capture the first ~80ms and re-trigger at a BPM-locked 16th/32nd. Depends on the BPM AtomicU32 snapshot. RP Boo / IDM character. ~100 LOC. See `docs/research/effects.md` §B2. (Coordinate scope with parallel BPM-locked-effects research before scheduling.)
+- [ ] **Gated reverb (event-keyed, master)** (P3) — pairs with the `Track B step 1` master plate. Event-driven gate (open ~120ms on any kit trigger, snap closed in 5ms) rather than threshold-driven. Phil Collins / Hugh Padgham canonical sound. ~60 LOC once plate reverb lands. See `docs/research/effects.md` §B3.
+- [ ] **"Mulligan FX" — probabilistic per-voice FX chain swap** (P3, radical) — coin-flip on each voice trigger that, with low probability, routes that single hit through an alternate FX chain. Converts drummr from "drum machine" to "drummer with rare bad days." ~150 LOC after the FX-chain framework exists. See `docs/research/effects.md` §E.
+
+The following recommendations from `docs/research/effects.md` are **already in TODO**:
+
+- Stereo + pan + master plate reverb with per-voice send — `Track B step 1` (line ~180). `[in TODO]`
+- Per-voice drive/saturation on FM and Phys — `Track B` (per-voice drive item). `[in TODO]`
+- Per-kit master EQ (3-band tilt) — `Track B step 5` ("Per-kit master FX chain"). `[in TODO]` (distinct from the per-voice tilt EQ added above)
+- BPM-locked ping-pong delay (§B1) — deferred to the parallel BPM-locked-effects research deliverable; not tracked here to avoid duplication.
+
+---
+
 ## Suggested order of attack
 
 1. **Kit differentiation Track A** — TOML-only sweep using mod matrix + LFOs + PostFx + attack variety + frequency shifts. ~1 day, zero risk, huge audible impact.
