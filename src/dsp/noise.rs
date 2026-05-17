@@ -17,7 +17,10 @@ pub struct NoiseVoice {
 impl NoiseVoice {
     pub fn new(sample_rate: f32) -> Self {
         let mut amp_env = AdEnvelope::new(sample_rate);
-        amp_env.set_params(1.0, 50.0);
+        // `AdEnvelope::set_params` takes SECONDS. Default: 1 ms attack,
+        // 50 ms decay -- matching the millisecond convention used by every
+        // other engine's TOML `attack` / `decay` fields and by `set_param`.
+        amp_env.set_params(0.001, 0.050);
 
         Self {
             sample_rate,

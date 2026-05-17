@@ -412,7 +412,11 @@ pub fn voice_from_sound(sound: &DrumSound, sample_rate: f32) -> Option<Voice> {
             // so the noise branch is reachable from `voice_from_sound` but
             // only exercised by the analysis path.
             let mut v = NoiseVoice::new(sample_rate);
-            v.amp_env.set_params(sound.attack, sound.decay);
+            // `sound.attack` / `sound.decay` are MILLISECONDS (the convention
+            // across every engine + the UI). `AdEnvelope::set_params` takes
+            // SECONDS, so divide by 1000 here. Without this conversion a
+            // sound declaring `decay = 100.0` ran for 100 SECONDS.
+            v.amp_env.set_params(sound.attack / 1000.0, sound.decay / 1000.0);
             v.decay_division = sound.decay_division;
             Voice::Noise(v)
         }
