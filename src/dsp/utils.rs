@@ -15,12 +15,22 @@ impl FastSine {
         Self { table }
     }
 
-    /// input phase is 0.0 to 1.0
+    /// Look up sin(phase * 2π) where `phase` is in cycles (1.0 = one full
+    /// rotation). Accepts any finite real phase, positive or negative.
+    ///
+    /// Uses `rem_euclid` rather than `fract` so that negative inputs wrap into
+    /// `[0, 1)` instead of staying negative. With `fract`, a phase of -0.4
+    /// would produce `idx = 0, fract = -819.2`, and the linear interpolation
+    /// would return a large negative number — which the FM engine's master
+    /// clamp would then rail-lock for the entire negative half of the
+    /// modulator's cycle. FM voices use `carrier_phase + modulator_out` where
+    /// `modulator_out` is `sin(mod_phase) * mod_index` and can easily be
+    /// negative, so this path is hit constantly at non-trivial mod_index.
     #[inline(always)]
     pub fn sin(&self, phase: f32) -> f32 {
-        let p = phase.fract(); // ensure 0..1
+        let p = phase.rem_euclid(1.0);
         let p_scaled = p * TABLE_SIZE as f32;
-        let idx = p_scaled as usize;
+        let idx = (p_scaled as usize).min(TABLE_SIZE - 1);
         let fract = p_scaled - idx as f32;
 
         let v1 = self.table[idx];
