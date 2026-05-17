@@ -4,13 +4,13 @@ description = "TR-909 techno kick, hybrid analog/sampled cymbals. Warehouse-read
 [[sounds]]
 name = "909 Kick"
 engine_type = "fm"
-freq = 60.0
+freq = 55.0
 mod_ratio = 1.0
-mod_index = 4.0
-noise_level = 0.3
+mod_index = 0.8
+noise_level = 0.35
 attack = 1.0
-decay = 300.0
-mods = [{param="mod_index", source="Envelope", depth=2.5}, {param="freq", source="Envelope", depth=40.0}]
+decay = 320.0
+mods = [{param="mod_index", source="Envelope", depth=5.0}, {param="freq", source="Envelope", depth=55.0}]
 
 [[sounds]]
 name = "909 Snare"
@@ -48,43 +48,47 @@ rate = 2.0
 
 [[sounds]]
 name = "909 Tom 1"
-engine_type = "modal"
+engine_type = "fm"
 freq = 220.0
-brightness = 0.55
-dampening = 0.35
-inharmonicity = 0.6
+mod_ratio = 1.0
+mod_index = 0.7
+noise_level = 0.15
 attack = 1.0
-decay = 400.0
+decay = 380.0
+mods = [{param="freq", source="Envelope", depth=80.0}]
 
 [[sounds]]
 name = "909 Tom 2"
-engine_type = "modal"
+engine_type = "fm"
 freq = 170.0
-brightness = 0.55
-dampening = 0.35
-inharmonicity = 0.6
+mod_ratio = 1.0
+mod_index = 0.7
+noise_level = 0.15
 attack = 1.0
 decay = 400.0
+mods = [{param="freq", source="Envelope", depth=60.0}]
 
 [[sounds]]
 name = "909 Tom 3"
-engine_type = "modal"
+engine_type = "fm"
 freq = 130.0
-brightness = 0.5
-dampening = 0.35
-inharmonicity = 0.6
+mod_ratio = 1.0
+mod_index = 0.7
+noise_level = 0.15
 attack = 1.0
-decay = 400.0
+decay = 420.0
+mods = [{param="freq", source="Envelope", depth=45.0}]
 
 [[sounds]]
 name = "909 Tom 4"
-engine_type = "modal"
+engine_type = "fm"
 freq = 100.0
-brightness = 0.5
-dampening = 0.35
-inharmonicity = 0.6
+mod_ratio = 1.0
+mod_index = 0.7
+noise_level = 0.15
 attack = 1.0
-decay = 400.0
+decay = 440.0
+mods = [{param="freq", source="Envelope", depth=35.0}]
 
 [[sounds]]
 name = "909 Crash"

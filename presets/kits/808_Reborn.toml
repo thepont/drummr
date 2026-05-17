@@ -1,16 +1,16 @@
 name = "808 Reborn"
-description = "Bridged-T sine kick, Schmitt-trigger cowbell. Classic 808 emulation."
+description = "Bridged-T sine kick (55Hz with click envelope), 540/800Hz cowbell pair via FM ratio. Classic 808 emulation."
 
 [[sounds]]
 name = "808 Kick"
 engine_type = "fm"
-freq = 50.0
-mod_ratio = 0.5
-mod_index = 1.5
-noise_level = 0.05
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 0.3
+noise_level = 0.03
 attack = 1.0
-decay = 600.0
-mods = [{param="mod_index", source="Envelope", depth=5.0}]
+decay = 700.0
+mods = [{param="mod_index", source="Envelope", depth=6.0}, {param="freq", source="Envelope", depth=12.0}]
 
 [[sounds]]
 name = "808 Snare"
@@ -44,37 +44,41 @@ decay = 400.0
 name = "808 Tom 1"
 engine_type = "fm"
 freq = 220.0
-mod_ratio = 0.5
-mod_index = 2.0
+mod_ratio = 1.0
+mod_index = 0.6
 attack = 1.0
 decay = 350.0
+mods = [{param="freq", source="Envelope", depth=40.0}]
 
 [[sounds]]
 name = "808 Tom 2"
 engine_type = "fm"
 freq = 165.0
-mod_ratio = 0.5
-mod_index = 2.0
+mod_ratio = 1.0
+mod_index = 0.6
 attack = 1.0
 decay = 420.0
+mods = [{param="freq", source="Envelope", depth=30.0}]
 
 [[sounds]]
 name = "808 Tom 3"
 engine_type = "fm"
 freq = 110.0
-mod_ratio = 0.5
-mod_index = 2.0
+mod_ratio = 1.0
+mod_index = 0.6
 attack = 1.0
 decay = 480.0
+mods = [{param="freq", source="Envelope", depth=20.0}]
 
 [[sounds]]
 name = "808 Tom 4"
 engine_type = "fm"
 freq = 82.0
-mod_ratio = 0.5
-mod_index = 2.0
+mod_ratio = 1.0
+mod_index = 0.6
 attack = 1.0
 decay = 550.0
+mods = [{param="freq", source="Envelope", depth=15.0}]
 
 [[sounds]]
 name = "808 Crash"
@@ -115,11 +119,10 @@ decay = 30.0
 
 [[sounds]]
 name = "808 Cowbell"
-engine_type = "modal"
+engine_type = "fm"
 freq = 540.0
-brightness = 0.7
-dampening = 0.4
-inharmonicity = 0.85
+mod_ratio = 1.481
+mod_index = 1.2
 attack = 1.0
 decay = 350.0
 
