@@ -171,6 +171,7 @@ Aggressive use of systems already shipped. ~1 day total. No regression risk.
 - [ ] **Packaging paths anchored to `CARGO_MANIFEST_DIR`** — `presets/`, `kit.toml`, `mapping.toml`, `settings.toml` won't survive a packaged release binary. Make `DRUMMR_HOME` env var optional.
 - [ ] **Modal engine `_ = env_active` at `src/dsp/modal.rs:297`** — leftover from refactor; either early-out when fully decayed or remove.
 - [ ] **Clock-aware / polyrhythmic drum design** — research at `docs/research/clock_polyrhythm.md`. Atomic BPM snapshot on SharedState is the chokepoint (~10 LOC) and unblocks tempo-locked LFOs, multi-bar decays, and clock-driven sub-patterns.
+- [ ] **Exotic physical models / out-of-worldly synthesis** — research at `docs/research/physical_models.md`. Top picks for next engines: Karplus-Strong loop nonlinearity (~10 LOC, sitar/jaw-harp/didgeridoo), velocity-bifurcation chaotic oscillator engine (Lorenz/Chua/Rössler — the signature engine), 2-D digital waveguide mesh (first real drum-head model).
 
 ---
 
