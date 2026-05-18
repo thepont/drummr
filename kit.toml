@@ -1,180 +1,224 @@
-name = "Glass Forest"
-description = "Crystalline pitched percussion built from tuned glass and ice. Pitch-stable hits — playable melodically. Weightless spectrum (110Hz floor, no sub-bass); wine glass + bowls have gentle 4.5Hz vibrato; modal bells pushed to inharmonicity 0.98 for wild upper-partial shimmer."
+name = "Industrial Glitch"
+description = "A gritty, 16-sound experimental kit using all engines. Kit-wide 5-bit / 3x decimated PostFx — every voice runs through the crusher."
 
 [[sounds]]
-name = "Iceberg"
+name = "Cyber Kick"
 engine_type = "fm"
-freq = 110.0
+freq = 42.0
 mod_ratio = 0.5
-mod_index = 3.0
-noise_level = 0.07999999821186066
+mod_index = 12.0
+noise_level = 0.05000000074505806
+bits = 5.0
+rate = 3.0
 attack = 1.0
-decay = 420.0
-
-[[sounds.mods]]
-param = "mod_index"
-source = "Velocity"
-depth = 2.0
+decay = 450.0
 
 [[sounds.mods]]
 param = "mod_index"
 source = "Envelope"
-depth = 1.5
-
-[[sounds]]
-name = "Wine Glass"
-engine_type = "phys"
-freq = 750.0
-brightness = 0.8999999761581421
-dampening = 0.18000000715255737
-attack = 1.0
-decay = 240.0
-lfo1_freq = 4.5
+depth = 8.0
 
 [[sounds.mods]]
 param = "freq"
-source = "Lfo1"
-depth = 2.5
+source = "Velocity"
+depth = 15.0
 
 [[sounds]]
-name = "Hailstone"
-engine_type = "granular"
-freq = 7500.0
-density = 0.949999988079071
-grain_size = 2.0
-jitter = 0.5
-attack = 1.0
-decay = 50.0
-
-[[sounds]]
-name = "Sleet Patter"
-engine_type = "granular"
-freq = 7500.0
-density = 0.8999999761581421
-grain_size = 3.0
-jitter = 0.6499999761581421
-attack = 1.0
-decay = 260.0
-
-[[sounds]]
-name = "Frozen Bell"
-engine_type = "phys"
-freq = 660.0
-brightness = 1.0
-dampening = 0.11999999731779099
-attack = 1.0
-decay = 520.0
-
-[[sounds]]
-name = "Mid Glass"
-engine_type = "phys"
-freq = 470.0
-brightness = 0.7799999713897705
-dampening = 0.2800000011920929
-attack = 2.0
-decay = 720.0
-
-[[sounds]]
-name = "Low Glass"
-engine_type = "phys"
-freq = 340.0
-brightness = 0.5799999833106995
-dampening = 0.41999998688697815
-attack = 3.0
-decay = 900.0
-
-[[sounds]]
-name = "Deep Crystal"
-engine_type = "phys"
-freq = 240.0
-brightness = 0.4000000059604645
-dampening = 0.550000011920929
-attack = 4.0
-decay = 1100.0
-
-[[sounds]]
-name = "Shatter"
+name = "Rusty Snare"
 engine_type = "hybrid"
-freq = 6500.0
-noise_color = 0.8999999761581421
-metallic = 1.0
-attack = 1.0
-decay = 1800.0
-
-[[sounds]]
-name = "Glass Bowl"
-engine_type = "modal"
-freq = 880.0
-brightness = 0.6499999761581421
-dampening = 0.07999999821186066
-inharmonicity = 0.9800000190734863
-attack = 1.0
-decay = 2000.0
-lfo2_freq = 0.699999988079071
-
-[[sounds.mods]]
-param = "inharmonicity"
-source = "Lfo2"
-depth = 0.029999999329447746
-
-[[sounds]]
-name = "Ice Crack"
-engine_type = "hybrid"
-freq = 3000.0
-noise_color = 0.800000011920929
-metallic = 1.0
-attack = 2.0
+freq = 195.0
+noise_color = 0.75
+metallic = 0.550000011920929
+bits = 5.0
+rate = 3.0
+attack = 0.5
 decay = 220.0
 
+[[sounds.mods]]
+param = "freq"
+source = "Velocity"
+depth = 20.0
+
 [[sounds]]
-name = "Glass Click"
+name = "Static Hat"
+engine_type = "granular"
+freq = 950.0
+density = 0.8500000238418579
+grain_size = 12.0
+jitter = 0.699999988079071
+bits = 5.0
+rate = 3.0
+attack = 0.20000000298023224
+decay = 45.0
+lfo1_freq = 4.0
+
+[[sounds.mods]]
+param = "density"
+source = "Lfo1"
+depth = 0.15000000596046448
+
+[[sounds]]
+name = "Metal Clang"
+engine_type = "hybrid"
+freq = 440.0
+noise_color = 0.30000001192092896
+metallic = 0.8999999761581421
+bits = 5.0
+rate = 3.0
+attack = 0.5
+decay = 600.0
+
+[[sounds.mods]]
+param = "metallic"
+source = "Velocity"
+depth = 0.10000000149011612
+
+[[sounds]]
+name = "Void Tom"
 engine_type = "phys"
-freq = 2800.0
-brightness = 1.0
-dampening = 0.5
+freq = 80.0
+brightness = 0.6000000238418579
+dampening = 0.20000000298023224
+bits = 5.0
+rate = 3.0
+attack = 5.0
+decay = 800.0
+
+[[sounds.mods]]
+param = "brightness"
+source = "Velocity"
+depth = 0.20000000298023224
+
+[[sounds]]
+name = "Neon Chirp"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 2.7100000381469727
+mod_index = 8.0
+noise_level = 0.0
+bits = 5.0
+rate = 3.0
 attack = 1.0
 decay = 30.0
 
 [[sounds]]
-name = "Singing Bowl"
-engine_type = "modal"
-freq = 440.0
-brightness = 0.6000000238418579
-dampening = 0.05999999865889549
-inharmonicity = 0.9800000190734863
-attack = 2.0
-decay = 1500.0
-lfo1_freq = 3.5
-
-[[sounds.mods]]
-param = "freq"
-source = "Lfo1"
-depth = 1.5
+name = "Glitch Spark"
+engine_type = "granular"
+freq = 2000.0
+density = 0.949999988079071
+grain_size = 5.0
+jitter = 0.8999999761581421
+bits = 5.0
+rate = 3.0
+attack = 0.10000000149011612
+decay = 20.0
 
 [[sounds]]
-name = "Wind Chime Hi"
+name = "Factory Bell"
 engine_type = "phys"
-freq = 4500.0
-brightness = 1.0
+freq = 880.0
+brightness = 0.8999999761581421
 dampening = 0.10000000149011612
-attack = 1.0
+bits = 5.0
+rate = 3.0
+attack = 0.5
+decay = 1200.0
+
+[[sounds]]
+name = "Sub Drone"
+engine_type = "fm"
+freq = 30.0
+mod_ratio = 1.0
+mod_index = 2.0
+noise_level = 0.0
+bits = 5.0
+rate = 3.0
+attack = 50.0
+decay = 2000.0
+
+[[sounds]]
+name = "Steam Hiss"
+engine_type = "granular"
+freq = 500.0
+density = 0.20000000298023224
+grain_size = 150.0
+jitter = 0.30000001192092896
+bits = 5.0
+rate = 3.0
+attack = 100.0
+decay = 1500.0
+lfo2_freq = 0.4000000059604645
+
+[[sounds.mods]]
+param = "grain_size"
+source = "Lfo2"
+depth = 40.0
+
+[[sounds]]
+name = "Anvil"
+engine_type = "hybrid"
+freq = 220.0
+noise_color = 0.10000000149011612
+metallic = 1.0
+bits = 5.0
+rate = 3.0
+attack = 0.5
+decay = 400.0
+
+[[sounds]]
+name = "Broken Glass"
+engine_type = "granular"
+freq = 2500.0
+density = 0.3499999940395355
+grain_size = 30.0
+jitter = 0.800000011920929
+bits = 5.0
+rate = 3.0
+attack = 0.5
+decay = 150.0
+
+[[sounds]]
+name = "Radio Noise"
+engine_type = "fm"
+freq = 100.0
+mod_ratio = 0.10000000149011612
+mod_index = 50.0
+noise_level = 0.800000011920929
+bits = 5.0
+rate = 3.0
+attack = 10.0
+decay = 100.0
+
+[[sounds]]
+name = "Deep Tube"
+engine_type = "phys"
+freq = 65.0
+brightness = 0.30000001192092896
+dampening = 0.4000000059604645
+bits = 5.0
+rate = 3.0
+attack = 10.0
 decay = 500.0
 
 [[sounds]]
-name = "Wind Chime Lo"
-engine_type = "phys"
-freq = 2200.0
-brightness = 1.0
-dampening = 0.10000000149011612
-attack = 1.0
-decay = 650.0
+name = "Short Click"
+engine_type = "fm"
+freq = 3000.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 0.0
+bits = 5.0
+rate = 3.0
+attack = 0.10000000149011612
+decay = 10.0
 
 [[sounds]]
-name = "Snow Crunch"
-engine_type = "granular"
-freq = 5500.0
-density = 0.699999988079071
-grain_size = 5.0
-jitter = 0.8999999761581421
-attack = 2.0
-decay = 150.0
+name = "Scrape"
+engine_type = "phys"
+freq = 400.0
+brightness = 0.10000000149011612
+dampening = 0.800000011920929
+bits = 5.0
+rate = 3.0
+attack = 50.0
+decay = 300.0
