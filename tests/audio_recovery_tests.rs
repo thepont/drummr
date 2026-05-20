@@ -31,7 +31,7 @@ fn make_shared_state() -> Arc<SharedState> {
     };
     let engine = KitEngine::from_config(kit.clone(), 48000.0, vec![]);
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<()>();
-    Arc::new(SharedState::new(engine, kit, tx))
+    Arc::new(SharedState::new(engine, kit, vec![], tx))
 }
 
 #[test]

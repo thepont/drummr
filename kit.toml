@@ -1,224 +1,204 @@
-name = "Industrial Glitch"
-description = "A gritty, 16-sound experimental kit using all engines. Kit-wide 5-bit / 3x decimated PostFx — every voice runs through the crusher."
+name = "Cathedral Bells"
+description = "Tuned-bell drum kit. Long-decay modal resonators, low inharmonicity for pitched purity, gentle bitcrush for old-recording shimmer."
 
 [[sounds]]
-name = "Cyber Kick"
-engine_type = "fm"
-freq = 42.0
-mod_ratio = 0.5
-mod_index = 12.0
-noise_level = 0.05000000074505806
-bits = 5.0
-rate = 3.0
-attack = 1.0
-decay = 450.0
-
-[[sounds.mods]]
-param = "mod_index"
-source = "Envelope"
-depth = 8.0
-
-[[sounds.mods]]
-param = "freq"
-source = "Velocity"
-depth = 15.0
-
-[[sounds]]
-name = "Rusty Snare"
-engine_type = "hybrid"
-freq = 195.0
-noise_color = 0.75
-metallic = 0.550000011920929
-bits = 5.0
-rate = 3.0
-attack = 0.5
-decay = 220.0
-
-[[sounds.mods]]
-param = "freq"
-source = "Velocity"
-depth = 20.0
-
-[[sounds]]
-name = "Static Hat"
-engine_type = "granular"
-freq = 950.0
-density = 0.8500000238418579
-grain_size = 12.0
-jitter = 0.699999988079071
-bits = 5.0
-rate = 3.0
-attack = 0.20000000298023224
-decay = 45.0
-lfo1_freq = 4.0
-
-[[sounds.mods]]
-param = "density"
-source = "Lfo1"
-depth = 0.15000000596046448
-
-[[sounds]]
-name = "Metal Clang"
-engine_type = "hybrid"
-freq = 440.0
-noise_color = 0.30000001192092896
-metallic = 0.8999999761581421
-bits = 5.0
-rate = 3.0
-attack = 0.5
-decay = 600.0
-
-[[sounds.mods]]
-param = "metallic"
-source = "Velocity"
-depth = 0.10000000149011612
-
-[[sounds]]
-name = "Void Tom"
-engine_type = "phys"
-freq = 80.0
-brightness = 0.6000000238418579
-dampening = 0.20000000298023224
-bits = 5.0
-rate = 3.0
-attack = 5.0
+name = "Bass Bell Kick"
+engine_type = "modal"
+freq = 55.0
+brightness = 0.550000011920929
+dampening = 0.18000000715255737
+inharmonicity = 0.05000000074505806
+bits = 12.0
+rate = 1.0
+attack = 2.0
 decay = 800.0
 
 [[sounds.mods]]
 param = "brightness"
 source = "Velocity"
-depth = 0.20000000298023224
+depth = 0.15000000596046448
 
 [[sounds]]
-name = "Neon Chirp"
-engine_type = "fm"
-freq = 1500.0
-mod_ratio = 2.7100000381469727
-mod_index = 8.0
-noise_level = 0.0
-bits = 5.0
-rate = 3.0
+name = "Glass Bell Snare"
+engine_type = "modal"
+freq = 523.25
+brightness = 0.75
+dampening = 0.2199999988079071
+inharmonicity = 0.07999999821186066
+bits = 12.0
+rate = 1.0
 attack = 1.0
-decay = 30.0
+decay = 600.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Velocity"
+depth = 8.0
 
 [[sounds]]
-name = "Glitch Spark"
-engine_type = "granular"
-freq = 2000.0
-density = 0.949999988079071
-grain_size = 5.0
-jitter = 0.8999999761581421
-bits = 5.0
-rate = 3.0
-attack = 0.10000000149011612
-decay = 20.0
+name = "Tuned Hat Closed"
+engine_type = "modal"
+freq = 1760.0
+brightness = 0.8500000238418579
+dampening = 0.5
+inharmonicity = 0.11999999731779099
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 300.0
 
 [[sounds]]
-name = "Factory Bell"
-engine_type = "phys"
+name = "Tuned Hat Open"
+engine_type = "modal"
+freq = 1760.0
+brightness = 0.8500000238418579
+dampening = 0.18000000715255737
+inharmonicity = 0.11999999731779099
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 600.0
+
+[[sounds]]
+name = "Chord Tom C"
+engine_type = "modal"
+freq = 130.80999755859375
+brightness = 0.699999988079071
+dampening = 0.1599999964237213
+inharmonicity = 0.07000000029802322
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 1000.0
+
+[[sounds]]
+name = "Chord Tom E"
+engine_type = "modal"
+freq = 164.80999755859375
+brightness = 0.699999988079071
+dampening = 0.1599999964237213
+inharmonicity = 0.07000000029802322
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 900.0
+
+[[sounds]]
+name = "Chord Tom G"
+engine_type = "modal"
+freq = 196.0
+brightness = 0.699999988079071
+dampening = 0.1599999964237213
+inharmonicity = 0.07000000029802322
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 800.0
+
+[[sounds]]
+name = "Chord Tom B"
+engine_type = "modal"
+freq = 246.94000244140625
+brightness = 0.699999988079071
+dampening = 0.1599999964237213
+inharmonicity = 0.07000000029802322
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 700.0
+
+[[sounds]]
+name = "Cathedral Crash"
+engine_type = "modal"
 freq = 880.0
 brightness = 0.8999999761581421
-dampening = 0.10000000149011612
-bits = 5.0
-rate = 3.0
-attack = 0.5
-decay = 1200.0
-
-[[sounds]]
-name = "Sub Drone"
-engine_type = "fm"
-freq = 30.0
-mod_ratio = 1.0
-mod_index = 2.0
-noise_level = 0.0
-bits = 5.0
-rate = 3.0
-attack = 50.0
+dampening = 0.05999999865889549
+inharmonicity = 0.15000000596046448
+bits = 12.0
+rate = 1.0
+attack = 1.0
 decay = 2000.0
 
 [[sounds]]
-name = "Steam Hiss"
-engine_type = "granular"
-freq = 500.0
-density = 0.20000000298023224
-grain_size = 150.0
-jitter = 0.30000001192092896
-bits = 5.0
-rate = 3.0
-attack = 100.0
-decay = 1500.0
-lfo2_freq = 0.4000000059604645
-
-[[sounds.mods]]
-param = "grain_size"
-source = "Lfo2"
-depth = 40.0
+name = "Cathedral Ride"
+engine_type = "modal"
+freq = 1320.0
+brightness = 0.7799999713897705
+dampening = 0.07999999821186066
+inharmonicity = 0.10000000149011612
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 2000.0
 
 [[sounds]]
-name = "Anvil"
-engine_type = "hybrid"
-freq = 220.0
-noise_color = 0.10000000149011612
-metallic = 1.0
-bits = 5.0
-rate = 3.0
-attack = 0.5
-decay = 400.0
-
-[[sounds]]
-name = "Broken Glass"
-engine_type = "granular"
-freq = 2500.0
-density = 0.3499999940395355
-grain_size = 30.0
-jitter = 0.800000011920929
-bits = 5.0
-rate = 3.0
-attack = 0.5
-decay = 150.0
-
-[[sounds]]
-name = "Radio Noise"
-engine_type = "fm"
-freq = 100.0
-mod_ratio = 0.10000000149011612
-mod_index = 50.0
-noise_level = 0.800000011920929
-bits = 5.0
-rate = 3.0
-attack = 10.0
-decay = 100.0
-
-[[sounds]]
-name = "Deep Tube"
-engine_type = "phys"
-freq = 65.0
-brightness = 0.30000001192092896
-dampening = 0.4000000059604645
-bits = 5.0
-rate = 3.0
-attack = 10.0
+name = "Hand Bell Clap"
+engine_type = "modal"
+freq = 1046.5
+brightness = 0.800000011920929
+dampening = 0.30000001192092896
+inharmonicity = 0.18000000715255737
+bits = 12.0
+rate = 1.0
+attack = 2.0
 decay = 500.0
 
 [[sounds]]
-name = "Short Click"
-engine_type = "fm"
-freq = 3000.0
-mod_ratio = 1.0
-mod_index = 0.0
-noise_level = 0.0
-bits = 5.0
-rate = 3.0
-attack = 0.10000000149011612
-decay = 10.0
+name = "Carillon Rim"
+engine_type = "modal"
+freq = 2093.0
+brightness = 0.8500000238418579
+dampening = 0.3499999940395355
+inharmonicity = 0.20000000298023224
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 550.0
 
 [[sounds]]
-name = "Scrape"
-engine_type = "phys"
-freq = 400.0
-brightness = 0.10000000149011612
-dampening = 0.800000011920929
-bits = 5.0
-rate = 3.0
-attack = 50.0
-decay = 300.0
+name = "Tuned Cowbell"
+engine_type = "modal"
+freq = 660.0
+brightness = 0.800000011920929
+dampening = 0.2800000011920929
+inharmonicity = 0.20000000298023224
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 700.0
+
+[[sounds]]
+name = "Chime Perc 1"
+engine_type = "modal"
+freq = 1568.0
+brightness = 0.7799999713897705
+dampening = 0.2199999988079071
+inharmonicity = 0.18000000715255737
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 800.0
+
+[[sounds]]
+name = "Chime Perc 2"
+engine_type = "modal"
+freq = 1975.5
+brightness = 0.7799999713897705
+dampening = 0.2199999988079071
+inharmonicity = 0.18000000715255737
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 650.0
+
+[[sounds]]
+name = "Chime Perc 3"
+engine_type = "modal"
+freq = 2349.300048828125
+brightness = 0.800000011920929
+dampening = 0.2199999988079071
+inharmonicity = 0.20000000298023224
+bits = 12.0
+rate = 1.0
+attack = 1.0
+decay = 550.0

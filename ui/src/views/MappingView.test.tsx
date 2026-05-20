@@ -38,7 +38,7 @@ describe('MappingView', () => {
   ];
 
   it('sends GET_MAPPING on mount and handles response', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
 
     expect(mockWs.send).toHaveBeenCalledWith('GET_MAPPING');
 
@@ -53,7 +53,7 @@ describe('MappingView', () => {
   });
 
   it('activates learning mode when a pad is clicked', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: `MAPPING: ${JSON.stringify(initialMapping)}` });
@@ -73,7 +73,7 @@ describe('MappingView', () => {
   });
 
   it('updates mapping when MIDI message is received in learning mode', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: `MAPPING: ${JSON.stringify(initialMapping)}` });
@@ -95,7 +95,7 @@ describe('MappingView', () => {
   });
 
   it('shows active state when MIDI message is received', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: `MAPPING: ${JSON.stringify(initialMapping)}` });
@@ -119,7 +119,7 @@ describe('MappingView', () => {
   });
 
   it('filters roles based on search query', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: `MAPPING: ${JSON.stringify(initialMapping)}` });
@@ -135,7 +135,7 @@ describe('MappingView', () => {
   });
 
   it('can delete a role', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: `MAPPING: ${JSON.stringify(initialMapping)}` });
@@ -149,7 +149,7 @@ describe('MappingView', () => {
   });
 
   it('sends SAVE_MAPPING when Save Changes is clicked', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: `MAPPING: ${JSON.stringify(initialMapping)}` });
@@ -173,7 +173,7 @@ describe('MappingView', () => {
   });
 
   it('adds a preset role', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: `MAPPING: ${JSON.stringify(initialMapping)}` });
@@ -196,7 +196,7 @@ describe('MappingView', () => {
   });
 
   it('re-requests mapping when KIT message is received', async () => {
-    render(<MappingView ws={mockWs} />);
+    render(<MappingView ws={mockWs} sounds={[]} mappingPresets={[]} />);
     
     await act(async () => {
       messageHandler({ data: 'KIT: some_kit_data' });

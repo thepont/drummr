@@ -99,11 +99,12 @@ impl PostFx {
         if self.bits >= 16.0 {
             current
         } else {
-            let levels = (1u32 << (self.bits.round().clamp(1.0, 16.0) as u32)) as f32;
-            // Treat signal as bipolar in [-1, 1]. Quantize the unipolar
-            // [0, 1] mapping to `levels` steps using floor, then map back.
+            // Use powf for safety against u32 shift overflow if bits is high.
+            let levels = 2.0f32.powf(self.bits.round().clamp(1.0, 16.0));
+            if !levels.is_finite() || levels < 1.0 { return current; }
+            
             let unipolar = (current * 0.5) + 0.5;
-            let quantized = (unipolar * levels).floor() / levels;
+            let quantized = (unipolar * levels).round() / levels;
             (quantized - 0.5) * 2.0
         }
     }

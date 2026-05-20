@@ -77,12 +77,18 @@ pub struct SharedState {
     /// the boundary just means one extra tick of the wrong BPM, which is
     /// harmless.
     pub playback_owns_bpm: AtomicBool,
+    /// Authoritative in-memory list of MIDI note -> slot mappings.
+    /// Used by LOAD_KIT to ensure mappings persist across kit changes,
+    /// and by UPDATE_MAPPING to avoid the read-modify-write race against
+    /// mapping.toml.
+    pub midi_mappings: Arc<std::sync::Mutex<Vec<crate::kit::DrumMapping>>>,
 }
 
 impl SharedState {
     pub fn new(
         kit: KitEngine,
         kit_snapshot: DrumKit,
+        midi_mappings: Vec<crate::kit::DrumMapping>,
         audio_error_tx: tokio::sync::mpsc::UnboundedSender<()>,
     ) -> Self {
         const ZERO: AtomicU32 = AtomicU32::new(0);
@@ -95,6 +101,7 @@ impl SharedState {
             audio_error_tx,
             midi_playback_handle: std::sync::Mutex::new(None),
             playback_owns_bpm: AtomicBool::new(false),
+            midi_mappings: Arc::new(std::sync::Mutex::new(midi_mappings)),
         }
     }
 

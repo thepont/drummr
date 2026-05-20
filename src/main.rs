@@ -47,7 +47,9 @@ async fn main() -> Result<()> {
 
     // Use a fixed sample rate for now or fetch it from a default device
     let sample_rate = 48000.0;
+    let mappings = load_mappings();
     let (initial_kit, initial_snapshot) = load_kit("kit.toml", sample_rate);
+    comm_engine.broadcast(format!("ACTIVE_KIT:{}", initial_snapshot.name));
 
     // Channel used by the cpal output-stream error callback (audio thread) to
     // signal a tokio recovery task that the active device has gone away. The
@@ -59,6 +61,7 @@ async fn main() -> Result<()> {
     let shared_state = Arc::new(SharedState::new(
         initial_kit,
         initial_snapshot,
+        mappings,
         audio_error_tx.clone(),
     ));
     let shared_state_audio = shared_state.clone();

@@ -43,10 +43,12 @@ export default function App() {
   const [availableMidi, setAvailableMidi] = useState<string[]>([]);
   const [availableAudio, setAvailableAudio] = useState<string[]>([]);
   const [availableKits, setAvailableKits] = useState<string[]>([]);
+  const [activeKitName, setActiveKitName] = useState<string>("");
   
   const [sounds, setSounds] = useState<any[]>([]);
   const [schemas, setSchemas] = useState<Record<string, any[]>>({});
   const [soundPresets, setSoundPresets] = useState<string[]>([]);
+  const [mappingPresets, setMappingPresets] = useState<string[]>([]);
   const [selectedSoundId, setSelectedSoundId] = useState<any>(null);
   const [analysis, setAnalysis] = useState<Record<number, AnalysisResult>>({});
 
@@ -83,6 +85,7 @@ export default function App() {
         socket.send('GET_KIT');
         socket.send('GET_MAPPING');
         socket.send('LIST_SOUND_PRESETS');
+        socket.send('LIST_MAPPING_PRESETS');
         socket.send('LIST_MIDI_TRACKS');
         setWs(socket);
       };
@@ -113,9 +116,12 @@ export default function App() {
           setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
         } else if (data.startsWith('KIT_LIST:')) {
           setAvailableKits(data.replace('KIT_LIST:', '').split(',').filter(Boolean));
+        } else if (data.startsWith('ACTIVE_KIT:')) {
+          setActiveKitName(data.replace('ACTIVE_KIT:', ''));
         } else if (data.startsWith('KIT: ')) {
           try {
             const kit = JSON.parse(data.replace('KIT: ', ''));
+            console.log('[UI] Setting sounds from KIT broadcast:', kit.length);
             setSounds(kit);
             if (Array.isArray(kit) && socket.readyState === WebSocket.OPEN) {
               kit.forEach((slot: any, i: number) => {
@@ -143,6 +149,8 @@ export default function App() {
           }
         } else if (data.startsWith('SOUND_PRESETS:')) {
           setSoundPresets(data.replace('SOUND_PRESETS:', '').split(',').filter(Boolean));
+        } else if (data.startsWith('MAPPING_PRESETS:')) {
+          setMappingPresets(data.replace('MAPPING_PRESETS:', '').split(',').filter(Boolean));
         } else if (data.startsWith('SCHEMA:')) {
           try {
             const firstColon = data.indexOf(':');
@@ -155,7 +163,7 @@ export default function App() {
         } else if (data.startsWith('BPM:')) {
           setBpm(data.replace('BPM:', '').trim());
         } else if (data.startsWith('SYNC_STATUS:')) {
-          setSyncStatus(data.replace('SYNC_STATUS:', ''));
+          setSyncStatus(data.replace('SYNC_STATUS:', '').trim());
         } else if (data.startsWith('MIDI_TRACKS:')) {
           setMidiTracks(data.replace('MIDI_TRACKS:', '').split(',').filter(Boolean));
         } else if (data.startsWith('MIDI_TRACK_PLAYING:')) {
@@ -277,9 +285,15 @@ export default function App() {
               >
                 <ListIcon size={24} />
               </button>
-              <h2 className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
-                {view.replace('_', ' ')}
-              </h2>
+              <div className="flex flex-col">
+                <h2 className="text-sm font-black uppercase tracking-widest text-foreground leading-tight">
+                  {activeKitName || "Loading Kit..."}
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                  {view.replace('_', ' ')}
+                </span>
+              </div>
+
             </div>
             
             <div className="flex items-center gap-4">
@@ -373,7 +387,13 @@ export default function App() {
                 />
               )}
               {view === 'mapping' && (
-                <MappingView ws={ws} selectedSoundId={selectedSoundId} setSelectedSoundId={setSelectedSoundId} />
+                <MappingView 
+                  ws={ws} 
+                  sounds={sounds}
+                  mappingPresets={mappingPresets}
+                  selectedSoundId={selectedSoundId}
+                  setSelectedSoundId={setSelectedSoundId}
+                />
               )}
               {view === 'editor' && (
                 <KitEditorView
@@ -394,10 +414,15 @@ export default function App() {
         isLibraryOpen ? "w-80" : "w-0 overflow-hidden border-none"
       )}>
         <LibrarySidebar 
-          availableKits={availableKits} soundPresets={soundPresets}
-          ws={ws} selectedSoundId={selectedSoundId}
-          isOpen={isLibraryOpen} onClose={() => setIsLibraryOpen(false)}
+          availableKits={availableKits}
+          activeKitName={activeKitName}
+          soundPresets={soundPresets}
+          ws={ws}
+          selectedSoundId={selectedSoundId}
+          isOpen={isLibraryOpen}
+          onClose={() => setIsLibraryOpen(false)}
         />
+
       </div>
 
       {isMobileMenuOpen && (

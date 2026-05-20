@@ -30,7 +30,8 @@ pub fn start_persistence_worker() -> mpsc::UnboundedSender<PersistenceCommand> {
                     Err(e) => eprintln!("persistence: failed to serialize kit: {}", e),
                 },
                 PersistenceCommand::SaveMapping(mappings) => {
-                    match toml::to_string_pretty(&mappings) {
+                    let wrapped = serde_json::json!({ "mappings": mappings });
+                    match toml::to_string_pretty(&wrapped) {
                         Ok(toml_str) => {
                             let tmp_path = "mapping.toml.tmp";
                             if let Err(e) = fs::write(tmp_path, &toml_str) {

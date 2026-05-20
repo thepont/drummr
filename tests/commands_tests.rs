@@ -174,7 +174,12 @@ fn build_harness() -> TestHarness {
     // exists for the lifetime of one test process.
     let (audio_error_tx, audio_error_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
     Box::leak(Box::new(audio_error_rx));
-    let shared_state = Arc::new(SharedState::new(kit_engine, snapshot, audio_error_tx));
+    let shared_state = Arc::new(SharedState::new(
+        kit_engine,
+        snapshot,
+        drummr::app_utils::load_mappings(),
+        audio_error_tx,
+    ));
     let comm_engine = Arc::new(CommEngine::new());
     let broadcasts = comm_engine.subscribe();
 

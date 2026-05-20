@@ -78,8 +78,10 @@ function Pad({ name, isActive, midiNote, isLearning, onClick, id }: PadProps) {
   )
 }
 
-export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }: { 
+export default function MappingView({ ws, sounds, mappingPresets, selectedSoundId, setSelectedSoundId }: { 
   ws: WebSocket | null, 
+  sounds: any[],
+  mappingPresets: string[],
   selectedSoundId?: any,
   setSelectedSoundId?: (id: any) => void
 }) {
@@ -235,6 +237,29 @@ export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }:
               </div>
             </div>
           </div>
+
+          <div className="relative group">
+            <button className="flex items-center gap-2 px-4 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors text-sm font-medium border border-border">
+              <List size={18} />
+              Load Device Preset
+            </button>
+            <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-border rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+              <div className="max-h-60 overflow-y-auto divide-y divide-border">
+                {mappingPresets.map(name => (
+                  <button 
+                    key={name}
+                    onClick={() => ws?.send(`LOAD_MAPPING_PRESET:${name}`)}
+                    className="w-full text-left px-4 py-2.5 text-xs hover:bg-muted transition-colors font-medium text-foreground"
+                  >
+                    {name.replace(/_/g, ' ')}
+                  </button>
+                ))}
+                {mappingPresets.length === 0 && (
+                  <div className="px-4 py-3 text-[10px] text-muted-foreground italic">No device presets found</div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -254,7 +279,7 @@ export default function MappingView({ ws, selectedSoundId, setSelectedSoundId }:
           <Pad 
             key={role.slot}
             id={role.slot.toString()}
-            name={role.name}
+            name={sounds[role.slot]?.name || role.name}
             midiNote={role.note}
             isActive={activeNotes.has(role.note) || String(selectedSoundId) === String(role.slot)}
             isLearning={learningSlot === role.slot}

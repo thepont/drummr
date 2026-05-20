@@ -35,7 +35,7 @@ fn make_state() -> Arc<SharedState> {
         description: None,
         sounds: vec![],
     };
-    Arc::new(SharedState::new(kit, snapshot, tx))
+    Arc::new(SharedState::new(kit, snapshot, vec![], tx))
 }
 
 #[cfg(feature = "test-helpers")]

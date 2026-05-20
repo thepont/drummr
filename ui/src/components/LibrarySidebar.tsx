@@ -4,6 +4,7 @@ import { cn } from './ui'
 
 interface LibrarySidebarProps {
   availableKits: string[];
+  activeKitName?: string;
   soundPresets: string[];
   ws: WebSocket | null;
   selectedSoundId?: any;
@@ -13,6 +14,7 @@ interface LibrarySidebarProps {
 
 export default function LibrarySidebar({ 
   availableKits, 
+  activeKitName,
   soundPresets, 
   ws, 
   selectedSoundId,
@@ -110,9 +112,11 @@ export default function LibrarySidebar({
                   key={kit}
                   label={kit}
                   icon={<Folder size={18} />}
+                  isActive={kit === activeKitName}
                   onClick={() => ws?.send(`LOAD_KIT:${kit}`)}
                 />
               ))
+
             ) : (
               <EmptyState message="No kits found" />
             )
@@ -168,7 +172,7 @@ export default function LibrarySidebar({
 }
 
 
-function LibraryItem({ label, icon, onClick, disabled }: { label: string, icon: React.ReactNode, onClick: () => void, disabled?: boolean }) {
+function LibraryItem({ label, icon, onClick, disabled, isActive }: { label: string, icon: React.ReactNode, onClick: () => void, disabled?: boolean, isActive?: boolean }) {
   return (
     <button 
       onClick={onClick}
@@ -177,22 +181,24 @@ function LibraryItem({ label, icon, onClick, disabled }: { label: string, icon: 
         "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all border border-transparent group",
         disabled 
           ? "opacity-50 cursor-not-allowed" 
-          : "hover:bg-primary/5 hover:border-primary/20 hover:translate-x-1"
+          : "hover:bg-primary/5 hover:border-primary/20 hover:translate-x-1",
+        isActive && "bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
       )}
     >
       <div className={cn(
         "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-        disabled ? "bg-muted text-muted-foreground" : "bg-muted group-hover:bg-primary/20 group-hover:text-primary"
+        disabled ? "bg-muted text-muted-foreground" : (isActive ? "bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-muted group-hover:bg-primary/20 group-hover:text-primary")
       )}>
         {icon}
       </div>
-      <span className="text-sm font-medium truncate" title={label}>{label}</span>
-      <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-        <Play size={12} weight="fill" className="text-primary" />
+      <span className={cn("text-sm font-bold truncate", isActive ? "text-emerald-400" : "text-foreground/80 group-hover:text-foreground")}>{label}</span>
+      <div className={cn("ml-auto opacity-0 group-hover:opacity-100 transition-opacity", isActive && "opacity-100")}>
+        <Play size={12} weight="fill" className={cn("text-emerald-500")} />
       </div>
     </button>
   )
 }
+
 
 function EmptyState({ message }: { message: string }) {
   return (

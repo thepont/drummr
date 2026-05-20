@@ -60,12 +60,17 @@ pub async fn start_midi(
 }
 
 pub fn load_mappings() -> Vec<DrumMapping> {
+    #[derive(Deserialize)]
+    struct WrappedMappings {
+        mappings: Vec<DrumMapping>,
+    }
+
     if let Ok(content) = std::fs::read_to_string("mapping.toml") {
-        if let Ok(mappings) = toml::from_str::<Vec<DrumMapping>>(&content) {
-            return mappings;
+        if let Ok(wrapped) = toml::from_str::<WrappedMappings>(&content) {
+            return wrapped.mappings;
         }
     }
-    // 16 Default mappings (General MIDI style + extra compatibility)
+    // 16 Default mappings (Alesis DDTi / General MIDI standard)
     vec![
         DrumMapping { note: 36, slot: 0 },  // Kick
         DrumMapping { note: 38, slot: 1 },  // Snare
@@ -77,12 +82,12 @@ pub fn load_mappings() -> Vec<DrumMapping> {
         DrumMapping { note: 49, slot: 7 },  // Crash
         DrumMapping { note: 51, slot: 8 },  // Ride
         DrumMapping { note: 39, slot: 9 },  // Clap
-        DrumMapping { note: 37, slot: 10 }, // Rimshot
-        DrumMapping { note: 56, slot: 11 }, // Cowbell
-        DrumMapping { note: 53, slot: 12 }, // Mapping Note 53 to Slot 12 (Tambourine)
-        DrumMapping { note: 62, slot: 13 }, // Mute Hi Conga
-        DrumMapping { note: 63, slot: 14 }, // Open Hi Conga
-        DrumMapping { note: 64, slot: 15 }, // Low Conga
+        DrumMapping { note: 40, slot: 10 }, // Snare Rim
+        DrumMapping { note: 53, slot: 11 }, // Ride Bell
+        DrumMapping { note: 44, slot: 12 }, // HH Pedal
+        DrumMapping { note: 55, slot: 13 }, // Splash
+        DrumMapping { note: 57, slot: 14 }, // China
+        DrumMapping { note: 59, slot: 15 }, // Cowbell
     ]
 }
 

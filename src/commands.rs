@@ -292,8 +292,53 @@ pub async fn handle_command(
                 serde_json::to_string(&s).unwrap_or_default()
             ));
         }
+    } else if text == "LIST_MAPPING_PRESETS" {
+        if let Ok(entries) = std::fs::read_dir("presets/mappings") {
+            let presets: Vec<_> = entries
+                .filter_map(|e| e.ok())
+                .filter_map(|e| e.file_name().into_string().ok())
+                .filter(|n| n.ends_with(".toml"))
+                .map(|n| n.replace(".toml", ""))
+                .collect();
+            comm_engine.broadcast(format!("MAPPING_PRESETS:{}", presets.join(",")));
+        }
+    } else if text.starts_with("LOAD_MAPPING_PRESET:") {
+        let name = text.replace("LOAD_MAPPING_PRESET:", "");
+        let path = format!("presets/mappings/{}.toml", name);
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            #[derive(serde::Deserialize)]
+            struct MappingFile {
+                mappings: Vec<crate::kit::DrumMapping>,
+            }
+            if let Ok(file) = toml::from_str::<MappingFile>(&content) {
+                // Update authoritative in-memory state
+                if let Ok(mut m_lock) = shared_state.midi_mappings.lock() {
+                    *m_lock = file.mappings.clone();
+                }
+                // Persist and Apply
+                let _ = persistence_tx.send(PersistenceCommand::SaveMapping(file.mappings.clone()));
+                if let Ok(mut k_lock) = shared_state.kit.lock() {
+                    k_lock.set_mapping(&file.mappings);
+                }
+                // Notify UI to refresh
+                let sound_names: Vec<String> = if let Ok(snap) = shared_state.kit_snapshot.lock() {
+                    snap.sounds.iter().map(|s| s.name.clone()).collect()
+                } else { vec![] };
+                
+                let ui_roles: Vec<_> = file.mappings.iter().map(|m| {
+                    let sound_name = sound_names.get(m.slot).cloned().unwrap_or_else(|| format!("Empty Slot {}", m.slot));
+                    serde_json::json!({ "slot": m.slot, "name": sound_name, "note": m.note })
+                }).collect();
+                comm_engine.broadcast(format!("MAPPING: {}", serde_json::to_string(&ui_roles).unwrap_or_default()));
+                println!("[SyncEngine] Loaded Mapping Preset: {}", name);
+            }
+        }
     } else if text == "GET_MAPPING" {
-        let mappings = load_mappings();
+        let mappings = if let Ok(m_lock) = shared_state.midi_mappings.lock() {
+            m_lock.clone()
+        } else {
+            Vec::new()
+        };
         let sound_names: Vec<String> = if let Ok(snapshot) = shared_state.kit_snapshot.lock() {
             snapshot.sounds.iter().map(|s| s.name.clone()).collect()
         } else {
@@ -323,15 +368,22 @@ pub async fn handle_command(
         if parts.len() == 3 {
             let slot: usize = parts[1].parse().unwrap_or(0);
             let note: u8 = parts[2].parse().unwrap_or(0);
-            let mut mappings = load_mappings();
-            if let Some(m) = mappings.iter_mut().find(|m| m.slot == slot) {
-                m.note = note;
-            } else {
-                mappings.push(DrumMapping { note, slot });
+            
+            let mut updated_mappings = Vec::new();
+            if let Ok(mut m_lock) = shared_state.midi_mappings.lock() {
+                if let Some(m) = m_lock.iter_mut().find(|m| m.slot == slot) {
+                    m.note = note;
+                } else {
+                    m_lock.push(DrumMapping { note, slot });
+                }
+                updated_mappings = m_lock.clone();
             }
-            let _ = persistence_tx.send(PersistenceCommand::SaveMapping(mappings.clone()));
-            if let Ok(mut k_lock) = shared_state.kit.lock() {
-                k_lock.set_mapping(&mappings);
+
+            if !updated_mappings.is_empty() {
+                let _ = persistence_tx.send(PersistenceCommand::SaveMapping(updated_mappings.clone()));
+                if let Ok(mut k_lock) = shared_state.kit.lock() {
+                    k_lock.set_mapping(&updated_mappings);
+                }
             }
         }
     } else if text.starts_with("SAVE_MAPPING:") {
@@ -344,6 +396,11 @@ pub async fn handle_command(
                     slot: r["slot"].as_u64().unwrap_or(0) as usize,
                 })
                 .collect();
+            
+            if let Ok(mut m_lock) = shared_state.midi_mappings.lock() {
+                *m_lock = mappings.clone();
+            }
+
             let _ = persistence_tx.send(PersistenceCommand::SaveMapping(mappings.clone()));
             if let Ok(mut k_lock) = shared_state.kit.lock() {
                 k_lock.set_mapping(&mappings);
@@ -411,8 +468,15 @@ pub async fn handle_command(
 
                     if let Some(config) = updated {
                         let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
+                        
+                        let mappings = if let Ok(m_lock) = shared_state.midi_mappings.lock() {
+                            m_lock.clone()
+                        } else {
+                            Vec::new()
+                        };
+
                         let new_kit =
-                            KitEngine::from_config(config.clone(), sample_rate, load_mappings());
+                            KitEngine::from_config(config.clone(), sample_rate, mappings);
                         if let Ok(mut k_lock) = shared_state.kit.lock() {
                             *k_lock = new_kit;
                         }
@@ -469,14 +533,22 @@ pub async fn handle_command(
             Ok(content) => match toml::from_str::<DrumKit>(&content) {
                 Ok(config) => {
                     let _ = persistence_tx.send(PersistenceCommand::SaveKit(config.clone()));
+                    
+                    let mappings = if let Ok(m_lock) = shared_state.midi_mappings.lock() {
+                        m_lock.clone()
+                    } else {
+                        Vec::new()
+                    };
+
                     let new_kit =
-                        KitEngine::from_config(config.clone(), sample_rate, load_mappings());
+                        KitEngine::from_config(config.clone(), sample_rate, mappings);
                     if let Ok(mut k_lock) = shared_state.kit.lock() {
                         *k_lock = new_kit;
                     }
                     if let Ok(mut snap) = shared_state.kit_snapshot.lock() {
                         *snap = config.clone();
                     }
+                    comm_engine.broadcast(format!("ACTIVE_KIT:{}", config.name));
                     comm_engine.broadcast(format!("KIT: {}", kit_to_json(&config)));
                 }
                 Err(e) => {
@@ -571,8 +643,14 @@ pub async fn handle_command(
 
             if let Some(config) = snapshot_clone {
                 if engine_changed {
+                    let mappings = if let Ok(m_lock) = shared_state.midi_mappings.lock() {
+                        m_lock.clone()
+                    } else {
+                        Vec::new()
+                    };
+
                     let new_kit =
-                        KitEngine::from_config(config.clone(), sample_rate, load_mappings());
+                        KitEngine::from_config(config.clone(), sample_rate, mappings);
                     if let Ok(mut k_lock) = shared_state.kit.lock() {
                         *k_lock = new_kit;
                     }
@@ -910,12 +988,15 @@ pub async fn handle_command(
     } else if text.starts_with("TEST_TRIGGER:") {
         let slot_str = text.replace("TEST_TRIGGER:", "");
         if let Ok(slot) = slot_str.parse::<usize>() {
-            let mappings = load_mappings();
-            let note = mappings
-                .iter()
-                .find(|m| m.slot == slot)
-                .map(|m| m.note)
-                .unwrap_or(36 + slot as u8);
+            let note = if let Ok(m_lock) = shared_state.midi_mappings.lock() {
+                m_lock
+                    .iter()
+                    .find(|m| m.slot == slot)
+                    .map(|m| m.note)
+                    .unwrap_or(36 + slot as u8)
+            } else {
+                36 + slot as u8
+            };
             if let Ok(mut p) = midi_producer.lock() {
                 let _ = p.push([0x90, note, 100]);
             }

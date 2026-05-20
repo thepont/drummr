@@ -106,7 +106,7 @@ fn test_atomic_bpm_round_trip() {
         description: None,
         sounds: vec![],
     };
-    let state = SharedState::new(kit, snapshot, tx);
+    let state = SharedState::new(kit, snapshot, vec![], tx);
 
     // Default is 120 BPM.
     let initial = state.load_bpm();

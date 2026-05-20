@@ -89,7 +89,7 @@ fn build_harness_with_kit(kit: DrumKit) -> TestHarness {
 
     let (audio_error_tx, audio_error_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
     Box::leak(Box::new(audio_error_rx));
-    let shared_state = Arc::new(SharedState::new(kit_engine, kit, audio_error_tx));
+    let shared_state = Arc::new(SharedState::new(kit_engine, kit, vec![], audio_error_tx));
     let comm_engine = Arc::new(CommEngine::new());
     let broadcasts = comm_engine.subscribe();
 

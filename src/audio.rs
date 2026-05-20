@@ -12,8 +12,18 @@ pub fn start_audio(
     error_tx: tokio::sync::mpsc::UnboundedSender<()>,
 ) -> Result<cpal::Stream> {
     let config_supported = device.default_output_config()?;
+    
+    // Request low latency but don't hard-lock if the device refuses.
+    // This makes the engine portable across different hardware.
+    let buffer_size = match config_supported.buffer_size() {
+        cpal::SupportedBufferSize::Range { min, max } => {
+            cpal::BufferSize::Fixed(128.clamp(*min, *max))
+        }
+        _ => cpal::BufferSize::Default,
+    };
+
     let mut config: cpal::StreamConfig = config_supported.into();
-    config.buffer_size = cpal::BufferSize::Fixed(128);
+    config.buffer_size = buffer_size;
     let channels = config.channels as usize;
 
     let output_stream = device.build_output_stream(
@@ -80,7 +90,8 @@ pub fn start_audio(
                 }
 
                 for frame in data.chunks_mut(channels) {
-                    let out = soft_clip(kit.tick() * 0.7);
+                    let mut out = soft_clip(kit.tick() * 0.7);
+                    if !out.is_finite() { out = 0.0; }
                     for sample in frame.iter_mut() {
                         *sample = out;
                     }

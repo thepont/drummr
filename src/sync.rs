@@ -112,7 +112,7 @@ impl SyncEngine {
                     }
                 }
 
-                thread::sleep(Duration::from_micros(500));
+                thread::sleep(Duration::from_millis(5));
             }
 
             if let Ok(mut conn_lock) = conn_shared.lock() {
