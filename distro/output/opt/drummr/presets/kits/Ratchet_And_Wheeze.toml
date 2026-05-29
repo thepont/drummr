@@ -1,0 +1,171 @@
+name = "Ratchet & Wheeze"
+description = "Broken machines and tired lungs. Mechanical clicks meet breath textures. Burial-school: drums made of things that aren't drums. Subtle 10-bit kit grit; Modem Squeal crushed to 3-bit / 4x."
+
+[[sounds]]
+name = "Beatbox"
+engine_type = "fm"
+freq = 65.0
+mod_ratio = 1.0
+mod_index = 5.0
+noise_level = 0.35
+attack = 1.0
+decay = 240.0
+bits = 10.0
+mods = [{param="mod_index", source="Envelope", depth=3.5}, {param="freq", source="Velocity", depth=8.0}]
+
+[[sounds]]
+name = "Servo Stall"
+engine_type = "hybrid"
+freq = 320.0
+noise_color = 0.5
+metallic = 0.6
+attack = 2.0
+decay = 200.0
+bits = 10.0
+
+[[sounds]]
+name = "Wheeze Hi"
+engine_type = "hybrid"
+freq = 2200.0
+noise_color = 0.7
+metallic = 1.0
+attack = 2.0
+decay = 60.0
+bits = 10.0
+
+[[sounds]]
+name = "Asthmatic Exhale"
+engine_type = "hybrid"
+freq = 800.0
+noise_color = 0.35
+metallic = 1.0
+attack = 4.0
+decay = 280.0
+bits = 10.0
+
+[[sounds]]
+name = "Pipe Knock"
+engine_type = "hybrid"
+freq = 260.0
+noise_color = 0.3
+metallic = 0.55
+attack = 2.0
+decay = 320.0
+bits = 10.0
+
+[[sounds]]
+name = "Mid Pipe"
+engine_type = "hybrid"
+freq = 200.0
+noise_color = 0.3
+metallic = 0.55
+attack = 2.0
+decay = 370.0
+bits = 10.0
+
+[[sounds]]
+name = "Low Pipe"
+engine_type = "hybrid"
+freq = 140.0
+noise_color = 0.4
+metallic = 0.5
+attack = 2.0
+decay = 420.0
+bits = 10.0
+
+[[sounds]]
+name = "Bass Pipe"
+engine_type = "hybrid"
+freq = 90.0
+noise_color = 0.4
+metallic = 0.45
+attack = 2.0
+decay = 500.0
+bits = 10.0
+
+[[sounds]]
+name = "Modem Squeal"
+engine_type = "fm"
+freq = 2500.0
+mod_ratio = 4.7
+mod_index = 22.0
+noise_level = 0.4
+attack = 1.0
+decay = 1100.0
+bits = 3.0
+rate = 4.0
+
+[[sounds]]
+name = "Tape Hiss"
+engine_type = "granular"
+freq = 4500.0
+density = 0.3
+grain_size = 15.0
+jitter = 0.95
+attack = 4.0
+decay = 1300.0
+bits = 10.0
+
+[[sounds]]
+name = "Lung Pop"
+engine_type = "hybrid"
+freq = 600.0
+noise_color = 0.5
+metallic = 1.0
+attack = 3.0
+decay = 160.0
+bits = 10.0
+
+[[sounds]]
+name = "Tongue Click"
+engine_type = "phys"
+freq = 2400.0
+brightness = 0.7
+dampening = 0.65
+attack = 1.0
+decay = 22.0
+bits = 10.0
+
+[[sounds]]
+name = "Broken Motor"
+engine_type = "fm"
+freq = 720.0
+mod_ratio = 0.9
+mod_index = 14.0
+noise_level = 0.2
+attack = 1.0
+decay = 320.0
+bits = 10.0
+lfo1_freq = 8.0
+mods = [{param="freq", source="Lfo1", depth=18.0}, {param="mod_index", source="Lfo1", depth=3.0}]
+
+[[sounds]]
+name = "Static Buzz"
+engine_type = "granular"
+freq = 3500.0
+density = 1.0
+grain_size = 1.5
+jitter = 1.0
+attack = 1.0
+decay = 100.0
+bits = 10.0
+
+[[sounds]]
+name = "Gulp"
+engine_type = "fm"
+freq = 180.0
+mod_ratio = 1.5
+mod_index = 8.0
+attack = 2.0
+decay = 130.0
+bits = 10.0
+
+[[sounds]]
+name = "Steam Hiss"
+engine_type = "hybrid"
+freq = 3500.0
+noise_color = 0.85
+metallic = 1.0
+attack = 10.0
+decay = 400.0
+bits = 10.0

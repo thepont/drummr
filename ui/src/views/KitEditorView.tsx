@@ -44,6 +44,48 @@ const PARAM_INFO: Record<string, string> = {
     "Time from peak to silence, in milliseconds. If a tempo-locked decay is set, this slider has no effect.",
 };
 
+export function TransientShaperGraph({ attackShaper, sustainShaper }: { attackShaper: number; sustainShaper: number }) {
+  // Baseline path represents clean unprocessed decay
+  const baseDashedPath = "M 0 50 C 7 10, 12 5, 15 5 C 40 15, 75 40, 100 50";
+  
+  // Shaped Path calculations
+  const peakX = 15;
+  const peakY = attackShaper > 0 ? 5 - (attackShaper * 4) : 5 - (attackShaper * 15);
+  
+  // Attack control points
+  const cp1x = peakX * (attackShaper > 0 ? 0.15 : 0.85);
+  const cp1y = 50 - (attackShaper > 0 ? 48 : 5);
+
+  // Decay/Sustain control points
+  const cp2x = peakX + (100 - peakX) * (sustainShaper > 0 ? 0.35 : 0.1);
+  const cp2y = peakY + (50 - peakY) * (sustainShaper > 0 ? 0.15 : 0.85);
+  const endY = sustainShaper > 0 ? 50 - (sustainShaper * 12) : 50;
+
+  const shapedPath = `M 0 50 C ${cp1x} ${cp1y}, ${peakX - 2} ${peakY}, ${peakX} ${peakY} C ${cp2x} ${cp2y}, 85 ${endY}, 100 50`;
+
+  return (
+    <div className="w-full h-24 bg-zinc-950/80 rounded-2xl border border-white/5 flex items-center justify-center p-2 relative overflow-hidden">
+      <div className="absolute top-2 left-2 text-[8px] font-black text-muted-foreground uppercase tracking-widest">Transient Envelope</div>
+      <svg viewBox="0 0 100 50" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+        {/* Baseline (Dashed Muted Line) */}
+        <path d={baseDashedPath} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="2,2" />
+        {/* Shaped Path (Vibrant Glow Line) */}
+        <path d={shapedPath} fill="none" stroke="url(#shaperGlow)" strokeWidth="2.5" className="transition-all duration-300 ease-out" />
+        
+        {/* Define dynamic gradient */}
+        <defs>
+          <linearGradient id="shaperGlow" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="15%" stopColor="#34d399" />
+            <stop offset="50%" stopColor="#fbbf24" />
+            <stop offset="100%" stopColor="#f59e0b" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  );
+}
+
 interface ParamSchema {
   name: string;
   min: number;
@@ -83,6 +125,7 @@ interface KitEditorProps {
    *  Used to render "~Xs" / "~X Hz" previews on the tempo-locked
    *  decay / LFO badges. Optional — falls back to 120 BPM. */
   bpm?: string;
+  activeKitName?: string;
 }
 
 // Mirrors `BeatDivision::to_seconds` in `src/dsp/timing.rs`. Used by the
@@ -104,6 +147,23 @@ const DIVISION_QUARTERS: Record<string, number> = {
   TwoBars: 8.0,
   FourBars: 16.0,
 };
+
+const DIVISION_OPTIONS = [
+  { value: "Manual", label: "Manual (Hz/ms)" },
+  { value: "Bar", label: "1 Bar" },
+  { value: "Half", label: "1/2 Note" },
+  { value: "Quarter", label: "1/4 Note (Beat)" },
+  { value: "QuarterTriplet", label: "1/4 Triplet" },
+  { value: "Eighth", label: "1/8 Note" },
+  { value: "EighthDotted", label: "1/8 Dotted" },
+  { value: "EighthTriplet", label: "1/8 Triplet" },
+  { value: "Sixteenth", label: "1/16 Note" },
+  { value: "SixteenthDotted", label: "1/16 Dotted" },
+  { value: "SixteenthTriplet", label: "1/16 Triplet" },
+  { value: "ThirtySecond", label: "1/32 Note" },
+  { value: "TwoBars", label: "2 Bars" },
+  { value: "FourBars", label: "4 Bars" },
+];
 
 function divisionToSeconds(name: string, bpm: number): number | null {
   const q = DIVISION_QUARTERS[name];
@@ -135,7 +195,30 @@ export default function KitEditorView({
   selectedSoundId, setSelectedSoundId,
   analysis = {}, requestAnalysis,
   bpm: bpmString,
+  activeKitName,
 }: KitEditorProps) {
+  const [lastSavedKitJson, setLastSavedKitJson] = useState<string>("");
+
+  // Cache the clean state upon receiving a fresh kit or saving
+  useEffect(() => {
+    if (sounds.length > 0 && !lastSavedKitJson) {
+      setLastSavedKitJson(JSON.stringify(sounds));
+    }
+  }, [sounds]);
+
+  // Reset dirty tracker if kit name changes (user loaded another preset)
+  useEffect(() => {
+    if (sounds.length > 0) {
+      setLastSavedKitJson(JSON.stringify(sounds));
+    }
+  }, [activeKitName]);
+
+  // Compute dirty state via memoized equality
+  const isDirty = useMemo(() => {
+    if (!lastSavedKitJson) return false;
+    return JSON.stringify(sounds) !== lastSavedKitJson;
+  }, [sounds, lastSavedKitJson]);
+
   // The App-level bpm state is a string ("0.0" pre-sync); coerce to a
   // sensible number for the tempo-lock previews so we never divide by
   // zero / NaN downstream.
@@ -255,7 +338,14 @@ export default function KitEditorView({
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-bold tracking-tight">Sound Designer</h3>
+          <h3 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            Sound Designer
+            {isDirty && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider animate-in fade-in zoom-in-95 duration-200">
+                Unsaved Changes
+              </span>
+            )}
+          </h3>
           <p className="text-muted-foreground mt-1">Horizontal signal flow: Source → Shape → Timbre → Mod</p>
         </div>
         
@@ -266,6 +356,20 @@ export default function KitEditorView({
             icon={<ArrowsClockwise />}
            >
             Reload
+           </Button>
+           <Button 
+            onClick={() => {
+              if (activeKitName) {
+                ws?.send(`SAVE_KIT_AS:${activeKitName}`);
+                setLastSavedKitJson(JSON.stringify(sounds));
+              }
+            }} 
+            variant={isDirty ? "primary" : "secondary"} 
+            disabled={!isDirty || !activeKitName || activeKitName === "kit"}
+            icon={<FloppyDisk weight={isDirty ? "fill" : "regular"} />}
+            className={isDirty ? "shadow-[0_0_15px_rgba(16,185,129,0.3)]" : ""}
+           >
+            Save
            </Button>
            <Button 
             onClick={() => setIsSaveKitModalOpen(true)} 
@@ -342,12 +446,28 @@ export default function KitEditorView({
               onClick={() => setSelectedSoundId(sound.id)}
               aria-pressed={isSelected}
               className={cn(
-                "flex-shrink-0 px-4 py-2 rounded-xl transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                "flex-shrink-0 px-4 py-2 rounded-xl transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary group/slot",
                 isSelected
                   ? "bg-primary text-primary-foreground shadow-lg border-primary"
                   : "bg-card/30 border-border hover:border-primary/50"
               )}
             >
+              <span
+                role="button"
+                aria-label={`Trigger preview for ${sound.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (ws) {
+                    ws.send(`TEST_TRIGGER:${sound.id}`);
+                  }
+                }}
+                className={cn(
+                  "p-0.5 rounded hover:bg-white/20 text-current transition-all shrink-0 cursor-pointer",
+                  isSelected ? "text-primary-foreground/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Play size={10} weight="fill" />
+              </span>
               <span className="font-bold text-xs uppercase tracking-widest">{sound.name}</span>
               {dotClasses && (
                 <span
@@ -371,6 +491,8 @@ export default function KitEditorView({
         const safeLfo2 = selectedSound.lfo2_freq ?? 1.0;
         const safeBits = selectedSound.bits ?? 16;
         const safeRate = selectedSound.rate ?? 1;
+        const safeAttackShaper = selectedSound.attack_shaper ?? 0.0;
+        const safeSustainShaper = selectedSound.sustain_shaper ?? 0.0;
         // Clock-aware effect fields. Defaults mirror the backend
         // (kit_to_json / GenerativeSettings::default) so a kit without
         // overrides shows non-firing ghosts and always-on triggers, which
@@ -534,7 +656,7 @@ export default function KitEditorView({
                 />
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 content-start">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 content-start">
                 <div className="p-3 bg-background/30 rounded-xl border border-border/50">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Attack</div>
@@ -543,18 +665,37 @@ export default function KitEditorView({
                   <div className="text-sm font-mono font-bold">{safeAttack.toFixed(0)} <span className="text-muted-foreground font-normal text-xs">ms</span></div>
                 </div>
                 <div className="p-3 bg-background/30 rounded-xl border border-border/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Decay</div>
-                    <InfoTooltip text={PARAM_INFO.decay} label="Info about decay" />
-                    {decayDiv && (
-                      <span
-                        title={decayHint(decayDiv, bpmNum)}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[9px] font-bold uppercase tracking-wider"
-                      >
-                        <Clock size={9} weight="fill" />
-                        Tempo-locked
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Decay</div>
+                      <InfoTooltip text={PARAM_INFO.decay} label="Info about decay" />
+                    </div>
+                    <select
+                      value={decayDiv || "Manual"}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "Manual") {
+                          ws?.send(`CLEAR_DIVISION:${selectedSoundId}|decay_division`);
+                          setSounds(prev => prev.map(s => String(s.id) === String(selectedSoundId) ? { ...s, decay_division: null } : s));
+                        } else {
+                          ws?.send(`SET_DIVISION:${selectedSoundId}|decay_division|${val}`);
+                          setSounds(prev => prev.map(s => String(s.id) === String(selectedSoundId) ? { ...s, decay_division: val } : s));
+                        }
+                        requestAnalysis?.(Number(selectedSoundId));
+                      }}
+                      className={cn(
+                        "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer transition-all",
+                        decayDiv
+                          ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                          : "bg-muted border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+                      )}
+                    >
+                      {DIVISION_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value} className="bg-card text-foreground">
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <Slider
                     label={decayDiv ? "Decay (tempo-locked)" : "Decay"}
@@ -593,7 +734,7 @@ export default function KitEditorView({
                 No timbre parameters for this engine.
               </div>
             ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6">
                 {timbreParams.map((param) => {
                   const paramMods = selectedSound.mods?.filter(m => m.param === param.name) || [];
                   // Render every existing mod plus one trailing empty "add new" row.
@@ -642,6 +783,18 @@ export default function KitEditorView({
             lfo1_division={lfo1Div}
             lfo2_division={lfo2Div}
             bpm={bpmNum}
+            onChangeDivision={(idx, div) => {
+              if (selectedSoundId === null || !ws) return;
+              const field = idx === 1 ? 'lfo1_division' : 'lfo2_division';
+              if (div === null) {
+                ws.send(`CLEAR_DIVISION:${selectedSoundId}|${field}`);
+                setSounds(prev => prev.map(s => String(s.id) === String(selectedSoundId) ? { ...s, [field]: null } : s));
+              } else {
+                ws.send(`SET_DIVISION:${selectedSoundId}|${field}|${div}`);
+                setSounds(prev => prev.map(s => String(s.id) === String(selectedSoundId) ? { ...s, [field]: div } : s));
+              }
+              requestAnalysis?.(Number(selectedSoundId));
+            }}
           />
 
           {/* 5. FX */}
@@ -699,6 +852,45 @@ export default function KitEditorView({
                   />
                   <div className="flex justify-end">
                     <InfoTooltip text="Sample-rate divisor. 1 = clean. Higher = aliasing distortion (SP-1200 / LinnDrum character)." />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Transient Shaper Sub-Panel */}
+            <div className="max-w-3xl w-full">
+              <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                Transient Shaper
+                <InfoTooltip text="Post-mix envelope shaping. Attack shaper alters the impact strike energy (positive = punchier click, negative = soft swell). Sustain shaper adjusts release tail thickness (positive = rich bloom, negative = gated chop)." />
+              </div>
+              
+              <div className="p-4 bg-background/30 rounded-xl border border-border/50 grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-6 items-center">
+                {/* SVG Mini-Graph */}
+                <TransientShaperGraph attackShaper={safeAttackShaper} sustainShaper={safeSustainShaper} />
+                
+                {/* Dual Sliders */}
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1">
+                    <Slider
+                      label="Attack Shaper"
+                      value={safeAttackShaper}
+                      min={-1}
+                      max={1}
+                      step={0.01}
+                      onChange={v => updateParam('attack_shaper' as any, v)}
+                      format={v => v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Slider
+                      label="Sustain Shaper"
+                      value={safeSustainShaper}
+                      min={-1}
+                      max={1}
+                      step={0.01}
+                      onChange={v => updateParam('sustain_shaper' as any, v)}
+                      format={v => v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)}
+                    />
                   </div>
                 </div>
               </div>

@@ -26,7 +26,7 @@ use drummr::dsp::modulation::ModSource;
 use drummr::kit::{DrumKit, DrumSound, KitEngine};
 use drummr::midi::MidiEngine;
 use drummr::persistence::PersistenceCommand;
-use drummr::state::{AudioCommand, MidiEvent, SharedState};
+use drummr::state::{AudioCommand, MidiEvent, SharedState, StreamRequest};
 use drummr::sync::SyncEngine;
 use rtrb::{Consumer, Producer, RingBuffer};
 use tokio::sync::{Mutex as TokioMutex, mpsc};
@@ -116,6 +116,7 @@ fn make_test_kit() -> DrumKit {
                 ghost_probability: None,
                 ghost_offset_ms: None,
                 ghost_velocity_factor: None,
+                ..Default::default()
             },
             DrumSound {
                 name: "Snare".into(),
@@ -149,6 +150,7 @@ fn make_test_kit() -> DrumKit {
                 ghost_probability: None,
                 ghost_offset_ms: None,
                 ghost_velocity_factor: None,
+                ..Default::default()
             },
         ],
     }
@@ -175,7 +177,6 @@ fn build_harness() -> TestHarness {
     let (audio_error_tx, audio_error_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
     Box::leak(Box::new(audio_error_rx));
     let shared_state = Arc::new(SharedState::new(
-        kit_engine,
         snapshot,
         drummr::app_utils::load_mappings(),
         audio_error_tx,
@@ -216,6 +217,7 @@ fn build_harness() -> TestHarness {
 }
 
 async fn dispatch(h: &mut TestHarness, cmd: &str) {
+    let (supervisor_tx, _) = mpsc::unbounded_channel::<StreamRequest>();
     handle_command(
         cmd.to_string(),
         h.midi_engine.clone(),
@@ -228,6 +230,7 @@ async fn dispatch(h: &mut TestHarness, cmd: &str) {
         h.sample_rate,
         h.bpm_engine.clone(),
         h.sync_engine.clone(),
+        supervisor_tx,
     )
     .await;
 }
@@ -282,7 +285,7 @@ async fn test_set_param_updates_snapshot() {
     let mut h = build_harness();
     dispatch(&mut h, "SET_PARAM:0:freq:1234").await;
 
-    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    let snap = h.shared_state.kit_snapshot.load();
     assert_eq!(snap.sounds[0].freq, 1234.0);
 }
 
@@ -404,7 +407,7 @@ async fn test_set_lfo_dispatches_audio_command() {
         other => panic!("expected SetLfo, got {:?}", other),
     }
     // And the snapshot should reflect lfo1_freq.
-    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    let snap = h.shared_state.kit_snapshot.load();
     assert_eq!(snap.sounds[0].lfo1_freq, Some(4.0));
 }
 
@@ -463,9 +466,13 @@ async fn test_update_mapping_persists_and_updates_midi_map() {
         saved
     );
 
-    // Live midi_map should reflect the new note->slot binding.
-    let kit = h.shared_state.kit.lock().unwrap();
-    assert_eq!(kit.midi_map[42], Some(5));
+    // Live midi_mappings should reflect the new note->slot binding.
+    let mappings = h.shared_state.midi_mappings.load();
+    assert!(
+        mappings.iter().any(|m| m.slot == 5 && m.note == 42),
+        "live mappings should contain (slot=5, note=42), got {:?}",
+        mappings
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -526,6 +533,7 @@ async fn test_load_kit_replaces_snapshot() {
             ghost_probability: None,
             ghost_offset_ms: None,
             ghost_velocity_factor: None,
+            ..Default::default()
         }],
     };
     std::fs::write(
@@ -536,7 +544,7 @@ async fn test_load_kit_replaces_snapshot() {
 
     dispatch(&mut h, "LOAD_KIT:my_test_kit").await;
 
-    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    let snap = h.shared_state.kit_snapshot.load();
     assert_eq!(snap.name, "loaded_kit");
     assert_eq!(snap.sounds.len(), 1);
     assert_eq!(snap.sounds[0].freq, 333.0);
@@ -650,9 +658,11 @@ fn install_kit_with_new_fields(h: &mut TestHarness) {
         ghost_probability: Some(0.4),
         ghost_offset_ms: Some(75.0),
         ghost_velocity_factor: Some(0.25),
+        ..Default::default()
     };
-    let mut snap = h.shared_state.kit_snapshot.lock().unwrap();
+    let mut snap = (**h.shared_state.kit_snapshot.load()).clone();
     snap.sounds[0] = new_sound;
+    h.shared_state.kit_snapshot.store(Arc::new(snap));
 }
 
 /// Strict-equality assertion for a JSON number against an expected f32. The
@@ -806,7 +816,7 @@ async fn test_set_param_trigger_probability() {
 
     // Snapshot updated.
     {
-        let snap = h.shared_state.kit_snapshot.lock().unwrap();
+        let snap = h.shared_state.kit_snapshot.load();
         assert_eq!(snap.sounds[0].trigger_probability, Some(0.5));
     }
 
@@ -832,7 +842,7 @@ async fn test_set_param_ghost_probability() {
     dispatch(&mut h, "SET_PARAM:1:ghost_offset_ms:120").await;
     dispatch(&mut h, "SET_PARAM:1:ghost_velocity_factor:0.45").await;
 
-    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    let snap = h.shared_state.kit_snapshot.load();
     assert_eq!(snap.sounds[1].ghost_probability, Some(0.6));
     assert_eq!(snap.sounds[1].ghost_offset_ms, Some(120.0));
     assert_eq!(snap.sounds[1].ghost_velocity_factor, Some(0.45));
@@ -862,7 +872,7 @@ async fn test_set_division_decay_bar() {
 
     // Snapshot reflects the new division.
     {
-        let snap = h.shared_state.kit_snapshot.lock().unwrap();
+        let snap = h.shared_state.kit_snapshot.load();
         assert_eq!(snap.sounds[1].decay_division, Some(BeatDivision::Bar));
     }
 
@@ -884,12 +894,13 @@ async fn test_clear_division_resets_decay() {
     let mut h = build_harness();
     // Pre-set a division so we can verify the clear actually clears it.
     {
-        let mut snap = h.shared_state.kit_snapshot.lock().unwrap();
+        let mut snap = (**h.shared_state.kit_snapshot.load()).clone();
         snap.sounds[1].decay_division = Some(BeatDivision::Bar);
+        h.shared_state.kit_snapshot.store(Arc::new(snap));
     }
     dispatch(&mut h, "CLEAR_DIVISION:1|decay").await;
 
-    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    let snap = h.shared_state.kit_snapshot.load();
     assert_eq!(snap.sounds[1].decay_division, None);
     drop(snap);
 
@@ -911,7 +922,7 @@ async fn test_set_division_rejects_unknown_division_name() {
     // "NotAThing" is not a BeatDivision variant. Handler should silently no-op
     // rather than panic.
     dispatch(&mut h, "SET_DIVISION:0|decay|NotAThing").await;
-    let snap = h.shared_state.kit_snapshot.lock().unwrap();
+    let snap = h.shared_state.kit_snapshot.load();
     assert_eq!(snap.sounds[0].decay_division, None);
     drop(snap);
 
@@ -940,7 +951,7 @@ async fn test_load_kit_missing_file_broadcasts_error() {
 
     // Capture the pre-load snapshot identity so we can assert the snapshot
     // wasn't mutated.
-    let before_name = h.shared_state.kit_snapshot.lock().unwrap().name.clone();
+    let before_name = h.shared_state.kit_snapshot.load().name.clone();
 
     dispatch(&mut h, "LOAD_KIT:nonexistent_kit_xyz_xyz").await;
 
@@ -964,7 +975,7 @@ async fn test_load_kit_missing_file_broadcasts_error() {
     );
 
     // Snapshot unchanged.
-    assert_eq!(h.shared_state.kit_snapshot.lock().unwrap().name, before_name);
+    assert_eq!(h.shared_state.kit_snapshot.load().name, before_name);
     // No persistence side effects.
     assert!(drain_persistence(&mut h).is_empty());
 }
@@ -979,7 +990,7 @@ async fn test_load_kit_malformed_toml_broadcasts_error() {
     let bad_path = "presets/kits/_test_malformed_xyz.toml";
     std::fs::write(bad_path, "this is = not valid =\n[unterminated").unwrap();
 
-    let before_name = h.shared_state.kit_snapshot.lock().unwrap().name.clone();
+    let before_name = h.shared_state.kit_snapshot.load().name.clone();
 
     dispatch(&mut h, "LOAD_KIT:_test_malformed_xyz").await;
 
@@ -995,7 +1006,7 @@ async fn test_load_kit_malformed_toml_broadcasts_error() {
 
     // No KIT: broadcast and no state change.
     assert!(!msgs.iter().any(|m| m.starts_with("KIT: ")));
-    assert_eq!(h.shared_state.kit_snapshot.lock().unwrap().name, before_name);
+    assert_eq!(h.shared_state.kit_snapshot.load().name, before_name);
     assert!(drain_persistence(&mut h).is_empty());
 
     // CwdGuard's tempdir will be dropped at end of test, cleaning up the file.

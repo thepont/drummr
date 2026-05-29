@@ -1,0 +1,159 @@
+name = "Glass Forest"
+description = "Crystalline pitched percussion built from tuned glass and ice. Pitch-stable hits — playable melodically. Weightless spectrum (110Hz floor, no sub-bass); wine glass + bowls have gentle 4.5Hz vibrato; modal bells pushed to inharmonicity 0.98 for wild upper-partial shimmer."
+
+[[sounds]]
+name = "Iceberg"
+engine_type = "fm"
+freq = 110.0
+mod_ratio = 0.5
+mod_index = 3.0
+noise_level = 0.08
+attack = 1.0
+decay = 420.0
+mods = [{param="mod_index", source="Velocity", depth=2.0}, {param="mod_index", source="Envelope", depth=1.5}]
+
+[[sounds]]
+name = "Wine Glass"
+engine_type = "phys"
+freq = 750.0
+brightness = 0.9
+dampening = 0.18
+attack = 1.0
+decay = 240.0
+lfo1_freq = 4.5
+mods = [{param="freq", source="Lfo1", depth=2.5}]
+
+[[sounds]]
+name = "Hailstone"
+engine_type = "granular"
+freq = 7500.0
+density = 0.95
+grain_size = 2.0
+jitter = 0.5
+attack = 1.0
+decay = 50.0
+
+[[sounds]]
+name = "Sleet Patter"
+engine_type = "granular"
+freq = 7500.0
+density = 0.9
+grain_size = 3.0
+jitter = 0.65
+attack = 1.0
+decay = 260.0
+
+[[sounds]]
+name = "Frozen Bell"
+engine_type = "phys"
+freq = 660.0
+brightness = 1.0
+dampening = 0.12
+attack = 1.0
+decay = 520.0
+
+[[sounds]]
+name = "Mid Glass"
+engine_type = "phys"
+freq = 470.0
+brightness = 0.78
+dampening = 0.28
+attack = 2.0
+decay = 720.0
+
+[[sounds]]
+name = "Low Glass"
+engine_type = "phys"
+freq = 340.0
+brightness = 0.58
+dampening = 0.42
+attack = 3.0
+decay = 900.0
+
+[[sounds]]
+name = "Deep Crystal"
+engine_type = "phys"
+freq = 240.0
+brightness = 0.4
+dampening = 0.55
+attack = 4.0
+decay = 1100.0
+
+[[sounds]]
+name = "Shatter"
+engine_type = "hybrid"
+freq = 6500.0
+noise_color = 0.9
+metallic = 1.0
+attack = 1.0
+decay = 1800.0
+
+[[sounds]]
+name = "Glass Bowl"
+engine_type = "modal"
+freq = 880.0
+brightness = 0.65
+dampening = 0.08
+inharmonicity = 0.98
+attack = 1.0
+decay = 2000.0
+lfo2_freq = 0.7
+mods = [{param="inharmonicity", source="Lfo2", depth=0.03}]
+
+[[sounds]]
+name = "Ice Crack"
+engine_type = "hybrid"
+freq = 3000.0
+noise_color = 0.8
+metallic = 1.0
+attack = 2.0
+decay = 220.0
+
+[[sounds]]
+name = "Glass Click"
+engine_type = "phys"
+freq = 2800.0
+brightness = 1.0
+dampening = 0.5
+attack = 1.0
+decay = 30.0
+
+[[sounds]]
+name = "Singing Bowl"
+engine_type = "modal"
+freq = 440.0
+brightness = 0.6
+dampening = 0.06
+inharmonicity = 0.98
+attack = 2.0
+decay = 1500.0
+lfo1_freq = 3.5
+mods = [{param="freq", source="Lfo1", depth=1.5}]
+
+[[sounds]]
+name = "Wind Chime Hi"
+engine_type = "phys"
+freq = 4500.0
+brightness = 1.0
+dampening = 0.1
+attack = 1.0
+decay = 500.0
+
+[[sounds]]
+name = "Wind Chime Lo"
+engine_type = "phys"
+freq = 2200.0
+brightness = 1.0
+dampening = 0.1
+attack = 1.0
+decay = 650.0
+
+[[sounds]]
+name = "Snow Crunch"
+engine_type = "granular"
+freq = 5500.0
+density = 0.7
+grain_size = 5.0
+jitter = 0.9
+attack = 2.0
+decay = 150.0

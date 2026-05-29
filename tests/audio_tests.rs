@@ -23,9 +23,9 @@ mod tests {
             
             let kit = KitEngine::new(48000.0);
             let snapshot = DrumKit { name: "test".into(), description: None, sounds: vec![] };
-            let shared_state = Arc::new(SharedState::new(kit, snapshot, vec![], error_tx.clone()));
+            let shared_state = Arc::new(SharedState::new(snapshot, vec![], error_tx.clone()));
 
-            let stream_res = start_audio(&device, midi_cons, cmd_cons, shared_state, error_tx);
+            let stream_res = start_audio(&device, midi_cons, cmd_cons, kit, shared_state, error_tx, None);
             assert!(stream_res.is_ok(), "Failed to build stream: {:?}", stream_res.err());
         }
     }

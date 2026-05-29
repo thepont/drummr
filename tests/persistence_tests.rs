@@ -83,6 +83,7 @@ fn make_kit(name: &str, freq: f32) -> DrumKit {
             ghost_probability: None,
             ghost_offset_ms: None,
             ghost_velocity_factor: None,
+            ..Default::default()
         }],
     }
 }
@@ -120,6 +121,7 @@ fn make_sound() -> DrumSound {
         ghost_probability: None,
         ghost_offset_ms: None,
         ghost_velocity_factor: None,
+        ..Default::default()
     }
 }
 

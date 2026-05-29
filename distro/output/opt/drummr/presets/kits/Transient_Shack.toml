@@ -1,0 +1,198 @@
+name = "Transient Shack"
+description = "Flagship showcase for the per-voice transient shaper. Features punchy clicks, cracked gated snares, organic mallet cymbal swells, and hyper-resonant acoustic toms."
+
+[[sounds]]
+name = "Smack Kick"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 3.0
+noise_level = 0.15
+attack = 1.0
+decay = 400.0
+attack_shaper = 0.65       # Emphasize the front click
+sustain_shaper = -0.70      # Chop off the tail to keep the sub clean and punchy
+
+[[sounds]]
+name = "Crack Snare"
+engine_type = "hybrid"
+freq = 190.0
+noise_color = 0.75
+metallic = 0.35
+attack = 1.0
+decay = 240.0
+attack_shaper = 0.85       # Extreme wooden transient "crack"
+sustain_shaper = -0.80      # Gated-style decay for a dry backbeat
+
+[[sounds]]
+name = "Snap closed hat"
+engine_type = "hybrid"
+freq = 8500.0
+noise_color = 0.90
+metallic = 0.80
+attack = 0.5
+decay = 65.0
+attack_shaper = 0.40
+sustain_shaper = -0.50
+
+[[sounds]]
+name = "Mallet Cymbal"
+engine_type = "phys"
+freq = 4200.0
+brightness = 0.95
+dampening = 0.05            # Long natural decay
+attack = 10.0
+decay = 1400.0
+attack_shaper = -0.80      # Mute the harsh stick click (acts as a soft mallet)
+sustain_shaper = 0.75       # Boost the wash and ringing tail
+
+[[sounds]]
+name = "Ring Tom Hi"
+engine_type = "phys"
+freq = 150.0
+brightness = 0.70
+dampening = 0.15
+attack = 2.0
+decay = 450.0
+attack_shaper = 0.50       # Extra stick definition
+sustain_shaper = 0.65       # Tom body blooms and rings out like a real drum
+
+[[sounds]]
+name = "Ring Tom Lo"
+engine_type = "phys"
+freq = 100.0
+brightness = 0.70
+dampening = 0.15
+attack = 2.0
+decay = 500.0
+attack_shaper = 0.50
+sustain_shaper = 0.65
+
+[[sounds]]
+name = "Snap Clap"
+engine_type = "fm"
+freq = 1100.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 4.0
+decay = 220.0
+attack_shaper = 0.70
+sustain_shaper = -0.40
+sub_hits = [
+    { offset_ms = 12.0, velocity_factor = 0.85 },
+    { offset_ms = 24.0, velocity_factor = 0.70 },
+    { offset_ms = 36.0, velocity_factor = 0.55 },
+]
+
+[[sounds]]
+name = "Wood Clave"
+engine_type = "modal"
+freq = 2400.0
+brightness = 0.80
+dampening = 0.80
+inharmonicity = 0.15
+attack = 1.0
+decay = 80.0
+attack_shaper = 0.90       # Sharp wooden impact
+sustain_shaper = -0.90      # Microscopic, clinical decay
+
+[[sounds]]
+name = "ASMR Stapler"
+engine_type = "modal"
+freq = 900.0
+brightness = 0.90
+dampening = 0.95
+inharmonicity = 0.90
+attack = 1.0
+decay = 25.0
+attack_shaper = 1.00
+sustain_shaper = -1.00
+
+[[sounds]]
+name = "Singing Bowl"
+engine_type = "modal"
+freq = 440.0
+brightness = 0.50
+dampening = 0.02
+inharmonicity = 0.05
+attack = 15.0
+decay = 1800.0
+attack_shaper = -0.60      # Gentle, swelling strike
+sustain_shaper = 0.80       # Infinite ringing sustain
+
+[[sounds]]
+name = "Sizzling Shaker"
+engine_type = "granular"
+freq = 6000.0
+density = 0.65
+grain_size = 25.0
+jitter = 0.55
+attack = 8.0
+decay = 150.0
+attack_shaper = -0.30      # Soften granular onset
+sustain_shaper = 0.40
+
+[[sounds]]
+name = "Leather Snap"
+engine_type = "hybrid"
+freq = 1400.0
+noise_color = 0.5
+metallic = 0.2
+attack = 1.0
+decay = 120.0
+attack_shaper = 0.95       # Ultra-sharp leather impact
+sustain_shaper = -0.90      # Clinical decay
+
+[[sounds]]
+name = "Glass Drop"
+engine_type = "modal"
+freq = 3200.0
+brightness = 0.95
+dampening = 0.6
+inharmonicity = 0.1
+attack = 1.0
+decay = 300.0
+attack_shaper = 0.80
+sustain_shaper = -0.40
+mode_list = [
+    { freq = 3200.0, q = 200.0, gain = 1.0 },
+    { freq = 4850.0, q = 150.0, gain = 0.6 },
+    { freq = 7210.0, q = 120.0, gain = 0.4 }
+]
+
+[[sounds]]
+name = "Clock Tick"
+engine_type = "fm"
+freq = 2400.0
+mod_ratio = 4.0
+mod_index = 2.0
+noise_level = 0.05
+attack = 0.5
+decay = 15.0
+attack_shaper = 1.0        # Force the tiny needle-thin transient
+sustain_shaper = -1.0       # Instant cut
+
+[[sounds]]
+name = "Paper Rip"
+engine_type = "granular"
+freq = 800.0
+density = 0.95
+grain_size = 12.0
+jitter = 0.85
+attack = 20.0
+decay = 400.0
+attack_shaper = -0.5       # Soften the start of the rip
+sustain_shaper = 0.6        # Boost the textured tearing sound
+
+[[sounds]]
+name = "Sub Bloom"
+engine_type = "fm"
+freq = 32.0
+mod_ratio = 1.0
+mod_index = 0.5
+noise_level = 0.0
+attack = 40.0
+decay = 1200.0
+attack_shaper = -0.8       # Remove the click entirely
+sustain_shaper = 0.7        # Let the sub bass breathe and expand

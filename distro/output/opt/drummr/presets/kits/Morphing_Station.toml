@@ -1,0 +1,262 @@
+name = "Morphing Station"
+description = "Showcase of parametric morphing using the modulation matrix. Sounds evolve their timbre over the decay or respond dynamically to velocity. Includes the 'Awakening' snare and 'Metal-to-Wood' tom."
+
+[[sounds]]
+name = "Velocity Kick"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 2.0
+attack = 1.0
+decay = 350.0
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Velocity"
+depth = 8.0
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Envelope"
+depth = -6.0
+
+[[sounds.mods]]
+param = "noise_level"
+source = "Velocity"
+depth = 0.4
+
+[[sounds]]
+name = "Awakening Snare"
+engine_type = "modal"
+freq = 220.0
+brightness = 0.1
+dampening = 0.3
+inharmonicity = 0.4
+attack = 2.0
+decay = 1200.0
+
+[[sounds.mods]]
+param = "brightness"
+source = "Envelope"
+depth = 0.85
+
+[[sounds.mods]]
+param = "inharmonicity"
+source = "Envelope"
+depth = 0.4
+
+[[sounds]]
+name = "CH (Phase Morph)"
+engine_type = "fm"
+freq = 8500.0
+mod_ratio = 4.5
+mod_index = 0.5
+noise_level = 0.1
+attack = 1.0
+decay = 60.0
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Envelope"
+depth = 2.0
+
+[[sounds]]
+name = "OH (Sparkle Morph)"
+engine_type = "modal"
+freq = 9000.0
+brightness = 0.4
+dampening = 0.2
+inharmonicity = 0.1
+attack = 1.0
+decay = 400.0
+
+[[sounds.mods]]
+param = "brightness"
+source = "Envelope"
+depth = 0.5
+
+[[sounds]]
+name = "Floor Tom (Metal-to-Wood)"
+engine_type = "hybrid"
+freq = 82.0
+noise_color = 0.5
+metallic = 0.9
+attack = 1.0
+decay = 800.0
+
+[[sounds.mods]]
+param = "metallic"
+source = "Envelope"
+depth = -0.7
+
+[[sounds]]
+name = "Tom Mid (Tension Morph)"
+engine_type = "modal"
+freq = 165.0
+brightness = 0.5
+dampening = 0.2
+inharmonicity = 0.1
+attack = 1.0
+decay = 400.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Envelope"
+depth = 50.0
+
+[[sounds]]
+name = "Tom High (Spectral Morph)"
+engine_type = "modal"
+freq = 330.0
+brightness = 0.4
+dampening = 0.2
+inharmonicity = 0.05
+attack = 1.0
+decay = 300.0
+
+[[sounds.mods]]
+param = "inharmonicity"
+source = "Velocity"
+depth = 0.5
+
+[[sounds]]
+name = "Vel Density Hat"
+engine_type = "granular"
+freq = 6500.0
+density = 0.1
+grain_size = 25.0
+jitter = 0.4
+attack = 1.0
+decay = 180.0
+
+[[sounds.mods]]
+param = "density"
+source = "Velocity"
+depth = 0.7
+
+[[sounds.mods]]
+param = "grain_size"
+source = "Velocity"
+depth = -10.0
+
+[[sounds]]
+name = "Perc (SRR Morph)"
+engine_type = "fm"
+freq = 1200.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 0.5
+attack = 1.0
+decay = 150.0
+rate = 1.0
+
+[[sounds.mods]]
+param = "rate"
+source = "Envelope"
+depth = -0.8
+
+[[sounds]]
+name = "Clap (Bit Morph)"
+engine_type = "fm"
+freq = 1100.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 1.0
+decay = 250.0
+bits = 16.0
+
+[[sounds.mods]]
+param = "bits"
+source = "Envelope"
+depth = -12.0
+
+[[sounds]]
+name = "Shaker (Jitter Morph)"
+engine_type = "granular"
+freq = 5500.0
+density = 0.8
+grain_size = 20.0
+jitter = 0.1
+attack = 1.0
+decay = 120.0
+
+[[sounds.mods]]
+param = "jitter"
+source = "Envelope"
+depth = 0.6
+
+[[sounds]]
+name = "Cowbell (Mod Morph)"
+engine_type = "fm"
+freq = 540.0
+mod_ratio = 1.414
+mod_index = 1.0
+noise_level = 0.0
+attack = 1.0
+decay = 300.0
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Envelope"
+depth = 4.0
+
+[[sounds]]
+name = "Splash (Fade)"
+engine_type = "modal"
+freq = 4500.0
+brightness = 0.9
+dampening = 0.3
+inharmonicity = 0.2
+attack = 1.0
+decay = 200.0
+
+[[sounds.mods]]
+param = "brightness"
+source = "Velocity"
+depth = 0.1
+
+[[sounds]]
+name = "China (Inharmonic)"
+engine_type = "modal"
+freq = 3500.0
+brightness = 0.95
+dampening = 0.1
+inharmonicity = 0.4
+attack = 1.0
+decay = 500.0
+
+[[sounds.mods]]
+param = "inharmonicity"
+source = "Envelope"
+depth = 0.2
+
+[[sounds]]
+name = "Bell (Freq Morph)"
+engine_type = "modal"
+freq = 880.0
+brightness = 0.8
+dampening = 0.2
+inharmonicity = 0.1
+attack = 1.0
+decay = 400.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Velocity"
+depth = 220.0
+
+[[sounds]]
+name = "Crash (Deep Morph)"
+engine_type = "modal"
+freq = 1000.0
+brightness = 0.9
+dampening = 0.05
+inharmonicity = 0.3
+attack = 1.0
+decay = 1000.0
+
+[[sounds.mods]]
+param = "dampening"
+source = "Envelope"
+depth = 0.4

@@ -19,15 +19,29 @@ const SR: f32 = 48000.0;
 const NEW_FEATURE_KITS: &[&str] = &[
     "808_Reborn",
     "909_Warehouse",
-    "Garden_3am",
-    "Pattern_Demo",
-    "Clock_Demo",
-    "Cowbell_Demo",
-    "Phase_Mirror",
-    "Ghost_Maker",
+    "Arcade_Machine",
+    "Broken_Machine",
+    "Bubblegum_Pop",
+    "Cartoon_Brawl",
+    "Cartoon_Brawl_2",
     "Cathedral_Forever",
+    "Clock_Demo",
+    "Crystal_Choir",
+    "Digital_Decay",
+    "Event_Horizon",
+    "Garden_3am",
+    "Ghost_Maker",
+    "Industrial_Foundry",
+    "Magnetic_Monolith",
+    "Old_Phone",
+    "Pattern_Demo",
+    "Phase_Mirror",
     "Polymeter_Madness",
+    "Revised",
+    "Scrape_and_Shudder",
     "Stutter_Snare",
+    "Tension_Release",
+    "Transient_Shack",
 ];
 
 fn default_mappings() -> Vec<DrumMapping> {
@@ -76,11 +90,11 @@ fn test_kits_without_new_fields_still_load() {
             let mut peak: f32 = 0.0;
             let mut all_finite = true;
             for _ in 0..(SR * 0.1) as usize {
-                let s = kit.tick();
-                if !s.is_finite() {
+                let (s_l, s_r) = kit.tick();
+                if !s_l.is_finite() || !s_r.is_finite() {
                     all_finite = false;
                 }
-                peak = peak.max(s.abs());
+                peak = peak.max(s_l.abs()).max(s_r.abs());
             }
             assert!(all_finite, "{:?} slot {} produced non-finite samples", path, slot);
             assert!(
@@ -134,8 +148,8 @@ sub_hits = [
     // 1,000,000 ms = ~48 billion samples, comfortably beyond our 100 ms
     // window. Confirm no panic and the queue trimmed to 1.
     for _ in 0..(SR * 0.1) as usize {
-        let s = kit.tick();
-        assert!(s.is_finite(), "produced non-finite sample after malformed sub_hits");
+        let (s_l, s_r) = kit.tick();
+        assert!(s_l.is_finite() && s_r.is_finite(), "produced non-finite sample after malformed sub_hits");
     }
     assert_eq!(
         kit.pending.len(),

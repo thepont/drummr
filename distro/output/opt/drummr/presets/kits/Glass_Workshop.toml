@@ -1,0 +1,198 @@
+name = "Glass Workshop"
+description = "Etched-glass percussion with selective bitcrush. Modal-dominant, brittle, mid-band heavy. No sub-bass."
+
+[[sounds]]
+name = "Glass Kick"
+engine_type = "modal"
+freq = 110.0
+brightness = 0.7
+dampening = 0.15
+inharmonicity = 0.88
+attack = 1.0
+decay = 250.0
+bits = 10.0
+rate = 1.0
+mods = [{param="brightness", source="Velocity", depth=0.2}]
+
+[[sounds]]
+name = "Shard Snare"
+engine_type = "modal"
+freq = 600.0
+brightness = 0.9
+dampening = 0.12
+inharmonicity = 0.92
+attack = 1.0
+decay = 180.0
+bits = 10.0
+rate = 1.0
+mods = [{param="inharmonicity", source="Velocity", depth=0.06}, {param="freq", source="Velocity", depth=20.0}]
+
+[[sounds]]
+name = "Ice Hat Closed"
+engine_type = "modal"
+freq = 4200.0
+brightness = 0.95
+dampening = 0.4
+inharmonicity = 0.95
+attack = 1.0
+decay = 50.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Ice Hat Open"
+engine_type = "modal"
+freq = 4200.0
+brightness = 0.95
+dampening = 0.12
+inharmonicity = 0.95
+attack = 1.0
+decay = 320.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Etched Tom 1"
+engine_type = "modal"
+freq = 500.0
+brightness = 0.8
+dampening = 0.08
+inharmonicity = 0.92
+attack = 1.0
+decay = 420.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Etched Tom 2"
+engine_type = "modal"
+freq = 400.0
+brightness = 0.8
+dampening = 0.08
+inharmonicity = 0.94
+attack = 1.0
+decay = 460.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Etched Tom 3"
+engine_type = "modal"
+freq = 300.0
+brightness = 0.8
+dampening = 0.08
+inharmonicity = 0.96
+attack = 1.0
+decay = 500.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Etched Tom 4"
+engine_type = "modal"
+freq = 200.0
+brightness = 0.8
+dampening = 0.08
+inharmonicity = 0.98
+attack = 1.0
+decay = 540.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Shatter Crash"
+engine_type = "modal"
+freq = 6500.0
+brightness = 0.95
+dampening = 0.07
+inharmonicity = 0.97
+attack = 1.0
+decay = 1400.0
+bits = 10.0
+rate = 2.0
+lfo1_freq = 0.8
+mods = [{param="brightness", source="Lfo1", depth=0.05}]
+
+[[sounds]]
+name = "Glass Ride"
+engine_type = "modal"
+freq = 3300.0
+brightness = 0.88
+dampening = 0.1
+inharmonicity = 0.9
+attack = 1.0
+decay = 1200.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Crystal Clap"
+engine_type = "modal"
+freq = 1800.0
+brightness = 0.85
+dampening = 0.25
+inharmonicity = 0.88
+attack = 2.0
+decay = 220.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Ice Rim"
+engine_type = "modal"
+freq = 2600.0
+brightness = 0.92
+dampening = 0.3
+inharmonicity = 0.94
+attack = 1.0
+decay = 90.0
+bits = 10.0
+rate = 2.0
+
+[[sounds]]
+name = "Glass Cowbell"
+engine_type = "modal"
+freq = 1100.0
+brightness = 0.85
+dampening = 0.2
+inharmonicity = 0.9
+attack = 1.0
+decay = 420.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Beaker Perc"
+engine_type = "modal"
+freq = 1400.0
+brightness = 0.8
+dampening = 0.18
+inharmonicity = 0.86
+attack = 1.0
+decay = 350.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Bottle Perc"
+engine_type = "modal"
+freq = 2200.0
+brightness = 0.82
+dampening = 0.16
+inharmonicity = 0.93
+attack = 1.0
+decay = 300.0
+bits = 10.0
+rate = 1.0
+
+[[sounds]]
+name = "Splinter Perc"
+engine_type = "modal"
+freq = 3700.0
+brightness = 0.9
+dampening = 0.22
+inharmonicity = 0.97
+attack = 1.0
+decay = 220.0
+bits = 10.0
+rate = 2.0

@@ -11,6 +11,7 @@
 //! `CommEngine::subscribe()`.
 
 use std::sync::{Arc, Mutex as StdMutex};
+use std::time::{Duration, Instant};
 
 use drummr::comm::CommEngine;
 use drummr::commands::handle_command;
@@ -18,7 +19,7 @@ use drummr::dsp::bpm_engine::BpmEngine;
 use drummr::kit::{DrumKit, DrumSound, KitEngine};
 use drummr::midi::MidiEngine;
 use drummr::persistence::PersistenceCommand;
-use drummr::state::{AudioCommand, MidiEvent, SharedState};
+use drummr::state::{AudioCommand, MidiEvent, SharedState, StreamRequest};
 use drummr::sync::SyncEngine;
 use rtrb::{Producer, RingBuffer};
 use tokio::sync::{Mutex as TokioMutex, mpsc};
@@ -59,37 +60,18 @@ fn empty_sound(name: &str, engine_type: &str) -> DrumSound {
         inharmonicity: Some(0.3),
         bits: Some(16.0),
         rate: Some(1.0),
-        attack: 1.0,
-        decay: 200.0,
-        lfo1_freq: None,
-        lfo2_freq: None,
-        lfo1_division: None,
-        lfo2_division: None,
-        decay_division: None,
-        mods: None,
-        mode_list: None,
-        sub_hits: None,
-        pattern: None,
-        trigger_probability: None,
-        ghost_probability: None,
-        ghost_offset_ms: None,
-        ghost_velocity_factor: None,
+        attack: 10.0,
+        decay: 100.0,
+        ..Default::default()
     }
 }
 
 fn build_harness_with_kit(kit: DrumKit) -> TestHarness {
     let sample_rate = 48000.0;
-    let default_mappings: Vec<drummr::kit::DrumMapping> = (0..16)
-        .map(|i| drummr::kit::DrumMapping {
-            note: 36 + i as u8,
-            slot: i,
-        })
-        .collect();
-    let kit_engine = KitEngine::from_config(kit.clone(), sample_rate, default_mappings);
 
     let (audio_error_tx, audio_error_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
     Box::leak(Box::new(audio_error_rx));
-    let shared_state = Arc::new(SharedState::new(kit_engine, kit, vec![], audio_error_tx));
+    let shared_state = Arc::new(SharedState::new(kit, vec![], audio_error_tx));
     let comm_engine = Arc::new(CommEngine::new());
     let broadcasts = comm_engine.subscribe();
 
@@ -124,6 +106,7 @@ fn build_harness_with_kit(kit: DrumKit) -> TestHarness {
 }
 
 async fn dispatch(h: &mut TestHarness, cmd: &str) {
+    let (s_tx, _) = mpsc::unbounded_channel::<StreamRequest>();
     handle_command(
         cmd.to_string(),
         h.midi_engine.clone(),
@@ -136,38 +119,32 @@ async fn dispatch(h: &mut TestHarness, cmd: &str) {
         h.sample_rate,
         h.bpm_engine.clone(),
         h.sync_engine.clone(),
+        s_tx,
     )
     .await;
 }
 
-fn drain_broadcasts(h: &mut TestHarness) -> Vec<String> {
-    let mut out = Vec::new();
-    while let Ok(msg) = h.broadcasts.try_recv() {
-        out.push(msg);
-    }
-    out
-}
-
-/// Extract the JSON payload of the first `ANALYSIS:<slot>|...` broadcast and
-/// assert the slot prefix matches `expected_slot`.
-fn take_analysis(h: &mut TestHarness, expected_slot: usize) -> serde_json::Value {
-    let msgs = drain_broadcasts(h);
+/// Poll the broadcast receiver until an ANALYSIS message for the expected slot
+/// appears, or the timeout expires.
+async fn await_analysis(h: &mut TestHarness, expected_slot: usize, timeout: Duration) -> Option<serde_json::Value> {
+    let start = Instant::now();
     let prefix = format!("ANALYSIS:{}|", expected_slot);
-    let msg = msgs
-        .iter()
-        .find(|m| m.starts_with(&prefix))
-        .unwrap_or_else(|| panic!("expected an ANALYSIS:{}| broadcast, got {:?}", expected_slot, msgs));
-    let json = msg.strip_prefix(&prefix).unwrap();
-    serde_json::from_str(json).expect("ANALYSIS payload is valid JSON")
+    while start.elapsed() < timeout {
+        match tokio::time::timeout(Duration::from_millis(50), h.broadcasts.recv()).await {
+            Ok(Some(msg)) => {
+                if msg.starts_with(&prefix) {
+                    let json = msg.strip_prefix(&prefix).unwrap();
+                    return serde_json::from_str(json).ok();
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 #[tokio::test(flavor = "current_thread")]
 async fn test_analyze_silent_voice() {
-    // FM at freq=50, mod_index=0, noise_level=0, with an absurdly long attack
-    // (50s) and a 1ms decay. The analysis window covers ~501ms which is too
-    // short for the envelope to open meaningfully -- the amp envelope crawls
-    // to at most ~0.01 of full scale, so peak stays well below the -26 dBFS
-    // silent floor (0.05).
     let mut sound = empty_sound("Silent", "fm");
     sound.freq = 50.0;
     sound.mod_index = Some(0.0);
@@ -185,7 +162,9 @@ async fn test_analyze_silent_voice() {
 
     dispatch(&mut h, "ANALYZE_SLOT:0").await;
 
-    let payload = take_analysis(&mut h, 0);
+    let payload = await_analysis(&mut h, 0, Duration::from_secs(1)).await
+        .expect("Analysis should complete within 1s");
+        
     assert_eq!(payload["slot"], 0);
     assert_eq!(payload["silent"], true, "near-silent FM voice should report silent=true; payload={}", payload);
     let peak = payload["peak"].as_f64().expect("peak is numeric");
@@ -194,11 +173,6 @@ async fn test_analyze_silent_voice() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn test_analyze_clipping_voice() {
-    // Hybrid at low metallic / low noise_color sums three sub-oscillators
-    // (weights 1.0 + 0.7 + 0.4 = 2.1) plus the low-passed noise tail. With
-    // env*velocity at unity, the raw mix peaks well above 1.0 and the engine's
-    // master clamp produces sustained rail-lock over the full envelope --
-    // exactly what the analyzer should catch and flag.
     let mut sound = empty_sound("Clipper", "hybrid");
     sound.freq = 80.0;
     sound.noise_color = Some(0.05);
@@ -215,7 +189,9 @@ async fn test_analyze_clipping_voice() {
 
     dispatch(&mut h, "ANALYZE_SLOT:0").await;
 
-    let payload = take_analysis(&mut h, 0);
+    let payload = await_analysis(&mut h, 0, Duration::from_secs(2)).await
+        .expect("Analysis should complete within 2s");
+
     assert_eq!(payload["slot"], 0);
     let peak = payload["peak"].as_f64().expect("peak is numeric");
     let clipped = payload["clipped_samples"].as_u64().expect("clipped_samples is numeric");
@@ -238,9 +214,6 @@ async fn test_analyze_clipping_voice() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn test_analyze_healthy_voice() {
-    // Modal at freq=200 / brightness=0.55 / dampening=0.3 / decay=400 is a
-    // textbook well-behaved drum hit -- peaks comfortably between the silent
-    // floor and the clipping rail.
     let mut sound = empty_sound("Healthy", "modal");
     sound.freq = 200.0;
     sound.brightness = Some(0.55);
@@ -258,7 +231,9 @@ async fn test_analyze_healthy_voice() {
 
     dispatch(&mut h, "ANALYZE_SLOT:0").await;
 
-    let payload = take_analysis(&mut h, 0);
+    let payload = await_analysis(&mut h, 0, Duration::from_secs(1)).await
+        .expect("Analysis should complete within 1s");
+
     assert_eq!(payload["slot"], 0);
     assert_eq!(
         payload["silent"], false,
@@ -283,8 +258,6 @@ async fn test_analyze_healthy_voice() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn test_analyze_out_of_bounds_slot() {
-    // ANALYZE_SLOT:99 should not crash and should not emit an ANALYSIS message
-    // (the only slots populated are 0 and 1).
     let kit = DrumKit {
         name: "tiny_kit".into(),
         description: None,
@@ -294,10 +267,14 @@ async fn test_analyze_out_of_bounds_slot() {
 
     dispatch(&mut h, "ANALYZE_SLOT:99").await;
 
-    let msgs = drain_broadcasts(&mut h);
-    assert!(
-        !msgs.iter().any(|m| m.starts_with("ANALYSIS:")),
-        "out-of-bounds slot must not produce an ANALYSIS broadcast, got {:?}",
-        msgs
-    );
+    // Use a small sleep to ensure if it WAS going to broadcast, it would have.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    
+    while let Ok(msg) = h.broadcasts.try_recv() {
+        assert!(
+            !msg.starts_with("ANALYSIS:"),
+            "out-of-bounds slot must not produce an ANALYSIS broadcast, got {}",
+            msg
+        );
+    }
 }

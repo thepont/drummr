@@ -3,10 +3,23 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub last_midi_port: Option<String>,
     pub last_audio_device: Option<String>,
+    pub audio_host: Option<String>,
+    pub buffer_size: Option<u32>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            last_midi_port: None,
+            last_audio_device: None,
+            audio_host: None,
+            buffer_size: Some(128),
+        }
+    }
 }
 
 impl Settings {

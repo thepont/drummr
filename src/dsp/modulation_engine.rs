@@ -16,6 +16,10 @@ impl Lfo {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.phase = 0.0;
+    }
+
     pub fn tick(&mut self) -> f32 {
         self.phase += self.frequency / self.sample_rate;
         self.phase = self.phase.fract();
@@ -72,6 +76,12 @@ impl ModulationEngine {
             total_mod += src_val * slot.depth;
         }
         param.base_value + total_mod
+    }
+
+    pub fn reset(&mut self) {
+        self.lfo1.reset();
+        self.lfo2.reset();
+        self.cached_sources = [0.0; 5];
     }
 
     pub fn set_lfo(&mut self, index: usize, freq: f32) {

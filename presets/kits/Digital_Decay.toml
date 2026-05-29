@@ -1,0 +1,205 @@
+name = "Digital Decay"
+description = "Inspired by 'Year Zero' and 'Hesitation Marks' era NIN. Glitchy, aggressive, and unpredictable. High-jitter granular engines, bit-crushed FM kicks, and complex pattern stutters. Features 'pre-echo' ghosts and probability-gated rhythmic artifacts."
+
+# Slot 0 — Glitch Kick. FM kick with severe Sample Rate Reduction (rate=4).
+[[sounds]]
+name = "Digital Kick"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.05
+attack = 1.0
+decay = 250.0
+bits = 12.0
+rate = 4.0
+
+# Slot 1 — Stutter Snare. Uses a dense 1/32nd-note pattern.
+[[sounds]]
+name = "Stutter Snare"
+engine_type = "hybrid"
+freq = 200.0
+noise_color = 0.8
+metallic = 0.5
+attack = 1.0
+decay = 150.0
+pattern = [
+    { division = "ThirtySecond", velocity_factor = 0.7, multiplier = 1.0 },
+    { division = "ThirtySecond", velocity_factor = 0.5, multiplier = 2.0 },
+]
+
+# Slot 2 — Jitter Hat. Granular hat with 1.0 jitter (maximum chaos).
+[[sounds]]
+name = "Jitter Hat"
+engine_type = "granular"
+freq = 9000.0
+density = 0.5
+grain_size = 5.0
+jitter = 1.0
+attack = 1.0
+decay = 40.0
+trigger_probability = 0.7
+ghost_probability = 0.4
+ghost_offset_ms = 20.0
+
+# Slot 3 — Data Burst. Short, sharp SRR burst.
+[[sounds]]
+name = "Data Burst"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 4.31
+mod_index = 20.0
+attack = 1.0
+decay = 20.0
+bits = 4.0
+rate = 8.0
+
+# Slot 4 — Glitched Kick 2. Clicky FM kick.
+[[sounds]]
+name = "Glitched Kick 2"
+engine_type = "fm"
+freq = 65.0
+mod_ratio = 1.5
+mod_index = 4.0
+attack = 1.0
+decay = 180.0
+bits = 8.0
+rate = 8.0
+
+# Slot 5 — Digital Tom Low.
+[[sounds]]
+name = "Digital Tom Low"
+engine_type = "fm"
+freq = 90.0
+mod_ratio = 1.0
+mod_index = 2.0
+attack = 2.0
+decay = 400.0
+bits = 10.0
+
+# Slot 6 — Digital Tom High.
+[[sounds]]
+name = "Digital Tom High"
+engine_type = "fm"
+freq = 160.0
+mod_ratio = 1.0
+mod_index = 1.5
+attack = 2.0
+decay = 300.0
+bits = 10.0
+
+# Slot 7 — Short Circuit. Rapid noise burst.
+[[sounds]]
+name = "Short Circuit"
+engine_type = "noise"
+freq = 4000.0
+attack = 1.0
+decay = 30.0
+pattern = [
+    { division = "ThirtySecond", velocity_factor = 1.0, multiplier = 1.0 },
+    { division = "ThirtySecond", velocity_factor = 0.8, multiplier = 1.5 },
+]
+
+# Slot 8 — Bit-Crushed Bell.
+[[sounds]]
+name = "Crushed Bell"
+engine_type = "modal"
+freq = 1200.0
+brightness = 0.9
+dampening = 0.1
+inharmonicity = 0.3
+attack = 1.0
+decay = 400.0
+bits = 6.0
+
+# Slot 9 — Artifact. Jittery granular grain.
+[[sounds]]
+name = "Artifact"
+engine_type = "granular"
+freq = 2500.0
+density = 0.4
+grain_size = 2.0
+jitter = 1.0
+attack = 1.0
+decay = 60.0
+ghost_probability = 0.5
+ghost_offset_ms = 15.0
+
+# Slot 10 — Glitch Clap.
+[[sounds]]
+name = "Decay Clap"
+engine_type = "fm"
+freq = 1100.0
+noise_level = 1.0
+attack = 1.0
+decay = 120.0
+pattern = [
+    { division = "SixteenthTriplet", velocity_factor = 0.4, multiplier = 1.0 },
+]
+bits = 8.0
+
+# Slot 11 — Data Crash. Aggressive SRR crash.
+[[sounds]]
+name = "Data Crash"
+engine_type = "fm"
+freq = 400.0
+mod_ratio = 8.12
+mod_index = 30.0
+attack = 1.0
+decay = 800.0
+bits = 4.0
+rate = 2.0
+
+# Slot 12 — Rhythmic Error.
+[[sounds]]
+name = "Rhythmic Error"
+engine_type = "hybrid"
+freq = 1500.0
+noise_color = 0.9
+metallic = 0.8
+attack = 1.0
+decay = 40.0
+pattern = [
+    { division = "Sixteenth", velocity_factor = 0.7, multiplier = 1.0 },
+    { division = "Sixteenth", velocity_factor = 0.4, multiplier = 1.25 },
+    { division = "Sixteenth", velocity_factor = 0.9, multiplier = 1.75 },
+]
+
+# Slot 13 — Transmission. Filtered noise cloud.
+[[sounds]]
+name = "Transmission"
+engine_type = "granular"
+freq = 800.0
+density = 0.7
+grain_size = 20.0
+jitter = 0.5
+attack = 50.0
+decay = 1000.0
+lfo1_division = "Bar"
+mods = [{ param = "freq", source = "Lfo1", depth = 200.0 }]
+
+# Slot 14 — Predictive Pulse. Ghost-heavy pulse.
+[[sounds]]
+name = "Predictive Pulse"
+engine_type = "fm"
+freq = 440.0
+mod_ratio = 1.0
+mod_index = 0.0
+attack = 1.0
+decay = 100.0
+trigger_probability = 0.4
+ghost_probability = 0.8
+ghost_offset_ms = 10.0 # Pre-echo emulation (clamped to positive)
+
+# Slot 15 — The Swarm. Dense granular cloud with velocity-to-jitter mapping.
+[[sounds]]
+name = "The Swarm"
+engine_type = "granular"
+freq = 500.0
+density = 0.9
+grain_size = 40.0
+jitter = 0.1
+attack = 20.0
+decay = 1500.0
+decay_division = "TwoBars"
+mods = [{ param = "jitter", source = "Velocity", depth = 0.8 }]

@@ -1,0 +1,184 @@
+name = "Arcade Machine"
+description = "A full 8-bit chiptune kit capturing the sound of a retro arcade cabinet. Features aliased FM zaps, bit-crushed explosions, mechanical button clicks, and iconic 'Coin-In' chimes."
+
+[[sounds]]
+name = "Coin-In"
+engine_type = "modal"
+freq = 1046.5 # C6
+brightness = 0.95
+dampening = 0.2
+inharmonicity = 0.0
+attack = 1.0
+decay = 400.0
+bits = 4.0
+pattern = [{ division = "Sixteenth", velocity_factor = 0.8, multiplier = 1.0 }] # Double chime
+
+[[sounds]]
+name = "Level Start"
+engine_type = "fm"
+freq = 440.0
+mod_ratio = 1.5
+mod_index = 4.0
+attack = 1.0
+decay = 100.0
+bits = 8.0
+pattern = [
+    { division = "Sixteenth", velocity_factor = 0.9, multiplier = 1.0 },
+    { division = "Sixteenth", velocity_factor = 0.8, multiplier = 2.0 },
+    { division = "Sixteenth", velocity_factor = 0.7, multiplier = 3.0 }
+]
+
+[[sounds]]
+name = "Basic Zap"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 2.0
+mod_index = 15.0
+attack = 1.0
+decay = 80.0
+bits = 6.0
+mods = [{ param = "freq", source = "Envelope", depth = -1200.0 }]
+
+[[sounds]]
+name = "8-Bit Explosion"
+engine_type = "noise"
+freq = 400.0
+attack = 1.0
+decay = 1200.0
+bits = 3.0
+rate = 4.0
+sustain_shaper = 0.8
+
+[[sounds]]
+name = "Power Up"
+engine_type = "fm"
+freq = 220.0
+mod_ratio = 1.0
+mod_index = 2.0
+attack = 5.0
+decay = 600.0
+bits = 8.0
+mods = [{ param = "freq", source = "Envelope", depth = 1800.0 }]
+
+[[sounds]]
+name = "Game Over"
+engine_type = "fm"
+freq = 880.0
+mod_ratio = 1.33
+mod_index = 8.0
+attack = 1.0
+decay = 1000.0
+bits = 6.0
+mods = [{ param = "freq", source = "Envelope", depth = -800.0 }]
+
+[[sounds]]
+name = "Button Click"
+engine_type = "granular"
+freq = 2400.0
+density = 1.0
+grain_size = 2.0
+jitter = 0.1
+attack = 0.5
+decay = 30.0
+attack_shaper = 1.0
+
+[[sounds]]
+name = "Joystick Thock"
+engine_type = "phys"
+freq = 120.0
+brightness = 0.4
+dampening = 0.8
+attack = 1.0
+decay = 60.0
+attack_shaper = 0.9
+
+[[sounds]]
+name = "Laser Fire"
+engine_type = "fm"
+freq = 3200.0
+mod_ratio = 4.0
+mod_index = 30.0
+attack = 1.0
+decay = 120.0
+bits = 4.0
+mods = [{ param = "freq", source = "Envelope", depth = -2500.0 }]
+
+[[sounds]]
+name = "Teleport Warp"
+engine_type = "granular"
+freq = 800.0
+density = 0.9
+grain_size = 15.0
+jitter = 0.8
+attack = 20.0
+decay = 500.0
+bits = 8.0
+mods = [{ param = "freq", source = "Lfo1", depth = 400.0 }]
+lfo1_freq = 12.0
+
+[[sounds]]
+name = "Chiptune Kick"
+engine_type = "fm"
+freq = 45.0
+mod_ratio = 0.5
+mod_index = 2.0
+attack = 1.0
+decay = 200.0
+bits = 6.0
+attack_shaper = 0.7
+
+[[sounds]]
+name = "Chiptune Snare"
+engine_type = "hybrid"
+freq = 180.0
+noise_color = 0.8
+metallic = 0.5
+attack = 1.0
+decay = 120.0
+bits = 4.0
+rate = 2.0
+
+[[sounds]]
+name = "High Score Bell"
+engine_type = "modal"
+freq = 1760.0 # A6
+brightness = 0.9
+dampening = 0.1
+inharmonicity = 0.1
+attack = 1.0
+decay = 1500.0
+bits = 10.0
+
+[[sounds]]
+name = "Error Glitch"
+engine_type = "fm"
+freq = 660.0
+mod_ratio = 1.414 # Discordant
+mod_index = 40.0
+attack = 1.0
+decay = 150.0
+bits = 2.0
+rate = 16.0
+
+[[sounds]]
+name = "Menu Scroll"
+engine_type = "granular"
+freq = 4000.0
+density = 0.5
+grain_size = 5.0
+jitter = 0.0
+attack = 1.0
+decay = 40.0
+sub_hits = [{ offset_ms = 40.0, velocity_factor = 0.8 }]
+
+[[sounds]]
+name = "Boss Spawn"
+engine_type = "fm"
+freq = 30.0
+mod_ratio = 3.0
+mod_index = 10.0
+attack = 100.0
+decay = 2500.0
+bits = 8.0
+mods = [{ param = "mod_index", source = "Lfo2", depth = 5.0 }]
+lfo2_freq = 0.5

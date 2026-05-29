@@ -1,0 +1,166 @@
+name = "808 Reborn"
+description = "Bridged-T sine kick (55Hz with click envelope), 540/800Hz cowbell pair via FM ratio. Classic 808 emulation."
+
+[[sounds]]
+name = "808 Kick"
+engine_type = "modal"
+freq = 56.0
+brightness = 0.0
+dampening = 0.18
+inharmonicity = 0.0
+attack = 1.0
+decay = 700.0
+mods = [{param="freq", source="Envelope", depth=4.0}]
+
+[[sounds]]
+name = "808 Snare"
+engine_type = "hybrid"
+freq = 200.0
+noise_color = 0.7
+metallic = 0.2
+attack = 1.0
+decay = 180.0
+mods = [{param="freq", source="Velocity", depth=18.0}]
+# 30% of snare hits also spawn a soft ghost echo 80 ms later — adds
+# human-feel variation without programming a separate ghost track.
+ghost_probability = 0.3
+ghost_offset_ms = 80.0
+
+[[sounds]]
+name = "808 Closed Hat"
+engine_type = "hybrid"
+freq = 8000.0
+noise_color = 1.0
+metallic = 0.9
+attack = 0.5
+decay = 40.0
+
+[[sounds]]
+name = "808 Open Hat"
+engine_type = "hybrid"
+freq = 8000.0
+noise_color = 1.0
+metallic = 0.9
+attack = 1.0
+decay = 400.0
+
+[[sounds]]
+name = "808 Tom 1"
+engine_type = "fm"
+freq = 220.0
+mod_ratio = 1.0
+mod_index = 0.6
+attack = 1.0
+decay = 350.0
+mods = [{param="freq", source="Envelope", depth=40.0}]
+
+[[sounds]]
+name = "808 Tom 2"
+engine_type = "fm"
+freq = 165.0
+mod_ratio = 1.0
+mod_index = 0.6
+attack = 1.0
+decay = 420.0
+mods = [{param="freq", source="Envelope", depth=30.0}]
+
+[[sounds]]
+name = "808 Tom 3"
+engine_type = "fm"
+freq = 110.0
+mod_ratio = 1.0
+mod_index = 0.6
+attack = 1.0
+decay = 480.0
+mods = [{param="freq", source="Envelope", depth=20.0}]
+
+[[sounds]]
+name = "808 Tom 4"
+engine_type = "fm"
+freq = 82.0
+mod_ratio = 1.0
+mod_index = 0.6
+attack = 1.0
+decay = 550.0
+mods = [{param="freq", source="Envelope", depth=15.0}]
+
+[[sounds]]
+name = "808 Crash"
+engine_type = "hybrid"
+freq = 6000.0
+noise_color = 0.9
+metallic = 1.0
+attack = 1.0
+decay = 1200.0
+
+[[sounds]]
+name = "808 Ride"
+engine_type = "phys"
+freq = 4500.0
+brightness = 1.0
+dampening = 0.1
+attack = 1.0
+decay = 900.0
+
+[[sounds]]
+name = "808 Clap"
+engine_type = "fm"
+freq = 1200.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 5.0
+decay = 250.0
+# 4-tap clap envelope. The 808 clap is slightly softer than the 909
+# variant — wider spacing, gentler falloff.
+sub_hits = [
+    { offset_ms = 12.0, velocity_factor = 0.85 },
+    { offset_ms = 25.0, velocity_factor = 0.70 },
+    { offset_ms = 39.0, velocity_factor = 0.55 },
+]
+
+[[sounds]]
+name = "808 Rim"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 7.0
+mod_index = 5.0
+attack = 1.0
+decay = 30.0
+
+[[sounds]]
+name = "808 Cowbell"
+engine_type = "fm"
+freq = 540.0
+mod_ratio = 1.481
+mod_index = 1.2
+attack = 1.0
+decay = 350.0
+
+[[sounds]]
+name = "808 Clave"
+engine_type = "fm"
+freq = 2500.0
+mod_ratio = 1.0
+mod_index = 0.0
+attack = 1.0
+decay = 40.0
+
+[[sounds]]
+name = "808 Maraca"
+engine_type = "fm"
+freq = 5000.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 1.0
+decay = 80.0
+
+[[sounds]]
+name = "808 Conga Hi"
+engine_type = "fm"
+freq = 350.0
+mod_ratio = 1.0
+mod_index = 1.0
+attack = 1.0
+decay = 200.0

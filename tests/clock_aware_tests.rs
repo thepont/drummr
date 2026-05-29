@@ -16,34 +16,11 @@ fn make_sound(engine: &str) -> DrumSound {
         name: "test".to_string(),
         engine_type: Some(engine.to_string()),
         freq: 220.0,
-        mod_ratio: Some(1.0),
-        mod_index: Some(1.0),
-        noise_level: Some(0.0),
-        brightness: Some(0.5),
-        dampening: Some(0.5),
-        density: Some(0.5),
-        grain_size: Some(50.0),
-        jitter: Some(0.2),
-        noise_color: Some(0.5),
-        metallic: Some(0.5),
-        inharmonicity: Some(0.3),
-        bits: None,
-        rate: None,
         attack: 1.0,
         decay: 200.0,
         lfo1_freq: Some(1.0),
         lfo2_freq: Some(1.0),
-        lfo1_division: None,
-        lfo2_division: None,
-        decay_division: None,
-        mods: None,
-        mode_list: None,
-        sub_hits: None,
-        pattern: None,
-        trigger_probability: None,
-        ghost_probability: None,
-        ghost_offset_ms: None,
-        ghost_velocity_factor: None,
+        ..Default::default()
     }
 }
 
@@ -100,13 +77,13 @@ fn test_atomic_bpm_round_trip() {
     // unbounded sender that drops its receiver immediately is fine because
     // nothing in this test triggers it.
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<()>();
-    let kit = KitEngine::new(SR);
+    let _kit = KitEngine::new(SR);
     let snapshot = DrumKit {
         name: "test".into(),
         description: None,
         sounds: vec![],
     };
-    let state = SharedState::new(kit, snapshot, vec![], tx);
+    let state = SharedState::new(snapshot, vec![], tx);
 
     // Default is 120 BPM.
     let initial = state.load_bpm();
@@ -309,7 +286,7 @@ fn test_loading_kits_without_division_fields_still_works() {
                     let y = v.tick();
                     assert!(
                         y.is_finite(),
-                        "non-finite tick from kit {} slot {}: {}",
+                        "non-finite tick from kit {} slot {}: {:?}",
                         name, slot, y
                     );
                 }

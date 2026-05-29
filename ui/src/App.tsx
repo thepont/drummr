@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { House, ListDashes, Faders, WifiHigh, WifiSlash, SpeakerHigh, Cpu, List as ListIcon, X, Pulse, Books } from "@phosphor-icons/react"
+import { House, ListDashes, Faders, WifiHigh, WifiSlash, SpeakerHigh, Cpu, List as ListIcon, X, Pulse, Books, Clock, Sparkle, Warning } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -9,12 +9,14 @@ function cn(...inputs: ClassValue[]) {
 
 import MappingView from './views/MappingView'
 import KitEditorView from './views/KitEditorView'
+import LibraryView from './views/LibraryView'
+import PerformanceView from './views/PerformanceView'
 import { Card } from './components/ui'
 import { MasterPeakMeter } from './components/MasterPeakMeter'
 import LibrarySidebar from './components/LibrarySidebar'
 import { PreviewKitButton } from './components/PreviewKitButton'
 
-type View = 'dashboard' | 'mapping' | 'editor';
+type View = 'performance' | 'dashboard' | 'mapping' | 'editor' | 'library';
 
 export interface AnalysisResult {
   slot: number;
@@ -28,7 +30,7 @@ export interface AnalysisResult {
 }
 
 export default function App() {
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>('performance');
   const [status, setStatus] = useState<'Connecting' | 'Connected' | 'Disconnected'>('Connecting');
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [midiPort, setMidiPort] = useState<string>('None');
@@ -42,6 +44,9 @@ export default function App() {
 
   const [availableMidi, setAvailableMidi] = useState<string[]>([]);
   const [availableAudio, setAvailableAudio] = useState<string[]>([]);
+  const [availableHosts, setAvailableHosts] = useState<string[]>([]);
+  const [audioHost, setAudioHost] = useState<string>("");
+  const [bufferSize, setBufferSize] = useState<number>(128);
   const [availableKits, setAvailableKits] = useState<string[]>([]);
   const [activeKitName, setActiveKitName] = useState<string>("");
   
@@ -54,6 +59,19 @@ export default function App() {
 
   const [lastMidi, setLastMidi] = useState<{note: number, vel: number} | null>(null);
   const [isMidiFlashing, setIsMidiFlashing] = useState(false);
+  
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
+  const [masterPeak, setMasterPeak] = useState<number>(0);
+  const lastKitNameRef = useRef<string>("");
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
   // MIDI flash timer ref: replaced on each new MIDI event so the previous
   // pending "flash off" never lands AFTER a fresh "flash on", and so we
   // don't leak timers on unmount during high-rate MIDI input (drum hits
@@ -72,12 +90,30 @@ export default function App() {
 
     const connect = () => {
       setStatus('Connecting');
-      const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
+      
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      let wsUrl: string;
+
+      if (window.location.port === '5173' || window.location.port === '3000') {
+        // We are likely in a dev environment (Vite/CRA default ports)
+        // Connect to the backend on 8080 regardless of hostname
+        wsUrl = `${protocol}//${window.location.hostname}:8080`;
+      } else {
+        // We are likely in "production" (e.g. served via Nginx on port 80)
+        // Use the /ws path which should be proxied
+        wsUrl = `${protocol}//${window.location.host}/ws`;
+      }
+
+
+      console.log('[UI] Connecting to:', wsUrl);
+      const socket = new WebSocket(wsUrl);
       let isCurrent = true;
       
       socket.onopen = () => {
         if (!isCurrent) return;
         setStatus('Connected');
+        showToast('Connected to drummr engine', 'success');
+        socket.send('LIST_HOSTS');
         socket.send('LIST_MIDI');
         socket.send('LIST_AUDIO');
         socket.send('LIST_KITS');
@@ -93,12 +129,14 @@ export default function App() {
       socket.onclose = () => {
         if (!isCurrent) return;
         setStatus('Disconnected');
+        showToast('Connection lost. Reconnecting...', 'error');
         setWs(null);
         reconnectTimeout = window.setTimeout(connect, 2000);
       };
 
       socket.onerror = () => {
         if (!isCurrent) return;
+        showToast('WebSocket error encountered', 'error');
         socket.close();
       };
 
@@ -110,14 +148,28 @@ export default function App() {
           setMidiPort(data.replace('PORT: ', ''));
         } else if (data.startsWith('AUDIO_DEVICE: ')) {
           setAudioDevice(data.replace('AUDIO_DEVICE: ', ''));
+        } else if (data.startsWith('AUDIO_HOST: ')) {
+          setAudioHost(data.replace('AUDIO_HOST: ', ''));
+        } else if (data.startsWith('BUFFER_SIZE: ')) {
+          setBufferSize(parseInt(data.replace('BUFFER_SIZE: ', '')));
         } else if (data.startsWith('LIST_MIDI: ')) {
           setAvailableMidi(data.replace('LIST_MIDI: ', '').split(',').filter(Boolean));
         } else if (data.startsWith('LIST_AUDIO: ')) {
           setAvailableAudio(data.replace('LIST_AUDIO: ', '').split(',').filter(Boolean));
+        } else if (data.startsWith('LIST_HOSTS: ')) {
+          setAvailableHosts(data.replace('LIST_HOSTS: ', '').split(',').filter(Boolean));
         } else if (data.startsWith('KIT_LIST:')) {
           setAvailableKits(data.replace('KIT_LIST:', '').split(',').filter(Boolean));
         } else if (data.startsWith('ACTIVE_KIT:')) {
-          setActiveKitName(data.replace('ACTIVE_KIT:', ''));
+          const name = data.replace('ACTIVE_KIT:', '');
+          setActiveKitName(name);
+          if (lastKitNameRef.current && lastKitNameRef.current !== name) {
+            showToast(`Kit active: "${name}"`, 'success');
+          }
+          lastKitNameRef.current = name;
+        } else if (data.startsWith('KIT_ERROR:')) {
+          const err = data.replace('KIT_ERROR:', '');
+          showToast(`Failed to load kit: ${err}`, 'error');
         } else if (data.startsWith('KIT: ')) {
           try {
             const kit = JSON.parse(data.replace('KIT: ', ''));
@@ -175,7 +227,13 @@ export default function App() {
         } else if (data.startsWith('MIDI_TRACK_ERROR:')) {
           // Backend couldn't load the requested track -- log and reset.
           console.warn('Preview Kit:', data);
+          showToast('Failed to play preview MIDI track', 'error');
           setPlayingTrack(null);
+        } else if (data.startsWith('PEAK:')) {
+          const val = parseFloat(data.replace('PEAK:', ''));
+          if (!isNaN(val)) {
+            setMasterPeak(val);
+          }
         } else if (data.startsWith('MIDI: ')) {
           const rawValues = data.replace('MIDI: ', '');
           const parts = rawValues.split(',');
@@ -321,43 +379,45 @@ export default function App() {
           </header>
 
           {/* Transport Bar */}
-          <div className="bg-card/40 border-b border-border h-16 flex items-center px-4 lg:px-8 gap-8 backdrop-blur-lg shrink-0 relative z-20">
-             <div className="flex flex-col justify-center pr-8 border-r border-white/5 h-full">
+          <div className="bg-card/40 border-b border-border h-16 flex items-center px-4 lg:px-8 gap-3 sm:gap-4 md:gap-6 lg:gap-8 backdrop-blur-lg shrink-0 relative z-20">
+             <div className="flex flex-col justify-center pr-4 sm:pr-8 border-r border-white/5 h-full">
                 <span className="text-[8px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Estimated BPM</span>
                 <span className="text-2xl font-black text-primary tabular-nums tracking-tighter leading-none min-w-[5rem]">
                   {parseFloat(bpm) > 0 ? bpm : "---"}
                 </span>
              </div>
 
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2 md:gap-3 shrink-0">
                 <button
                   onClick={toggleAutoSync}
                   aria-pressed={isAutoSync}
                   className={cn(
-                    "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    "px-3 md:px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0",
                     isAutoSync ? "bg-amber-500/20 border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]" : "bg-background/50 border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
                   )}
                 >
                   <Pulse size={14} weight={isAutoSync ? "fill" : "regular"} />
-                  Auto-Record
+                  <span className="hidden sm:inline">Auto-Record</span>
+                  <span className="sm:hidden">Auto</span>
                 </button>
 
                 <button
                   onClick={toggleSync}
                   aria-pressed={syncStatus === "Running"}
                   className={cn(
-                    "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    "px-4 md:px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0",
                     syncStatus === "Running" ? "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_25px_rgba(16,185,129,0.5)]" : "bg-background/50 border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
                   )}
                 >
-                  {syncStatus === "Running" ? "Master GO" : "Start Master Sync"}
+                  <span className="hidden sm:inline">{syncStatus === "Running" ? "Master GO" : "Start Master Sync"}</span>
+                  <span className="sm:hidden">{syncStatus === "Running" ? "GO" : "Sync"}</span>
                 </button>
 
                 <PreviewKitButton ws={ws} tracks={midiTracks} playingTrack={playingTrack} />
              </div>
 
-             <div className="ml-auto flex items-center gap-6">
-                <div className="flex flex-col items-end">
+             <div className="ml-auto flex items-center gap-3 sm:gap-6">
+                <div className="hidden md:flex flex-col items-end">
                   <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mb-1">Signal Status</span>
                   <div className="flex items-center gap-2">
                      <div className={cn(
@@ -372,17 +432,35 @@ export default function App() {
                      </span>
                   </div>
                 </div>
-                <div className="w-px h-10 bg-border" />
-                <MasterPeakMeter isActive={isMidiFlashing} />
+                <div className="hidden md:block w-px h-10 bg-border" />
+                <MasterPeakMeter peak={masterPeak} />
              </div>
           </div>
 
           <div className="flex-1 overflow-auto bg-background/20">
-            <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+            <div className="p-4 lg:p-8 max-w-7xl mx-auto pb-24 lg:pb-8">
+              {view === 'performance' && (
+                <PerformanceView
+                  ws={ws}
+                  activeKitName={activeKitName}
+                  availableKits={availableKits}
+                  bpm={bpm}
+                  masterPeak={masterPeak}
+                  isMidiActive={isMidiFlashing}
+                  syncStatus={syncStatus}
+                  toggleSync={toggleSync}
+                />
+              )}
               {view === 'dashboard' && (
                 <DashboardView 
-                  ws={ws} midiPort={midiPort} audioDevice={audioDevice}
-                  availableMidi={availableMidi} availableAudio={availableAudio}
+                  ws={ws} 
+                  midiPort={midiPort} 
+                  audioDevice={audioDevice} 
+                  audioHost={audioHost}
+                  availableHosts={availableHosts}
+                  bufferSize={bufferSize}
+                  availableMidi={availableMidi} 
+                  availableAudio={availableAudio}
                   lastMidi={lastMidi} isMidiActive={isMidiFlashing}
                 />
               )}
@@ -402,27 +480,39 @@ export default function App() {
                   selectedSoundId={selectedSoundId} setSelectedSoundId={setSelectedSoundId}
                   analysis={analysis} requestAnalysis={requestAnalysis}
                   bpm={bpm}
+                  activeKitName={activeKitName}
+                />
+              )}
+              {view === 'library' && (
+                <LibraryView 
+                  availableKits={availableKits}
+                  activeKitName={activeKitName}
+                  soundPresets={soundPresets}
+                  ws={ws}
+                  selectedSoundId={selectedSoundId}
                 />
               )}
             </div>
           </div>
       </div>
 
-      {/* Sidebars */}
-      <div className={cn(
-        "transition-all duration-300 ease-in-out shrink-0 hidden lg:block border-l border-border bg-card",
-        isLibraryOpen ? "w-80" : "w-0 overflow-hidden border-none"
-      )}>
-        <LibrarySidebar 
-          availableKits={availableKits}
-          activeKitName={activeKitName}
-          soundPresets={soundPresets}
-          ws={ws}
-          selectedSoundId={selectedSoundId}
-          isOpen={isLibraryOpen}
-          onClose={() => setIsLibraryOpen(false)}
-        />
+      {/* Library Sidebar (Managed internally for mobile/desktop) */}
+      <LibrarySidebar 
+        availableKits={availableKits}
+        activeKitName={activeKitName}
+        soundPresets={soundPresets}
+        ws={ws}
+        selectedSoundId={selectedSoundId}
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+      />
 
+      {/* Bottom Navigation - Mobile only */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-xl border-t border-border flex items-center justify-around px-4 z-40">
+        <BottomNavItem icon={<Sparkle size={20} />} label="Live" active={view === 'performance'} onClick={() => setView('performance')} />
+        <BottomNavItem icon={<Books size={20} />} label="Library" active={view === 'library'} onClick={() => setView('library')} />
+        <BottomNavItem icon={<Faders size={20} />} label="Editor" active={view === 'editor'} onClick={() => setView('editor')} />
+        <BottomNavItem icon={<House size={20} />} label="System" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
       </div>
 
       {isMobileMenuOpen && (
@@ -445,6 +535,32 @@ export default function App() {
           </nav>
         </div>
       )}
+
+      {/* Toast Container */}
+      <div className="fixed bottom-4 right-4 z-[999] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={cn(
+              "p-4 rounded-xl shadow-lg border backdrop-blur-md transition-all duration-300 animate-in slide-in-from-right-5 pointer-events-auto flex items-center gap-3",
+              toast.type === 'success' ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" :
+              toast.type === 'error' ? "bg-rose-500/10 border-rose-500/30 text-rose-300" :
+              "bg-primary/10 border-primary/30 text-primary-foreground"
+            )}
+          >
+            {toast.type === 'success' && <Sparkle weight="fill" className="text-emerald-400 shrink-0" size={16} />}
+            {toast.type === 'error' && <Warning weight="fill" className="text-rose-400 shrink-0" size={16} />}
+            {toast.type === 'info' && <Pulse weight="fill" className="text-primary shrink-0" size={16} />}
+            <span className="text-xs font-bold leading-normal">{toast.message}</span>
+            <button
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              className="ml-auto p-1 hover:bg-white/10 rounded transition-colors text-current opacity-70 hover:opacity-100"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -460,9 +576,11 @@ function SidebarContent({ view, setView, status, midiPort, audioDevice, isMidiAc
       </div>
 
       <div className="flex-1 px-3 space-y-1">
-        <NavItem icon={<House size={20} />} label="Dashboard" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
+        <NavItem icon={<Sparkle size={20} />} label="Performance" active={view === 'performance'} onClick={() => setView('performance')} />
+        <NavItem icon={<Books size={20} />} label="Kit Library" active={view === 'library'} onClick={() => setView('library')} />
         <NavItem icon={<ListDashes size={20} />} label="MIDI Mapping" active={view === 'mapping'} onClick={() => setView('mapping')} />
         <NavItem icon={<Faders size={20} />} label="Kit Editor" active={view === 'editor'} onClick={() => setView('editor')} />
+        <NavItem icon={<House size={20} />} label="Dashboard" active={view === 'dashboard'} onClick={() => setView('dashboard')} />
       </div>
 
       <div className="p-4 border-t border-border space-y-3">
@@ -501,16 +619,69 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, labe
   )
 }
 
-function DashboardView({ ws, midiPort, audioDevice, availableMidi, availableAudio, lastMidi, isMidiActive }: any) {
+function BottomNavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={cn(
+      "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors outline-none",
+      active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+    )}>
+      {icon}
+      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+      {active && <div className="w-1 h-1 rounded-full bg-primary absolute bottom-1" />}
+    </button>
+  )
+}
+
+function DashboardView({ 
+  ws, midiPort, audioDevice, audioHost, availableHosts, bufferSize, 
+  availableMidi, availableAudio, lastMidi, isMidiActive 
+}: any) {
   return (
     <div className="space-y-10">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <Card title="MIDI Input" value={midiPort} icon={<Cpu size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} />
         <Card title="Audio Output" value={audioDevice} icon={<SpeakerHigh size={20} />} />
-        <Card title="Last Note" value={lastMidi ? `Note ${lastMidi.note} (Vel ${lastMidi.vel})` : "No Input"} icon={<Pulse size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} />
+        <Card title="Backend" value={audioHost || "Default"} icon={<Faders size={20} />} />
+        <Card title="Buffer" value={`${bufferSize}`} icon={<Clock size={20} />} />
+        <Card title="Last Note" value={lastMidi ? `${lastMidi.note} (${lastMidi.vel})` : "-"} icon={<Pulse size={20} className={cn("transition-colors", isMidiActive && "text-emerald-400")} />} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
+          <header className="p-6 border-b border-border flex items-center justify-between">
+            <h3 className="font-bold flex items-center gap-2"><Faders size={20} className="text-muted-foreground" />Audio Backend</h3>
+            <button onClick={() => ws?.send('LIST_HOSTS')} className="text-xs text-primary hover:underline">Refresh</button>
+          </header>
+          <div className="divide-y divide-border">
+            {availableHosts.map((name: string, i: number) => (
+              <button key={i} onClick={() => ws?.send(`SELECT_HOST:${name}`)} className={cn("w-full text-left p-4 text-sm transition-colors flex items-center justify-between group", audioHost === name ? "bg-primary/5 text-primary" : "hover:bg-muted")}>
+                <span>{name}</span>
+                {audioHost === name && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </button>
+            ))}
+          </div>
+          <div className="p-6 border-t border-border bg-card/20">
+             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 block">Latency (Buffer Size)</label>
+             <div className="grid grid-cols-4 gap-2">
+                {[32, 64, 128, 256, 512].map(size => (
+                  <button 
+                    key={size}
+                    onClick={() => ws?.send(`SET_BUFFER:${size}`)}
+                    className={cn(
+                      "py-2 rounded-lg text-xs font-bold transition-all border",
+                      bufferSize === size ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/20" : "bg-background/50 border-border text-muted-foreground hover:border-primary/40"
+                    )}
+                  >
+                    {size}
+                  </button>
+                ))}
+             </div>
+             <p className="text-[10px] text-muted-foreground mt-4 italic leading-relaxed">
+               Note: Buffer changes take effect when you select an audio device or restart the engine.
+             </p>
+          </div>
+        </section>
+
         <section className="bg-card/30 border border-border rounded-3xl overflow-hidden">
           <header className="p-6 border-b border-border flex items-center justify-between">
             <h3 className="font-bold flex items-center gap-2"><Cpu size={20} className="text-muted-foreground" />MIDI Inputs</h3>

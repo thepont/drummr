@@ -1,0 +1,200 @@
+name = "Cartoon Brawl 2"
+description = "The upgraded slapstick sequel. Refined impacts, more dramatic pitch bends, and improved comedic timing. Features the 'Double Slap', 'Skillet Clang', and the classic 'Banana Slip' slide."
+
+[[sounds]]
+name = "Mega Stomach Punch"
+engine_type = "fm"
+freq = 48.0
+mod_ratio = 1.0
+mod_index = 4.0
+noise_level = 0.25
+attack = 2.0
+decay = 400.0
+attack_shaper = 0.6
+sustain_shaper = 0.8
+sub_hits = [{ offset_ms = 40.0, velocity_factor = 0.4 }] # The recoil thud
+
+[[sounds]]
+name = "Double Slap"
+engine_type = "hybrid"
+freq = 900.0
+noise_color = 0.7
+metallic = 0.2
+attack = 1.0
+decay = 80.0
+attack_shaper = 1.0
+sub_hits = [{ offset_ms = 120.0, velocity_factor = 0.8 }] # Slap-slap!
+
+[[sounds]]
+name = "Skillet Clang"
+engine_type = "modal"
+freq = 330.0
+brightness = 0.9
+dampening = 0.2
+inharmonicity = 0.8
+attack = 1.0
+decay = 800.0
+mode_list = [
+    { freq = 330.0, q = 100.0, gain = 1.0 },
+    { freq = 560.0, q = 80.0, gain = 0.7 },
+    { freq = 890.0, q = 60.0, gain = 0.5 }
+]
+attack_shaper = 1.0
+
+[[sounds]]
+name = "Surprise Yelp"
+engine_type = "fm"
+freq = 1800.0
+mod_ratio = 3.0
+mod_index = 10.0
+attack = 1.0
+decay = 120.0
+mods = [{ param = "freq", source = "Envelope", depth = 2500.0 }] # Dramatic jump
+
+[[sounds]]
+name = "Banana Slip"
+engine_type = "fm"
+freq = 200.0
+mod_ratio = 1.0
+mod_index = 0.0
+attack = 200.0
+decay = 1000.0
+mods = [{ param = "freq", source = "Envelope", depth = 1200.0 }] # The classic slide UP
+
+[[sounds]]
+name = "Super Boing"
+engine_type = "phys"
+freq = 150.0
+brightness = 0.9
+dampening = 0.02
+attack = 5.0
+decay = 1500.0
+attack_shaper = -0.5
+sustain_shaper = 0.9
+mods = [{ param = "freq", source = "Lfo1", depth = 80.0 }]
+lfo1_freq = 9.0
+ghost_probability = 1.0
+ghost_offset_ms = 250.0 # Double bounce
+
+[[sounds]]
+name = "Gooey Splat"
+engine_type = "granular"
+freq = 400.0
+density = 1.0
+grain_size = 40.0
+jitter = 0.9
+attack = 2.0
+decay = 400.0
+attack_shaper = -0.4
+sustain_shaper = 0.6
+
+[[sounds]]
+name = "Running Feet"
+engine_type = "modal"
+freq = 1400.0
+brightness = 0.4
+dampening = 0.9
+attack = 1.0
+decay = 25.0
+pattern = [
+    { division = "Sixteenth", velocity_factor = 0.8, multiplier = 1.0 },
+    { division = "Sixteenth", velocity_factor = 0.7, multiplier = 2.0 },
+    { division = "Sixteenth", velocity_factor = 0.6, multiplier = 3.0 },
+    { division = "Sixteenth", velocity_factor = 0.5, multiplier = 4.0 }
+]
+
+[[sounds]]
+name = "Teeth Chatter"
+engine_type = "granular"
+freq = 3500.0
+density = 1.0
+grain_size = 3.0
+jitter = 0.05
+attack = 1.0
+decay = 150.0
+sub_hits = [
+    { offset_ms = 20.0, velocity_factor = 0.9 },
+    { offset_ms = 40.0, velocity_factor = 0.8 },
+    { offset_ms = 60.0, velocity_factor = 0.7 },
+    { offset_ms = 80.0, velocity_factor = 0.6 }
+]
+
+[[sounds]]
+name = "Eye Pop"
+engine_type = "phys"
+freq = 2400.0
+brightness = 0.95
+dampening = 0.6
+attack = 1.0
+decay = 30.0
+attack_shaper = 1.0
+sustain_shaper = -1.0
+
+[[sounds]]
+name = "Heavy Gulp"
+engine_type = "fm"
+freq = 120.0
+mod_ratio = 1.0
+mod_index = 2.0
+attack = 50.0
+decay = 300.0
+mods = [{ param = "freq", source = "Envelope", depth = 600.0 }] # Swallowing sound
+
+[[sounds]]
+name = "Anvil Drop"
+engine_type = "modal"
+freq = 180.0
+brightness = 0.8
+dampening = 0.05
+inharmonicity = 0.5
+attack = 1.0
+decay = 2000.0
+bits = 8.0
+attack_shaper = 0.9
+
+[[sounds]]
+name = "Birdy Spin"
+engine_type = "fm"
+freq = 4000.0
+mod_ratio = 1.0
+mod_index = 1.0
+attack = 1.0
+decay = 30.0
+pattern = [
+    { division = "ThirtySecond", velocity_factor = 0.9, multiplier = 1.0 },
+    { division = "ThirtySecond", velocity_factor = 0.8, multiplier = 2.0 },
+    { division = "ThirtySecond", velocity_factor = 0.7, multiplier = 3.0 }
+]
+
+[[sounds]]
+name = "Rubber Stretch"
+engine_type = "phys"
+freq = 600.0
+brightness = 0.4
+dampening = 0.2
+attack = 200.0
+decay = 800.0
+mods = [{ param = "freq", source = "Envelope", depth = 1200.0 }] # Stretching pitch up
+
+[[sounds]]
+name = "Sawing Chaos"
+engine_type = "granular"
+freq = 800.0
+density = 0.8
+grain_size = 10.0
+jitter = 0.8
+attack = 10.0
+decay = 600.0
+lfo1_freq = 6.0
+mods = [{ param = "freq", source = "Lfo1", depth = 200.0 }]
+
+[[sounds]]
+name = "Fall Down Hole"
+engine_type = "fm"
+freq = 800.0
+mod_ratio = 1.0
+mod_index = 0.0
+attack = 100.0
+decay = 1500.0
+mods = [{ param = "freq", source = "Envelope", depth = -700.0 }]
+bits = 10.0

@@ -85,6 +85,7 @@ impl FmVoice {
         if velocity > 0.0 {
             self.velocity = velocity;
             self.mod_engine.velocity = velocity;
+            self.mod_engine.reset(); // Reset LFO phases on trigger
             self.carrier_phase = 0.0;
             self.mod_phase = 0.0;
             // Tempo-locked decay overrides the static `decay` (ms) when set.
@@ -124,7 +125,7 @@ impl FmVoice {
         let noise_level = self.mod_engine.calculate_mod(&self.noise_level);
 
         let pitch_mod = self.pitch_env.tick() * self.pitch_bend;
-        let current_freq = current_base_freq + pitch_mod;
+        let current_freq = (current_base_freq + pitch_mod).clamp(20.0, 20000.0);
 
         // Dynamic mod_index based on velocity (harder hits = brighter sound)
         let dynamic_mod_index = mod_index * self.velocity;
@@ -215,12 +216,12 @@ impl FmVoice {
 
     pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
-            "freq" => self.frequency.base_value = value,
-            "mod_ratio" => self.mod_ratio.base_value = value,
-            "mod_index" => self.mod_index.base_value = value,
-            "noise_level" => self.noise_level.base_value = value,
-            "attack" => self.attack = value,
-            "decay" => self.decay = value,
+            "freq" => self.frequency.base_value = value.clamp(20.0, 12000.0),
+            "mod_ratio" => self.mod_ratio.base_value = value.clamp(0.0, 10.0),
+            "mod_index" => self.mod_index.base_value = value.clamp(0.0, 50.0),
+            "noise_level" => self.noise_level.base_value = value.clamp(0.0, 1.0),
+            "attack" => self.attack = value.clamp(1.0, 1000.0),
+            "decay" => self.decay = value.clamp(1.0, 2000.0),
             _ => {}
         }
     }

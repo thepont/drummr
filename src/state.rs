@@ -1,92 +1,24 @@
 use crate::kit::{DrumKit, KitEngine};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use arc_swap::ArcSwap;
 
 pub type MidiEvent = [u8; 3];
 
-/// Cross-thread state for the drummr engine. One instance is created in
-/// `main.rs` and an `Arc<SharedState>` is handed to the audio callback,
-/// the tokio WS dispatcher, the BPM broadcast loop, and the audio-recovery
-/// task. Every field is either an `AtomicXxx` (lock-free) or a
-/// `Mutex<...>` that the audio thread accesses via `try_lock` so a
-/// contention never blocks the audio callback.
-///
-/// The two mutable kit views are intentionally split:
-/// - `kit` (audio-thread `KitEngine`) — owns live voice state (envelopes,
-///   delay lines, mode banks). Mutated from the audio thread (triggers)
-///   and from the WS dispatcher (parameter edits via `AudioCommand` on
-///   the rtrb ring); the WS dispatcher only updates the audio-thread
-///   engine for swap-only operations (engine type change, kit load).
-/// - `kit_snapshot` (serialisable `DrumKit`) — the source of truth for
-///   persistence and the wire format. All WS handlers mutate this first,
-///   then hand a clone to the persistence worker. See `commands.rs`.
+/// Cross-thread state for the drummr engine.
 pub struct SharedState {
-    /// `[AtomicU32; 16 * 5]` of live modulation source values indexed
-    /// as `slot * 5 + source` where source ids are
-    /// `None=0 / Envelope=1 / Lfo1=2 / Lfo2=3 / Velocity=4`. Stores
-    /// `f32::to_bits` per tick from the audio thread (via `set_value`);
-    /// read by the 40 ms mod-state broadcast loop in `main.rs` and
-    /// pushed to the UI as `MOD_STATES: <json>` for real-time visualisers.
-    /// This is the only inter-thread channel for "live values"; the
-    /// audio callback never sends per-tick state any other way.
     mod_values: [AtomicU32; 16 * 5], // [slot * 5 + source]
-    /// Current detected tempo, stored as the raw bits of an `f32` so the audio
-    /// thread can read it lock-free every block. Written by the 10 Hz BPM
-    /// broadcast task in `main.rs` (which already holds the `BpmEngine` mutex),
-    /// read by the audio callback in `start_audio` to drive tempo-locked LFO
-    /// and decay timing (see `BeatDivision` in `dsp::timing`). Initialised to
-    /// 120 BPM so the first audio block before any MIDI has been detected
-    /// still gets a sensible default.
     pub current_bpm_bits: AtomicU32,
-    pub kit: Arc<std::sync::Mutex<KitEngine>>,
-    /// Authoritative in-memory snapshot of the current kit's serializable state.
-    /// All SET_* commands mutate this directly; the persistence worker receives
-    /// a clone. This eliminates the read-modify-write race against kit.toml.
-    pub kit_snapshot: Arc<std::sync::Mutex<DrumKit>>,
-    /// Counts how many cpal::Stream handles have been intentionally leaked via
-    /// std::mem::forget. cpal's Stream is `!Send + !Sync` on every platform
-    /// (see `NotSendSyncAcrossAllPlatforms` in cpal::platform), so it cannot
-    /// be stored across an `await` or behind a Sync mutex inside SharedState.
-    /// Each call to SELECT_AUDIO unavoidably leaks the previous stream; we
-    /// log a warning past the first one so the leak is observable.
-    pub audio_stream_leak_count: AtomicU32,
-    /// Tripped from the cpal output stream error callback (audio thread) when
-    /// the active output device errors -- typically because it was unplugged
-    /// or went into a "device no longer available" state. A tokio task spawned
-    /// in `main` listens on the matching receiver and hot-swaps in a new
-    /// stream on the current system default. Carried on `SharedState` so the
-    /// `SELECT_AUDIO:` command handler can pass it into `start_audio` without
-    /// threading another argument through `handle_command`.
+    pub kit_snapshot: ArcSwap<DrumKit>,
     pub audio_error_tx: tokio::sync::mpsc::UnboundedSender<()>,
-    /// JoinHandle for the active "Preview Kit" MIDI playback task, if any.
-    /// Held so PLAY_MIDI_TRACK can abort a previous track before starting a
-    /// new one, and STOP_MIDI_PLAYBACK can cancel mid-playback. The handle
-    /// is also cleared by the playback task itself on natural completion
-    /// (via the `on_finish` callback passed into spawn_playback).
     pub midi_playback_handle: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
-    /// True while a Preview-Kit MIDI playback task "owns" the BPM snapshot.
-    /// Set by `midi_player::spawn_playback` after it writes the track's
-    /// authoritative tempo into `current_bpm_bits`; cleared on natural
-    /// finish, manual stop (STOP_MIDI_PLAYBACK), and on replacement by a
-    /// subsequent PLAY_MIDI_TRACK (which itself re-sets the flag with the
-    /// new track's tempo). The 100 ms BPM broadcast loop in `main.rs`
-    /// checks this flag and skips its `store_bpm(effective)` call when it
-    /// is true, preventing the live-BPM-detector fallback (120.0) from
-    /// clobbering the track's recorded tempo within ~100 ms of playback
-    /// start. Lock-free Relaxed ordering is sufficient — a stale read at
-    /// the boundary just means one extra tick of the wrong BPM, which is
-    /// harmless.
     pub playback_owns_bpm: AtomicBool,
-    /// Authoritative in-memory list of MIDI note -> slot mappings.
-    /// Used by LOAD_KIT to ensure mappings persist across kit changes,
-    /// and by UPDATE_MAPPING to avoid the read-modify-write race against
-    /// mapping.toml.
-    pub midi_mappings: Arc<std::sync::Mutex<Vec<crate::kit::DrumMapping>>>,
+    pub midi_mappings: ArcSwap<Vec<crate::kit::DrumMapping>>,
+    pub peak_level: AtomicU32, // Bit-casted f32
 }
 
 impl SharedState {
     pub fn new(
-        kit: KitEngine,
         kit_snapshot: DrumKit,
         midi_mappings: Vec<crate::kit::DrumMapping>,
         audio_error_tx: tokio::sync::mpsc::UnboundedSender<()>,
@@ -95,32 +27,34 @@ impl SharedState {
         Self {
             mod_values: [ZERO; 16 * 5],
             current_bpm_bits: AtomicU32::new(120.0_f32.to_bits()),
-            kit: Arc::new(std::sync::Mutex::new(kit)),
-            kit_snapshot: Arc::new(std::sync::Mutex::new(kit_snapshot)),
-            audio_stream_leak_count: AtomicU32::new(0),
+            kit_snapshot: ArcSwap::from_pointee(kit_snapshot),
             audio_error_tx,
             midi_playback_handle: std::sync::Mutex::new(None),
             playback_owns_bpm: AtomicBool::new(false),
-            midi_mappings: Arc::new(std::sync::Mutex::new(midi_mappings)),
+            midi_mappings: ArcSwap::from_pointee(midi_mappings),
+            peak_level: AtomicU32::new(0f32.to_bits()),
         }
     }
 
-    /// Store the latest detected BPM. Clamped to [40, 240] to keep downstream
-    /// `BeatDivision::to_seconds` from producing absurd durations when the
-    /// estimator briefly latches onto a sub-/super-octave during onset bursts.
-    /// Non-finite inputs (NaN / inf from a degenerate detector state) are
-    /// silently ignored.
+    pub fn store_peak(&self, level: f32) {
+        let current_bits = self.peak_level.load(Ordering::Relaxed);
+        let current = f32::from_bits(current_bits);
+        if level > current {
+            self.peak_level.store(level.to_bits(), Ordering::Relaxed);
+        }
+    }
+
+    pub fn get_and_reset_peak(&self) -> f32 {
+        let bits = self.peak_level.swap(0f32.to_bits(), Ordering::Relaxed);
+        f32::from_bits(bits)
+    }
+
     pub fn store_bpm(&self, bpm: f32) {
-        if !bpm.is_finite() {
-            return;
-        }
+        if !bpm.is_finite() { return; }
         let clamped = bpm.clamp(40.0, 240.0);
-        self.current_bpm_bits
-            .store(clamped.to_bits(), Ordering::Relaxed);
+        self.current_bpm_bits.store(clamped.to_bits(), Ordering::Relaxed);
     }
 
-    /// Read the current BPM snapshot. Lock-free; safe to call from the audio
-    /// callback once per block.
     pub fn load_bpm(&self) -> f32 {
         f32::from_bits(self.current_bpm_bits.load(Ordering::Relaxed))
     }
@@ -139,7 +73,6 @@ impl SharedState {
         values
     }
 
-    /// Helper to get values in the format the UI expects (2D Vec)
     pub fn get_values_nested(&self) -> Vec<Vec<f32>> {
         let flat = self.get_values();
         let mut result = Vec::with_capacity(16);
@@ -154,23 +87,43 @@ impl SharedState {
     }
 }
 
-#[derive(Debug)]
 pub enum AudioCommand {
     SetParam(usize, String, f32),
+    SetPan(usize, f32),
     SetMod(usize, String, crate::dsp::modulation::ModSource, f32),
     SetLfo(usize, usize, f32),
-    /// Adjust per-slot post-FX (bitcrusher / sample-rate reducer).
-    /// `param` is one of "bits", "rate".
     SetPostFx(usize, String, f32),
-    /// Adjust a generative-trigger field for a slot on the audio thread.
-    /// `param` is one of "trigger_probability", "ghost_probability",
-    /// "ghost_offset_ms", "ghost_velocity_factor". Routed via the same rtrb
-    /// ring as the other SetX commands; the audio thread mutates
-    /// `KitEngine::generative[slot]` in place.
     SetGenerative(usize, String, f32),
-    /// Set or clear a tempo-locked beat division on a slot's voice. `param`
-    /// is one of "lfo1_division", "lfo2_division", "decay_division". A
-    /// `None` value clears the division (returns the slot to static
-    /// Hz / ms behaviour).
     SetDivision(usize, String, Option<crate::dsp::timing::BeatDivision>),
+    LoadKit(Box<KitEngine>),
+    LoadMapping(Vec<crate::kit::DrumMapping>),
+}
+
+pub enum StreamRequest {
+    Start {
+        device: cpal::Device,
+        event_rx: rtrb::Consumer<MidiEvent>,
+        cmd_rx: rtrb::Consumer<AudioCommand>,
+        kit: KitEngine,
+        shared_state: Arc<SharedState>,
+        error_tx: tokio::sync::mpsc::UnboundedSender<()>,
+        buffer_size: Option<u32>,
+    },
+    Stop,
+}
+
+impl std::fmt::Debug for AudioCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AudioCommand::SetParam(s, p, v) => f.debug_tuple("SetParam").field(s).field(p).field(v).finish(),
+            AudioCommand::SetPan(s, v) => f.debug_tuple("SetPan").field(s).field(v).finish(),
+            AudioCommand::SetMod(s, p, src, d) => f.debug_tuple("SetMod").field(s).field(p).field(src).field(d).finish(),
+            AudioCommand::SetLfo(s, i, freq) => f.debug_tuple("SetLfo").field(s).field(i).field(freq).finish(),
+            AudioCommand::SetPostFx(s, p, v) => f.debug_tuple("SetPostFx").field(s).field(p).field(v).finish(),
+            AudioCommand::SetGenerative(s, p, v) => f.debug_tuple("SetGenerative").field(s).field(p).field(v).finish(),
+            AudioCommand::SetDivision(s, p, div) => f.debug_tuple("SetDivision").field(s).field(p).field(div).finish(),
+            AudioCommand::LoadKit(_) => f.write_str("LoadKit(...)"),
+            AudioCommand::LoadMapping(m) => f.debug_tuple("LoadMapping").field(m).finish(),
+        }
+    }
 }

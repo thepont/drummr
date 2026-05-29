@@ -43,6 +43,7 @@ fn test_concurrent_kit_updates_race_condition() {
             ghost_probability: None,
             ghost_offset_ms: None,
             ghost_velocity_factor: None,
+            ..Default::default()
         }],
     };
 
@@ -124,7 +125,7 @@ fn test_phys_engine_inf_resilience() {
 
 #[test]
 fn test_soft_clipper_overflow_resilience() {
-    use drummr::audio::soft_clip;
+    use drummr::dsp::utils::soft_clip;
 
     let test_values = [1.1, 1.5, 2.0, 10.0, -1.1, -1.5, -2.0, -10.0, 100.0, -100.0];
 

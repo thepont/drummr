@@ -1,0 +1,38 @@
+# Build environment for drummr-os
+# Handles cross-compilation for Raspberry Pi (aarch64)
+
+FROM debian:bookworm-slim
+
+# Enable multi-arch for arm64
+RUN dpkg --add-architecture arm64
+
+# Install build dependencies and ARM64 libraries
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    pkg-config \
+    libasound2-dev:arm64 \
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Add aarch64 target
+RUN rustup target add aarch64-unknown-linux-gnu
+
+# Configure cargo and pkg-config for cross-compilation
+ENV PKG_CONFIG_ALLOW_CROSS=1
+ENV PKG_CONFIG_PATH_aarch64_unknown_linux_gnu=/usr/lib/aarch64-linux-gnu/pkgconfig
+
+RUN mkdir -p /root/.cargo && \
+    echo '[target.aarch64-unknown-linux-gnu]\nlinker = "aarch64-linux-gnu-gcc"\npkg-config = "aarch64-linux-gnu-pkg-config"' > /root/.cargo/config.toml
+
+# Create a wrapper for pkg-config to find the right libs
+RUN echo '#!/bin/sh\nexec pkg-config "$@"' > /usr/bin/aarch64-linux-gnu-pkg-config && \
+    chmod +x /usr/bin/aarch64-linux-gnu-pkg-config
+
+WORKDIR /build

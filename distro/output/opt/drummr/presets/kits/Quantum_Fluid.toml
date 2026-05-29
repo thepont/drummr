@@ -1,0 +1,255 @@
+name = "Quantum Fluid"
+description = "Liquid, organic textures that never hit the same way twice. Heavy use of LFO-driven macro morphing across granular, modal, and hybrid engines. A sound that breathes."
+
+[[sounds]]
+name = "Fluid Kick"
+engine_type = "fm"
+freq = 50.0
+mod_ratio = 1.0
+mod_index = 3.0
+noise_level = 0.05
+attack = 1.0
+decay = 300.0
+lfo1_freq = 0.5
+
+[[sounds.mods]]
+param = "mod_ratio"
+source = "Lfo1"
+depth = 0.15
+
+[[sounds]]
+name = "Liquid Snare"
+engine_type = "hybrid"
+freq = 180.0
+noise_color = 0.6
+metallic = 0.4
+attack = 1.0
+decay = 250.0
+lfo1_freq = 0.8
+
+[[sounds.mods]]
+param = "metallic"
+source = "Lfo1"
+depth = 0.4
+
+[[sounds]]
+name = "Swarm Hat"
+engine_type = "granular"
+freq = 7000.0
+density = 0.4
+grain_size = 30.0
+jitter = 0.2
+attack = 1.0
+decay = 80.0
+lfo1_freq = 1.2
+
+[[sounds.mods]]
+param = "jitter"
+source = "Lfo1"
+depth = 0.6
+
+[[sounds]]
+name = "Spectral OH"
+engine_type = "modal"
+freq = 7000.0
+brightness = 0.5
+dampening = 0.2
+inharmonicity = 0.1
+attack = 1.0
+decay = 500.0
+lfo2_freq = 0.3
+
+[[sounds.mods]]
+param = "brightness"
+source = "Lfo2"
+depth = 0.4
+
+[[sounds]]
+name = "Floor Bubble"
+engine_type = "modal"
+freq = 82.0
+brightness = 0.4
+dampening = 0.1
+inharmonicity = 0.05
+attack = 1.0
+decay = 600.0
+lfo1_freq = 0.4
+
+[[sounds.mods]]
+param = "dampening"
+source = "Lfo1"
+depth = 0.3
+
+[[sounds]]
+name = "Mid Bubble"
+engine_type = "modal"
+freq = 165.0
+brightness = 0.5
+dampening = 0.1
+inharmonicity = 0.1
+attack = 1.0
+decay = 400.0
+lfo1_freq = 0.5
+
+[[sounds.mods]]
+param = "dampening"
+source = "Lfo1"
+depth = 0.3
+
+[[sounds]]
+name = "High Bubble"
+engine_type = "modal"
+freq = 330.0
+brightness = 0.6
+dampening = 0.1
+inharmonicity = 0.2
+attack = 1.0
+decay = 300.0
+lfo1_freq = 0.6
+
+[[sounds.mods]]
+param = "dampening"
+source = "Lfo1"
+depth = 0.3
+
+[[sounds]]
+name = "SRR Dive"
+engine_type = "hybrid"
+freq = 400.0
+noise_color = 0.5
+metallic = 0.8
+attack = 2.0
+decay = 1200.0
+rate = 1.0
+lfo1_freq = 0.1
+
+[[sounds.mods]]
+param = "rate"
+source = "Lfo1"
+depth = -0.7
+
+[[sounds]]
+name = "Crystal Ride"
+engine_type = "modal"
+freq = 1200.0
+brightness = 0.8
+dampening = 0.05
+inharmonicity = 0.2
+attack = 1.0
+decay = 800.0
+lfo2_freq = 0.2
+
+[[sounds.mods]]
+param = "inharmonicity"
+source = "Lfo2"
+depth = 0.4
+
+[[sounds]]
+name = "Digital Rain"
+engine_type = "fm"
+freq = 1100.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 1.0
+attack = 1.0
+decay = 200.0
+bits = 16.0
+lfo1_freq = 0.7
+
+[[sounds.mods]]
+param = "bits"
+source = "Lfo1"
+depth = -8.0
+
+[[sounds]]
+name = "Rim Viber"
+engine_type = "phys"
+freq = 800.0
+attack = 1.0
+decay = 50.0
+lfo1_freq = 6.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Lfo1"
+depth = 20.0
+
+[[sounds]]
+name = "Lava Tom"
+engine_type = "modal"
+freq = 110.0
+brightness = 0.3
+dampening = 0.4
+inharmonicity = 0.8
+attack = 5.0
+decay = 1000.0
+lfo2_freq = 0.1
+
+[[sounds.mods]]
+param = "brightness"
+source = "Lfo2"
+depth = 0.5
+
+[[sounds]]
+name = "Ghost Shaker"
+engine_type = "granular"
+freq = 4500.0
+density = 0.8
+grain_size = 20.0
+jitter = 0.1
+attack = 1.0
+decay = 150.0
+lfo1_freq = 1.5
+
+[[sounds.mods]]
+param = "density"
+source = "Lfo1"
+depth = -0.5
+
+[[sounds]]
+name = "Ocean Splash"
+engine_type = "modal"
+freq = 3500.0
+brightness = 0.9
+dampening = 0.2
+inharmonicity = 0.4
+attack = 2.0
+decay = 400.0
+lfo2_freq = 0.05
+
+[[sounds.mods]]
+param = "dampening"
+source = "Lfo2"
+depth = 0.3
+
+[[sounds]]
+name = "Echo China"
+engine_type = "modal"
+freq = 2500.0
+brightness = 0.95
+dampening = 0.1
+inharmonicity = 0.6
+attack = 1.0
+decay = 700.0
+lfo1_freq = 0.2
+
+[[sounds.mods]]
+param = "inharmonicity"
+source = "Lfo1"
+depth = -0.3
+
+[[sounds]]
+name = "Fluid Cowbell"
+engine_type = "fm"
+freq = 540.0
+mod_ratio = 1.414
+mod_index = 2.0
+noise_level = 0.1
+attack = 1.0
+decay = 350.0
+lfo2_freq = 0.4
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Lfo2"
+depth = 3.0

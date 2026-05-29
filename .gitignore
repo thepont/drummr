@@ -7,3 +7,14 @@
 /ui/dist/
 /.DS_Store
 **/.DS_Store
+
+# Logs and PIDs
+*.log
+*.pid
+
+# Temporary Testing Scripts
+check_8081.py
+trigger_test.py
+examples/repro_kit.rs
+examples/repro_static.rs
+examples/test_shaper.rs

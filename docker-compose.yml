@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  drummr-ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: drummr-ui
+    networks:
+      - global_infrastructure
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=global_infrastructure"
+      
+      # Simplified Traefik Routing: Traefik just sends EVERYTHING for drummr.esson.au 
+      # to the UI Nginx container. The UI Nginx then decides what is / and what is /ws.
+      - "traefik.http.routers.drummr.rule=Host(`drummr.esson.au`)"
+      - "traefik.http.routers.drummr.entrypoints=web"
+      - "traefik.http.services.drummr.loadbalancer.server.port=80"
+
+networks:
+  global_infrastructure:
+    external: true

@@ -1,0 +1,195 @@
+name = "Industrial Glitch"
+description = "A gritty, 16-sound experimental kit using all engines. Kit-wide 5-bit / 3x decimated PostFx — every voice runs through the crusher."
+
+[[sounds]]
+name = "Cyber Kick"
+engine_type = "fm"
+freq = 42.0
+mod_ratio = 0.5
+mod_index = 12.0
+noise_level = 0.05
+attack = 1.0
+decay = 450.0
+bits = 5.0
+rate = 3.0
+mods = [{param="mod_index", source="Envelope", depth=8.0}, {param="freq", source="Velocity", depth=15.0}]
+
+[[sounds]]
+name = "Rusty Snare"
+engine_type = "hybrid"
+freq = 195.0
+noise_color = 0.75
+metallic = 0.55
+attack = 0.5
+decay = 220.0
+bits = 5.0
+rate = 3.0
+mods = [{param="freq", source="Velocity", depth=20.0}]
+
+[[sounds]]
+name = "Static Hat"
+engine_type = "granular"
+freq = 950.0
+density = 0.85
+grain_size = 12.0
+jitter = 0.7
+attack = 0.2
+decay = 45.0
+bits = 5.0
+rate = 3.0
+lfo1_freq = 4.0
+mods = [{param="density", source="Lfo1", depth=0.15}]
+
+[[sounds]]
+name = "Metal Clang"
+engine_type = "hybrid"
+freq = 440.0
+noise_color = 0.3
+metallic = 0.9
+attack = 0.5
+decay = 600.0
+bits = 5.0
+rate = 3.0
+mods = [{param="metallic", source="Velocity", depth=0.1}]
+
+[[sounds]]
+name = "Void Tom"
+engine_type = "phys"
+freq = 80.0
+brightness = 0.6
+dampening = 0.2
+attack = 5.0
+decay = 800.0
+bits = 5.0
+rate = 3.0
+mods = [{param="brightness", source="Velocity", depth=0.2}]
+
+[[sounds]]
+name = "Neon Chirp"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 2.71
+mod_index = 8.0
+noise_level = 0.0
+attack = 1.0
+decay = 30.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Glitch Spark"
+engine_type = "granular"
+freq = 2000.0
+density = 0.95
+grain_size = 5.0
+jitter = 0.9
+attack = 0.1
+decay = 20.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Factory Bell"
+engine_type = "phys"
+freq = 880.0
+brightness = 0.9
+dampening = 0.1
+attack = 0.5
+decay = 1200.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Sub Drone"
+engine_type = "fm"
+freq = 30.0
+mod_ratio = 1.0
+mod_index = 2.0
+noise_level = 0.0
+attack = 50.0
+decay = 2000.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Steam Hiss"
+engine_type = "granular"
+freq = 500.0
+density = 0.2
+grain_size = 150.0
+jitter = 0.3
+attack = 100.0
+decay = 1500.0
+bits = 5.0
+rate = 3.0
+lfo2_freq = 0.4
+mods = [{param="grain_size", source="Lfo2", depth=40.0}]
+
+[[sounds]]
+name = "Anvil"
+engine_type = "hybrid"
+freq = 220.0
+noise_color = 0.1
+metallic = 1.0
+attack = 0.5
+decay = 400.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Broken Glass"
+engine_type = "granular"
+freq = 2500.0
+density = 0.35
+grain_size = 30.0
+jitter = 0.8
+attack = 0.5
+decay = 150.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Radio Noise"
+engine_type = "fm"
+freq = 100.0
+mod_ratio = 0.1
+mod_index = 50.0
+noise_level = 0.8
+attack = 10.0
+decay = 100.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Deep Tube"
+engine_type = "phys"
+freq = 65.0
+brightness = 0.3
+dampening = 0.4
+attack = 10.0
+decay = 500.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Short Click"
+engine_type = "fm"
+freq = 3000.0
+mod_ratio = 1.0
+mod_index = 0.0
+noise_level = 0.0
+attack = 0.1
+decay = 10.0
+bits = 5.0
+rate = 3.0
+
+[[sounds]]
+name = "Scrape"
+engine_type = "phys"
+freq = 400.0
+brightness = 0.1
+dampening = 0.8
+attack = 50.0
+decay = 300.0
+bits = 5.0
+rate = 3.0

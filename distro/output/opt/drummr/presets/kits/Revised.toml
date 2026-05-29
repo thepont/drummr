@@ -1,0 +1,246 @@
+name = "Revised "
+description = "A biomechanical, organic kit. Sounds of chitin, bone, fluid, and rhythmic breath. Features 'Nail-on-Bone' taps, a 'Chitinous Heartbeat', and the 'Lung Swell' exhalation. Designed for eerie, intimate, and evolving organic rhythms."
+
+[[sounds]]
+name = "Heartbeat (Low/Wet)"
+engine_type = "fm"
+freq = 38.0
+mod_ratio = 0.20000000298023224
+mod_index = 2.0
+noise_level = 0.019999999552965164
+attack = 1.0
+decay = 182.33343505859375
+
+[[sounds.mods]]
+param = "freq"
+source = "Envelope"
+depth = 20.0
+
+[[sounds.sub_hits]]
+offset_ms = 40.0
+velocity_factor = 0.5
+
+[[sounds.sub_hits]]
+offset_ms = 120.0
+velocity_factor = 0.30000001192092896
+
+[[sounds]]
+name = "Fleshy Snap"
+engine_type = "hybrid"
+freq = 195.0
+noise_color = 0.4000000059604645
+metallic = 0.6000000238418579
+attack = 1.0
+decay = 200.0
+lfo1_division = "ThirtySecond"
+
+[[sounds.mods]]
+param = "noise_color"
+source = "Lfo1"
+depth = 0.25
+
+[[sounds.mods]]
+param = "metallic"
+source = "Envelope"
+depth = -0.4000000059604645
+
+[[sounds]]
+name = "Bone Tap (Index)"
+engine_type = "modal"
+freq = 1200.0
+brightness = 0.8999999761581421
+dampening = 0.699999988079071
+inharmonicity = 0.019999999552965164
+attack = 1.0
+decay = 40.0
+
+[[sounds.sub_hits]]
+offset_ms = 12.0
+velocity_factor = 0.800000011920929
+
+[[sounds.sub_hits]]
+offset_ms = 24.0
+velocity_factor = 0.6000000238418579
+
+[[sounds]]
+name = "Bone Tap (Middle)"
+engine_type = "modal"
+freq = 1100.0
+brightness = 0.8500000238418579
+dampening = 0.75
+inharmonicity = 0.019999999552965164
+attack = 1.0
+decay = 45.0
+
+[[sounds.sub_hits]]
+offset_ms = 15.0
+velocity_factor = 0.699999988079071
+
+[[sounds.sub_hits]]
+offset_ms = 30.0
+velocity_factor = 0.5
+
+[[sounds]]
+name = "Chitin Crack"
+engine_type = "modal"
+freq = 350.0
+brightness = 0.699999988079071
+dampening = 0.5
+inharmonicity = 0.10000000149011612
+attack = 1.0
+decay = 120.0
+
+[[sounds.sub_hits]]
+offset_ms = 8.0
+velocity_factor = 0.8999999761581421
+
+[[sounds]]
+name = "Nerve Twitch"
+engine_type = "fm"
+freq = 2500.0
+mod_ratio = 4.5
+mod_index = 15.0
+noise_level = 0.10000000149011612
+attack = 1.0
+decay = 30.0
+trigger_probability = 0.800000011920929
+
+[[sounds]]
+name = "Fluid Gulp"
+engine_type = "granular"
+freq = 220.0
+density = 0.8999999761581421
+grain_size = 25.0
+jitter = 0.4000000059604645
+attack = 5.0
+decay = 180.0
+
+[[sounds.mods]]
+param = "density"
+source = "Velocity"
+depth = -0.4000000059604645
+
+[[sounds]]
+name = "Muscle Spasm"
+engine_type = "phys"
+freq = 65.0
+dampening = 0.20000000298023224
+attack = 10.0
+decay = 400.0
+lfo1_division = "Bar"
+
+[[sounds.mods]]
+param = "freq"
+source = "Lfo1"
+depth = 5.0
+
+[[sounds]]
+name = "Lung Swell (Gurgle)"
+engine_type = "granular"
+freq = 80.0
+density = 0.4000000059604645
+grain_size = 60.0
+jitter = 0.6000000238418579
+attack = 150.0
+decay = 1500.0
+lfo1_division = "Quarter"
+decay_division = "TwoBars"
+
+[[sounds.pattern]]
+division = "Eighth"
+velocity_factor = 0.6000000238418579
+multiplier = 1.0
+
+[[sounds.pattern]]
+division = "Eighth"
+velocity_factor = 0.4000000059604645
+multiplier = 2.0
+
+[[sounds]]
+name = "Venom Spit"
+engine_type = "hybrid"
+freq = 6000.0
+noise_color = 0.800000011920929
+metallic = 0.8999999761581421
+attack = 1.0
+decay = 250.0
+ghost_probability = 0.4000000059604645
+
+[[sounds]]
+name = "Mandible Click"
+engine_type = "modal"
+freq = 1500.0
+brightness = 0.949999988079071
+dampening = 0.800000011920929
+inharmonicity = 0.05000000074505806
+attack = 1.0
+decay = 35.0
+
+[[sounds.sub_hits]]
+offset_ms = 10.0
+velocity_factor = 1.0
+
+[[sounds]]
+name = "Larva Squish"
+engine_type = "granular"
+freq = 150.0
+density = 1.0
+grain_size = 40.0
+jitter = 0.20000000298023224
+attack = 1.0
+decay = 300.0
+
+[[sounds.mods]]
+param = "grain_size"
+source = "Velocity"
+depth = 60.0
+
+[[sounds]]
+name = "Digestive Hum"
+engine_type = "modal"
+freq = 90.0
+brightness = 0.4000000059604645
+dampening = 0.10000000149011612
+inharmonicity = 0.800000011920929
+attack = 5.0
+decay = 1000.0
+lfo1_division = "TwoBars"
+
+[[sounds.mods]]
+param = "brightness"
+source = "Lfo1"
+depth = 0.20000000298023224
+
+[[sounds]]
+name = "Talon Scratch"
+engine_type = "phys"
+freq = 800.0
+dampening = 0.4000000059604645
+attack = 5.0
+decay = 150.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Envelope"
+depth = -200.0
+
+[[sounds]]
+name = "Pheromone Puff"
+engine_type = "noise"
+freq = 8000.0
+attack = 80.0
+decay = 400.0
+trigger_probability = 0.699999988079071
+
+[[sounds]]
+name = "Chitin Swarm"
+engine_type = "granular"
+freq = 5000.0
+density = 0.20000000298023224
+grain_size = 5.0
+jitter = 0.8999999761581421
+attack = 100.0
+decay = 3000.0
+lfo1_division = "Bar"
+decay_division = "FourBars"
+trigger_probability = 0.6000000238418579

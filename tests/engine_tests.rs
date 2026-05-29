@@ -50,8 +50,8 @@ fn test_kit_engine_polymorphism() {
 
     assert_eq!(engine.voices.len(), 16);
     engine.trigger(36, 1.0, 120.0);
-    let sample = engine.tick();
-    assert!(sample != 0.0);
+    let (sample_l, sample_r) = engine.tick();
+    assert!(sample_l != 0.0 || sample_r != 0.0);
 }
 
 #[test]

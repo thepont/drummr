@@ -1,0 +1,261 @@
+name = "Cowbell Demo"
+description = "Hardware-faithful resonator design via explicit mode_list. Demonstrates the 808 cowbell (540 + 800 Hz Schmitt pair), 808 cymbal/hat (six inharmonic squares), 909 synth-hat partials, Tokyo bell-tom DX partials, and gamelan/glass bells, alongside Bessel-mode comparison voices for the same fundamental frequencies."
+
+# --- Slot 0: 808 Cowbell (the canonical 540 + 800 Hz Schmitt-trigger pair). ---
+# The Bessel/harmonic interpolation simply can't reproduce this; it would
+# always pull the second mode toward 2x or 1.594x the fundamental.
+[[sounds]]
+name = "808 Cowbell"
+engine_type = "modal"
+freq = 540.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 350.0
+mode_list = [
+    {freq = 540.0, q = 60.0, gain = 1.0},
+    {freq = 800.0, q = 60.0, gain = 0.9},
+]
+
+# --- Slot 1: Bessel cowbell at same fundamental for A/B comparison. ---
+[[sounds]]
+name = "Bessel Cowbell"
+engine_type = "modal"
+freq = 540.0
+brightness = 0.85
+dampening = 0.4
+inharmonicity = 0.85
+attack = 1.0
+decay = 350.0
+
+# --- Slot 2: 808 Cymbal — six inharmonic square-wave-derived partials. ---
+# Frequencies are the documented six-oscillator stack of the TR-808 cymbal
+# circuit (Schmitt triggers fed through HPF + decay envelope).
+[[sounds]]
+name = "808 Cymbal"
+engine_type = "modal"
+freq = 800.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 900.0
+mode_list = [
+    {freq = 205.0,  q = 30.0, gain = 0.55},
+    {freq = 304.0,  q = 35.0, gain = 0.65},
+    {freq = 369.0,  q = 35.0, gain = 0.70},
+    {freq = 522.0,  q = 40.0, gain = 0.80},
+    {freq = 540.0,  q = 40.0, gain = 0.85},
+    {freq = 800.0,  q = 50.0, gain = 1.00},
+]
+
+# --- Slot 3: 808 Closed Hat — same partials, much shorter decay. ---
+[[sounds]]
+name = "808 Closed Hat"
+engine_type = "modal"
+freq = 800.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 70.0
+mode_list = [
+    {freq = 205.0,  q = 30.0, gain = 0.40},
+    {freq = 304.0,  q = 35.0, gain = 0.50},
+    {freq = 369.0,  q = 35.0, gain = 0.60},
+    {freq = 522.0,  q = 40.0, gain = 0.75},
+    {freq = 540.0,  q = 40.0, gain = 0.80},
+    {freq = 800.0,  q = 50.0, gain = 1.00},
+]
+
+# --- Slot 4: 909 Synth-Hat — comparable inharmonic stack, brighter. ---
+[[sounds]]
+name = "909 Synth Hat"
+engine_type = "modal"
+freq = 900.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 60.0
+mode_list = [
+    {freq = 320.0,  q = 30.0, gain = 0.40},
+    {freq = 540.0,  q = 35.0, gain = 0.55},
+    {freq = 770.0,  q = 40.0, gain = 0.70},
+    {freq = 1020.0, q = 45.0, gain = 0.85},
+    {freq = 1370.0, q = 50.0, gain = 0.95},
+    {freq = 1800.0, q = 55.0, gain = 1.00},
+]
+
+# --- Slot 5: Tokyo Bell-Tom (DX7 algorithm 5 partial set, low). ---
+[[sounds]]
+name = "Tokyo Bell Tom Low"
+engine_type = "modal"
+freq = 220.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 600.0
+mode_list = [
+    {freq = 220.0,  q = 70.0,  gain = 1.0},
+    {freq = 308.0,  q = 70.0,  gain = 0.75},
+    {freq = 660.0,  q = 80.0,  gain = 0.55},
+    {freq = 1100.0, q = 90.0,  gain = 0.40},
+    {freq = 1408.0, q = 90.0,  gain = 0.30},
+]
+
+# --- Slot 6: Tokyo Bell-Tom (high). ---
+[[sounds]]
+name = "Tokyo Bell Tom High"
+engine_type = "modal"
+freq = 330.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 450.0
+mode_list = [
+    {freq = 330.0,  q = 70.0,  gain = 1.0},
+    {freq = 462.0,  q = 70.0,  gain = 0.75},
+    {freq = 990.0,  q = 80.0,  gain = 0.55},
+    {freq = 1650.0, q = 90.0,  gain = 0.40},
+    {freq = 2112.0, q = 90.0,  gain = 0.30},
+]
+
+# --- Slot 7: Gamelan Bell — bonang-style partials. ---
+# Bell partials don't follow harmonic ratios; documented spectra cluster
+# around the strike tone (hum) + 2.4x + 4.5x + 5.4x + 6.8x.
+[[sounds]]
+name = "Gamelan Bonang"
+engine_type = "modal"
+freq = 260.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 1500.0
+mode_list = [
+    {freq = 260.0,  q = 200.0, gain = 1.0},
+    {freq = 624.0,  q = 200.0, gain = 0.70},
+    {freq = 1170.0, q = 200.0, gain = 0.55},
+    {freq = 1404.0, q = 200.0, gain = 0.40},
+    {freq = 1768.0, q = 200.0, gain = 0.30},
+]
+
+# --- Slot 8: Glass Bell — narrow inharmonic partials, very long tail. ---
+[[sounds]]
+name = "Glass Bell"
+engine_type = "modal"
+freq = 880.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 1800.0
+mode_list = [
+    {freq = 880.0,  q = 300.0, gain = 1.0},
+    {freq = 1320.0, q = 300.0, gain = 0.65},
+    {freq = 2050.0, q = 300.0, gain = 0.45},
+    {freq = 2640.0, q = 300.0, gain = 0.30},
+]
+
+# --- Slot 9: Major-third dyad — tuned two-mode percussion. ---
+[[sounds]]
+name = "Major Third Bell"
+engine_type = "modal"
+freq = 440.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 1200.0
+mode_list = [
+    {freq = 440.0, q = 120.0, gain = 1.0},
+    {freq = 554.0, q = 120.0, gain = 0.9},
+]
+
+# --- Slot 10: Minor-third dyad — moodier two-mode percussion. ---
+[[sounds]]
+name = "Minor Third Bell"
+engine_type = "modal"
+freq = 440.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 1200.0
+mode_list = [
+    {freq = 440.0, q = 120.0, gain = 1.0},
+    {freq = 523.0, q = 120.0, gain = 0.9},
+]
+
+# --- Slot 11: Comparison Marimba Bar (Bessel mode, harmonic). ---
+[[sounds]]
+name = "Bessel Marimba"
+engine_type = "modal"
+freq = 261.6
+brightness = 0.7
+dampening = 0.2
+inharmonicity = 0.05
+attack = 1.0
+decay = 900.0
+
+# --- Slot 12: Comparison Tokyo Bell-Tom (Bessel mode, high inharmonicity). ---
+[[sounds]]
+name = "Bessel Bell Tom"
+engine_type = "modal"
+freq = 300.0
+brightness = 0.9
+dampening = 0.2
+inharmonicity = 0.85
+attack = 1.0
+decay = 400.0
+
+# --- Slot 13: Wood block — single dominant mode with two faint colour modes. ---
+[[sounds]]
+name = "Wood Block"
+engine_type = "modal"
+freq = 1100.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 80.0
+mode_list = [
+    {freq = 1100.0, q = 40.0, gain = 1.0},
+    {freq = 1850.0, q = 40.0, gain = 0.35},
+    {freq = 2600.0, q = 40.0, gain = 0.20},
+]
+
+# --- Slot 14: Comparison Glass Bell (Bessel mode). ---
+[[sounds]]
+name = "Bessel Glass Bell"
+engine_type = "modal"
+freq = 880.0
+brightness = 0.65
+dampening = 0.15
+inharmonicity = 0.75
+attack = 1.0
+decay = 1800.0
+
+# --- Slot 15: Hand-tuned "Bohlen-Pierce" inharmonic stack. ---
+# Octave replaced by 3:1 tritave; minor partial structure derived from
+# 3^(n/13) instead of 2^(n/12). Distinctive metallic character.
+[[sounds]]
+name = "Bohlen-Pierce Bell"
+engine_type = "modal"
+freq = 300.0
+brightness = 1.0
+dampening = 0.0
+inharmonicity = 0.0
+attack = 1.0
+decay = 1400.0
+mode_list = [
+    {freq = 300.0,  q = 150.0, gain = 1.0},
+    {freq = 405.0,  q = 150.0, gain = 0.75},
+    {freq = 543.0,  q = 150.0, gain = 0.60},
+    {freq = 900.0,  q = 150.0, gain = 0.45},
+    {freq = 1215.0, q = 150.0, gain = 0.30},
+]

@@ -146,7 +146,7 @@ export default function LibrarySidebar({
               <input 
                 type="text" 
                 placeholder={activeTab === 'kits' ? "New kit name..." : "New preset name..."}
-                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs outline-none focus:border-primary/50 transition-colors"
+                className="flex-1 min-w-0 bg-background border border-border rounded-lg px-3 py-2 text-xs outline-none focus:border-primary/50 transition-colors"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSave()}
@@ -155,7 +155,7 @@ export default function LibrarySidebar({
                 onClick={handleSave}
                 disabled={!newName || (activeTab === 'presets' && (selectedSoundId === null || selectedSoundId === undefined))}
                 aria-label={activeTab === 'kits' ? 'Save current kit' : 'Save current sound as preset'}
-                className="p-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 disabled:hover:scale-100 hover:scale-105 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                className="p-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 disabled:hover:scale-100 hover:scale-105 active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background shrink-0"
               >
                 <Plus size={16} weight="bold" />
               </button>

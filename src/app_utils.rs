@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use crate::comm::CommEngine;
 use crate::kit::{DrumKit, DrumMapping, KitEngine};
 use crate::midi::MidiEngine;
@@ -25,9 +26,9 @@ pub async fn start_midi(
         MidiMessage::NoteOn(_chan, note, vel) => {
             let n_u8: u8 = note.into();
             let v_u8: u8 = vel.into();
+            println!("[MIDI] NoteOn: {}, {}", n_u8, v_u8);
 
-            if v_u8 > 0 {
-                let mut bpm = bpm_clone.blocking_lock();
+            if v_u8 > 0 {                let mut bpm = bpm_clone.blocking_lock();
                 bpm.register_onset(v_u8 as f32 / 127.0);
             }
 

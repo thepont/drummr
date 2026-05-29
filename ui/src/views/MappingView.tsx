@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { Plus, List, Target, MagnifyingGlass, Trash, FloppyDisk } from "@phosphor-icons/react"
+import { Plus, List, Target, MagnifyingGlass, Trash, FloppyDisk, SpeakerHigh, SpeakerSlash, X } from "@phosphor-icons/react"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -28,21 +28,57 @@ interface PadProps {
   isActive: boolean;
   midiNote?: number;
   isLearning: boolean;
+  isMuted: boolean;
+  onToggleMute: () => void;
+  onClearNote: () => void;
   onClick: () => void;
 }
 
-function Pad({ name, isActive, midiNote, isLearning, onClick, id }: PadProps) {
+function Pad({ name, isActive, midiNote, isLearning, isMuted, onToggleMute, onClearNote, onClick, id }: PadProps) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "relative aspect-square rounded-2xl border-2 transition-all duration-75 flex flex-col items-center justify-center gap-2 group",
+        "relative aspect-square rounded-2xl border-2 transition-all duration-150 flex flex-col items-center justify-center gap-2 group",
         isActive 
           ? "bg-primary border-primary shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-95" 
           : "bg-card/50 border-border hover:border-muted-foreground/50",
-        isLearning && "border-amber-500 animate-pulse bg-amber-500/10"
+        isLearning && "border-amber-500 animate-pulse bg-amber-500/10",
+        isMuted && !isActive && "border-red-950 bg-red-950/10 opacity-70 hover:opacity-100 hover:border-red-800"
       )}
     >
+      {/* Hover Actions Bar */}
+      <div className="absolute top-2.5 left-2.5 right-2.5 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-20">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMute();
+          }}
+          className={cn(
+            "p-1.5 rounded-lg backdrop-blur-md transition-all border hover:scale-110",
+            isMuted 
+              ? "bg-red-500/85 text-white border-red-500/30 hover:bg-red-500" 
+              : "bg-black/60 text-white border-white/10 hover:bg-black/80"
+          )}
+          title={isMuted ? "Unmute pad" : "Mute pad"}
+        >
+          {isMuted ? <SpeakerSlash size={12} weight="fill" /> : <SpeakerHigh size={12} />}
+        </button>
+        
+        {midiNote !== undefined && midiNote !== 255 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClearNote();
+            }}
+            className="p-1.5 rounded-lg bg-black/60 text-white border border-white/10 hover:bg-black/80 backdrop-blur-md transition-all hover:scale-110"
+            title="Clear MIDI assignment"
+          >
+            <X size={12} weight="bold" />
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-col items-center">
         <span className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-tighter mb-0.5">Slot {id}</span>
         <span className={cn(
@@ -59,21 +95,31 @@ function Pad({ name, isActive, midiNote, isLearning, onClick, id }: PadProps) {
           isActive ? "text-primary-foreground/70" : "text-muted-foreground/50",
           isLearning && "text-amber-500/70"
         )}>
-          Note {midiNote}
+          {midiNote === 255 ? "---" : `Note ${midiNote}`}
         </span>
       )}
       
       {isLearning && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-2xl">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] rounded-2xl z-10">
           <Target size={24} className="text-amber-500 animate-spin-slow" />
         </div>
       )}
 
-      <div className={cn(
-        "absolute top-3 right-3 w-1.5 h-1.5 rounded-full transition-colors",
-        isActive ? "bg-primary-foreground" : "bg-muted",
-        isLearning && "bg-amber-500"
-      )} />
+      {/* Persistent indicators (shown when not hovering, or as small status dots) */}
+      {!isLearning && (
+        <div className={cn(
+          "absolute top-3 right-3 w-1.5 h-1.5 rounded-full transition-colors group-hover:opacity-0",
+          isActive ? "bg-primary-foreground" : (isMuted ? "bg-red-500" : "bg-muted"),
+          isMuted && "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+        )} />
+      )}
+
+      {/* Small Mute Icon overlay if muted */}
+      {isMuted && (
+        <div className="absolute bottom-2.5 right-2.5 p-1 bg-red-500/10 border border-red-500/20 rounded-md text-red-500/80">
+          <SpeakerSlash size={10} weight="fill" />
+        </div>
+      )}
     </button>
   )
 }
@@ -275,20 +321,30 @@ export default function MappingView({ ws, sounds, mappingPresets, selectedSoundI
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-        {roles.map((role) => (
-          <Pad 
-            key={role.slot}
-            id={role.slot.toString()}
-            name={sounds[role.slot]?.name || role.name}
-            midiNote={role.note}
-            isActive={activeNotes.has(role.note) || String(selectedSoundId) === String(role.slot)}
-            isLearning={learningSlot === role.slot}
-            onClick={() => {
-              setLearningSlot(role.slot);
-              setSelectedSoundId?.(role.slot);
-            }}
-          />
-        ))}
+        {roles.map((role) => {
+          const isMuted = sounds[role.slot]?.mute ?? false;
+          return (
+            <Pad 
+              key={role.slot}
+              id={role.slot.toString()}
+              name={sounds[role.slot]?.name || role.name}
+              midiNote={role.note}
+              isActive={activeNotes.has(role.note) || String(selectedSoundId) === String(role.slot)}
+              isLearning={learningSlot === role.slot}
+              isMuted={isMuted}
+              onToggleMute={() => {
+                ws?.send(`SET_PARAM:${role.slot}:mute:${isMuted ? '0.0' : '1.0'}`);
+              }}
+              onClearNote={() => {
+                updateRoleNote(role.slot, 255);
+              }}
+              onClick={() => {
+                setLearningSlot(role.slot);
+                setSelectedSoundId?.(role.slot);
+              }}
+            />
+          );
+        })}
       </div>
 
       <div className="mt-12 border border-border rounded-2xl bg-card/30 overflow-hidden">
@@ -331,15 +387,41 @@ export default function MappingView({ ws, sounds, mappingPresets, selectedSoundI
                     type="number" 
                     min="0"
                     max="127"
-                    value={role.note}
-                    onChange={(e) => updateRoleNote(role.slot, parseInt(e.target.value))}
+                    value={role.note === 255 ? "" : role.note}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      updateRoleNote(role.slot, val === "" ? 255 : parseInt(val));
+                    }}
+                    placeholder="---"
                     className="w-16 bg-muted px-2 py-1 rounded text-xs font-mono outline-none focus:ring-1 focus:ring-primary/50"
                   />
                 </div>
                 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => setLearningSlot(role.slot)} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"><Target size={18} /></button>
-                  <button onClick={() => deleteRole(role.slot)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"><Trash size={18} /></button>
+                  {/* Mute button */}
+                  <button 
+                    onClick={() => {
+                      const isMuted = sounds[role.slot]?.mute ?? false;
+                      ws?.send(`SET_PARAM:${role.slot}:mute:${isMuted ? '0.0' : '1.0'}`);
+                    }} 
+                    className={cn(
+                      "p-2 rounded-lg transition-colors",
+                      sounds[role.slot]?.mute 
+                        ? "text-red-500 hover:bg-red-500/10" 
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                    title={sounds[role.slot]?.mute ? "Unmute Pad" : "Mute Pad"}
+                  >
+                    {sounds[role.slot]?.mute ? <SpeakerSlash size={18} weight="fill" /> : <SpeakerHigh size={18} />}
+                  </button>
+
+                  <button onClick={() => setLearningSlot(role.slot)} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Learn MIDI note"><Target size={18} /></button>
+                  
+                  {role.note !== 255 && (
+                    <button onClick={() => updateRoleNote(role.slot, 255)} className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors" title="Clear MIDI note"><X size={18} /></button>
+                  )}
+                  
+                  <button onClick={() => deleteRole(role.slot)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors" title="Remove role"><Trash size={18} /></button>
                 </div>
               </div>
             </div>

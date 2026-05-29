@@ -13,9 +13,9 @@ export function Card({ title, value, icon, className }: { title: string, value: 
           {icon}
         </div>
       )}
-      <div className="space-y-1">
+      <div className="space-y-1 min-w-0 flex-1">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
-        <p className="text-lg font-bold truncate max-w-[180px]">{value}</p>
+        <p className="text-lg font-bold truncate">{value}</p>
       </div>
     </div>
   )
@@ -94,6 +94,15 @@ export function Slider({ label, value, min, max, step, onChange, format = (v: nu
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(parseFloat(e.target.value))}
+          onDoubleClick={() => {
+            if (!disabled) {
+              if (min <= 0 && max >= 0) {
+                onChange(0);
+              } else {
+                onChange((min + max) / 2);
+              }
+            }
+          }}
           className={cn(
             "w-full h-2 bg-muted rounded-full appearance-none accent-primary transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             disabled
@@ -356,7 +365,7 @@ export function ParamController({
       </div>
       
       {mods.length > 0 && (
-        <div className="flex gap-4 items-end pl-2 border-l-2 border-primary/20">
+        <div className="flex flex-wrap gap-3 items-end pl-2 border-l-2 border-primary/20">
           {mods.map((mod, idx) => (
             <ModSlot 
               key={idx} 
@@ -465,24 +474,13 @@ export function FrequencyVisualizer({ value, min, max, onChange, modValue }: {
   );
 }
 
+import { X } from "@phosphor-icons/react"
+
 export function ModSlot({ source, depth, onChange }: { 
   source: string, 
   depth: number, 
   onChange: (source: string, depth: number) => void 
 }) {
-  const sources = ['None', 'Envelope', 'Lfo1', 'Lfo2', 'Velocity'];
-  
-  const cycleSource = () => {
-    const currentIndex = sources.indexOf(source);
-    const nextIndex = (currentIndex + 1) % sources.length;
-    onChange(sources[nextIndex], depth);
-  };
-
-  const sourceLabel = source === 'Envelope' ? 'Shape' :
-                     source === 'Lfo1' ? 'LFO 1' :
-                     source === 'Lfo2' ? 'LFO 2' :
-                     source === 'Velocity' ? 'Hit' : '---';
-
   // Per-source color coding so the user can scan a mod matrix at a glance.
   const sourceColor =
     source === 'Envelope' ? "bg-amber-500/15 border-amber-500/50 text-amber-400" :
@@ -492,38 +490,65 @@ export function ModSlot({ source, depth, onChange }: {
                             "bg-muted border-border/60 text-muted-foreground hover:border-border hover:text-foreground";
 
   return (
-    <div className="flex flex-col gap-1 items-center group">
-      <button
-        onClick={cycleSource}
-        aria-label={`Modulation source: ${sourceLabel}. Click to cycle.`}
-        className={cn(
-          "text-[10px] font-black uppercase tracking-wider transition-all px-2.5 py-1 rounded-md border min-w-[3.5rem] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-          sourceColor
-        )}
-        title={source === 'Envelope' ? "Link to global Decay/Attack shape" : "Click to cycle modulation source"}
+    <div className="flex flex-col gap-1 items-center group relative">
+      <div className="relative min-w-[4rem]">
+        <select
+          value={source}
+          onChange={(e) => onChange(e.target.value, depth)}
+          aria-label={`Modulation source for this slot`}
+          className={cn(
+            "text-[10px] font-black uppercase tracking-wider transition-all px-2.5 py-1 rounded-md border text-center appearance-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background w-full",
+            sourceColor
+          )}
+        >
+          <option value="None" className="bg-card text-muted-foreground">None</option>
+          <option value="Envelope" className="bg-card text-amber-400">Shape</option>
+          <option value="Lfo1" className="bg-card text-sky-400">LFO 1</option>
+          <option value="Lfo2" className="bg-card text-violet-400">LFO 2</option>
+          <option value="Velocity" className="bg-card text-rose-400">Hit</option>
+        </select>
+      </div>
+
+      <div 
+        className="h-16 w-1.5 bg-muted rounded-full relative overflow-hidden flex items-end cursor-ns-resize mt-1"
+        onDoubleClick={() => onChange(source, 0.0)}
+        title="Drag to adjust depth, double-click to reset"
       >
-        {sourceLabel}
-      </button>
-      <div className="h-16 w-1.5 bg-muted rounded-full relative overflow-hidden flex items-end cursor-ns-resize mt-1">
          <input 
           type="range" 
           aria-label="depth"
           min="-1" max="1" step="0.01"
           value={depth}
           onChange={(e) => onChange(source, parseFloat(e.target.value))}
+          onDoubleClick={() => onChange(source, 0.0)}
           className="absolute inset-0 w-full h-full opacity-0 cursor-ns-resize z-10"
           style={{ appearance: 'slider-vertical' as any }}
         />
         <div 
           className={cn(
-            "w-full transition-all duration-300",
+            "w-full transition-all duration-75",
             source === 'None' ? "bg-muted-foreground/20" :
             depth >= 0 ? "bg-primary" : "bg-destructive"
           )}
-          style={{ height: `${Math.abs(depth) * 50}%`, bottom: depth >= 0 ? '50%' : 'auto', top: depth < 0 ? '50%' : 'auto', position: 'absolute' }}
+          style={{ 
+            height: `${Math.min(50, Math.abs(depth) * 50)}%`, 
+            bottom: depth >= 0 ? '50%' : 'auto', 
+            top: depth < 0 ? '50%' : 'auto', 
+            position: 'absolute' 
+          }}
         />
         <div className="absolute top-1/2 left-0 w-full h-[1px] bg-border/50" />
       </div>
+
+      {source !== 'None' && (
+        <button
+          onClick={() => onChange('None', 0.0)}
+          className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-2 -right-2 bg-rose-600/90 text-white rounded-full p-0.5 hover:bg-rose-600 shadow-md z-20"
+          title="Remove modulation"
+        >
+          <X size={8} weight="bold" />
+        </button>
+      )}
     </div>
   )
 }

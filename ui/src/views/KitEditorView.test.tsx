@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import KitEditorView from './KitEditorView'
 
@@ -24,44 +24,33 @@ describe('KitEditorView Schema Parsing', () => {
     };
   });
 
-  it('correctly parses a complex SCHEMA message with colons', async () => {
-    let messageHandler: any;
-    mockWs.addEventListener.mockImplementation((event: string, handler: any) => {
-      if (event === 'message') messageHandler = handler;
-    });
-
+  it('correctly parses a complex SCHEMA message with colons', () => {
     const mockSetSounds = vi.fn();
     const mockSetSchemas = vi.fn();
     const mockSetSelectedId = vi.fn();
 
-    render(<KitEditorView 
-      ws={mockWs} 
-      sounds={[]} 
-      setSounds={mockSetSounds}
-      schemas={{}}
-      setSchemas={mockSetSchemas}
-      selectedSoundId={null}
-      setSelectedSoundId={mockSetSelectedId}
-    />);
-
     // Mock initial kit load
     const kitData = [
-      { id: '0', name: 'Laser Kick', engine_type: 'fm', freq: 55, attack: 1, decay: 400, mod_ratio: 1, mod_index: 6, noise_level: 0 }
+      { id: '0', name: 'Laser Kick', engine_type: 'fm', freq: 55, attack: 1, decay: 400, mod_ratio: 1, mod_index: 6, noise_level: 0, mods: [] }
     ];
     
-    await act(async () => {
-      messageHandler({ data: `KIT: ${JSON.stringify(kitData)}` });
-    });
-
     // Mock SCHEMA message with colons in JSON
-    const schemaData = [
-      { name: 'freq', min: 20, max: 2000, default: 440, unit: 'Hz' },
-      { name: 'mod_ratio', min: 0, max: 10, default: 1, unit: 'ratio' }
-    ];
-    
-    await act(async () => {
-      messageHandler({ data: `SCHEMA:0:${JSON.stringify(schemaData)}` });
-    });
+    const schemaData = {
+      '0': [
+        { name: 'freq', min: 20, max: 2000, default: 440, unit: 'Hz' },
+        { name: 'mod_ratio', min: 0, max: 10, default: 1, unit: 'ratio' }
+      ]
+    };
+
+    render(<KitEditorView 
+      ws={mockWs} 
+      sounds={kitData} 
+      setSounds={mockSetSounds}
+      schemas={schemaData}
+      setSchemas={mockSetSchemas}
+      selectedSoundId={'0'}
+      setSelectedSoundId={mockSetSelectedId}
+    />);
 
     expect(screen.getByText(/Base Pitch: 55/)).toBeInTheDocument();
     expect(screen.getByText(/Mod ratio: 1/)).toBeInTheDocument();

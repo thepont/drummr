@@ -65,6 +65,19 @@ impl Xorshift {
     }
 }
 
+pub fn soft_clip(x: f32) -> f32 {
+    // Fast polynomial approximation of tanh(x) for x in [-3, 3].
+    // Beyond 3.0 it saturates towards 1.0. This is significantly cheaper
+    // than std::f32::tanh while maintaining a very similar harmonic profile.
+    // Using a Pade[3,2] approximation: tanh(x) ~= x * (27 + x^2) / (27 + 9x^2)
+    let x2 = x * x;
+    if x.abs() < 3.0 {
+        x * (27.0 + x2) / (27.0 + 9.0 * x2)
+    } else {
+        x.signum()
+    }
+}
+
 lazy_static::lazy_static! {
     pub static ref SINE_LUT: FastSine = FastSine::new();
 }

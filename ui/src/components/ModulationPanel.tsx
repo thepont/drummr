@@ -1,4 +1,4 @@
-import { Waves, Clock } from "@phosphor-icons/react"
+import { Waves } from "@phosphor-icons/react"
 import { Slider } from './ui'
 import { InfoTooltip } from './InfoTooltip'
 
@@ -37,6 +37,27 @@ function lfoHint(division: string, bpm: number): string {
   return `Tempo-locked to ${division} @ ${bpm.toFixed(1)} BPM (~${hz.toFixed(2)} Hz)`;
 }
 
+import { cn } from './ui'
+
+const DIVISION_OPTIONS = [
+  { value: "Manual", label: "Manual (Hz)" },
+  { value: "Bar", label: "1 Bar" },
+  { value: "Half", label: "1/2 Note" },
+  { value: "Quarter", label: "1/4 Note (Beat)" },
+  { value: "QuarterTriplet", label: "1/4 Triplet" },
+  { value: "Eighth", label: "1/8 Note" },
+  { value: "EighthDotted", label: "1/8 Dotted" },
+  { value: "EighthTriplet", label: "1/8 Triplet" },
+  { value: "Sixteenth", label: "1/16 Note" },
+  { value: "SixteenthDotted", label: "1/16 Dotted" },
+  { value: "SixteenthTriplet", label: "1/16 Triplet" },
+  { value: "ThirtySecond", label: "1/32 Note" },
+  { value: "TwoBars", label: "2 Bars" },
+  { value: "FourBars", label: "4 Bars" },
+];
+
+
+
 export function ModulationPanel({
   lfo1_freq,
   lfo2_freq,
@@ -45,6 +66,7 @@ export function ModulationPanel({
   lfo1_division = null,
   lfo2_division = null,
   bpm = 120.0,
+  onChangeDivision,
 }: {
   lfo1_freq: number,
   lfo2_freq: number,
@@ -58,6 +80,7 @@ export function ModulationPanel({
    *  name. Falls back to 120 so the panel still renders sensibly if a
    *  caller forgets to pass it. */
   bpm?: number,
+  onChangeDivision?: (index: number, division: string | null) => void,
 }) {
   const lfo1Locked = !!lfo1_division;
   const lfo2Locked = !!lfo2_division;
@@ -79,27 +102,41 @@ export function ModulationPanel({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-3 p-3 bg-background/30 rounded-xl border border-border/50">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">LFO 1</div>
               <InfoTooltip text="How fast LFO 1 cycles. Lower = slower modulation. If a tempo-lock division is set, the rate is derived from the current BPM and this slider is disabled." />
-              {lfo1Locked && (
-                <span
-                  title={lfoHint(lfo1_division!, bpm)}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[9px] font-bold uppercase tracking-wider"
-                >
-                  <Clock size={9} weight="fill" />
-                  Tempo-locked
-                </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={lfo1_division || "Manual"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChangeDivision?.(1, val === "Manual" ? null : val);
+                }}
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer transition-all",
+                  lfo1Locked
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                    : "bg-muted border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+                )}
+              >
+                {DIVISION_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value} className="bg-card text-foreground">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              {modValues && (
+                <div
+                  aria-label="LFO 1 activity"
+                  className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all duration-75 shrink-0"
+                  style={{ opacity: (modValues[1] + 1) / 2 }}
+                />
               )}
             </div>
-            {modValues && (
-              <div
-                aria-label="LFO 1 activity"
-                className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all duration-75"
-                style={{ opacity: (modValues[1] + 1) / 2 }}
-              />
-            )}
           </div>
           <Slider
             label={lfo1Locked ? "Rate (tempo-locked)" : "Rate"}
@@ -113,27 +150,41 @@ export function ModulationPanel({
         </div>
 
         <div className="space-y-3 p-3 bg-background/30 rounded-xl border border-border/50">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">LFO 2</div>
               <InfoTooltip text="How fast LFO 2 cycles. Lower = slower modulation. If a tempo-lock division is set, the rate is derived from the current BPM and this slider is disabled." />
-              {lfo2Locked && (
-                <span
-                  title={lfoHint(lfo2_division!, bpm)}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[9px] font-bold uppercase tracking-wider"
-                >
-                  <Clock size={9} weight="fill" />
-                  Tempo-locked
-                </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={lfo2_division || "Manual"}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChangeDivision?.(2, val === "Manual" ? null : val);
+                }}
+                className={cn(
+                  "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer transition-all",
+                  lfo2Locked
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                    : "bg-muted border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+                )}
+              >
+                {DIVISION_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value} className="bg-card text-foreground">
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+
+              {modValues && (
+                <div
+                  aria-label="LFO 2 activity"
+                  className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all duration-75 shrink-0"
+                  style={{ opacity: (modValues[2] + 1) / 2 }}
+                />
               )}
             </div>
-            {modValues && (
-              <div
-                aria-label="LFO 2 activity"
-                className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)] transition-all duration-75"
-                style={{ opacity: (modValues[2] + 1) / 2 }}
-              />
-            )}
           </div>
           <Slider
             label={lfo2Locked ? "Rate (tempo-locked)" : "Rate"}

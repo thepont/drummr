@@ -134,6 +134,7 @@ impl PhysEngine {
         // voice. See `FmVoice::trigger` for the full rationale.
         if velocity > 0.0 {
             self.mod_engine.velocity = velocity;
+            self.mod_engine.reset(); // Reset LFO phases on trigger
             let decay_sec = match self.decay_division {
                 Some(div) => div.to_seconds(bpm),
                 None => self.decay / 1000.0,
@@ -153,8 +154,8 @@ impl PhysEngine {
             let l = (self.sample_rate / current_freq).round() as usize;
             self.current_l = l.clamp(2, self.delay_line.len() - 1);
 
-            // Increase excitation energy
-            let excitation_amp = velocity * 2.0;
+            // Sane excitation energy
+            let excitation_amp = velocity * 1.0;
 
             // Clear buffer
             for x in self.delay_line.iter_mut() {
@@ -204,32 +205,39 @@ impl PhysEngine {
         let x_l = self.delay_line[read_pos];
         let x_l_prev = self.delay_line[read_pos_prev];
 
-        // Karplus-Strong filtered feedback
+        // Karplus-Strong lowpass component
         let avg = 0.5 * (x_l + x_l_prev);
 
-        let prob = self.rng.next_f32();
-        let mut y = if prob < brightness { avg } else { -avg };
+        // Standard Karplus-Strong feedback: 
+        // y = dampening * (blend * lowpass + (1-blend) * current)
+        // Here we blend between raw noise (bright) and averaged noise (soft)
+        let mut y = x_l + brightness * (avg - x_l);
 
         // Dampening (One-pole LP filter in loop)
         y = self.last_y + dampening * (y - self.last_y);
+        
+        // Denormal protection
+        if y.abs() < 1e-18 {
+            y = 0.0;
+        }
         self.last_y = y;
 
         // Write back to delay line
         self.delay_line[self.write_pos] = y;
         self.write_pos = (self.write_pos + 1) % self.delay_line.len();
 
-        let out = y * env * 2.5; // Boosted output
+        let out = y * env * 1.2; // Sane output boost
         out.clamp(-1.0, 1.0)
     }
 
     pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
-            "freq" => self.frequency.base_value = value,
+            "freq" => self.frequency.base_value = value.clamp(20.0, 12000.0),
             "brightness" => self.brightness.base_value = value.clamp(0.0, 1.0),
             "dampening" => self.dampening.base_value = value.clamp(0.0, 1.0),
-            "attack" => self.attack = value,
-            "decay" => self.decay = value,
-            "pitch_bend" => self.pitch_bend = value,
+            "attack" => self.attack = value.clamp(1.0, 1000.0),
+            "decay" => self.decay = value.clamp(1.0, 2000.0),
+            "pitch_bend" => self.pitch_bend = value.clamp(0.0, 5000.0),
             _ => {}
         }
     }

@@ -1,0 +1,195 @@
+name = "Lo-Fi Crate"
+description = "12-bit @ 26 kHz crate-dig hip-hop kit. Aggressive bitcrush across every slot, FM-heavy snares, granular hats."
+
+[[sounds]]
+name = "Crate Kick"
+engine_type = "fm"
+freq = 70.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.15
+attack = 1.0
+decay = 200.0
+bits = 12.0
+rate = 2.0
+mods = [{param="mod_index", source="Envelope", depth=4.0}]
+
+[[sounds]]
+name = "MPC Snare"
+engine_type = "fm"
+freq = 220.0
+mod_ratio = 2.5
+mod_index = 9.0
+noise_level = 0.7
+attack = 1.0
+decay = 180.0
+bits = 12.0
+rate = 2.0
+mods = [{param="freq", source="Velocity", depth=20.0}, {param="noise_level", source="Velocity", depth=0.15}]
+
+[[sounds]]
+name = "Vinyl Hat Closed"
+engine_type = "granular"
+freq = 7500.0
+density = 0.85
+grain_size = 1.5
+jitter = 0.6
+attack = 1.0
+decay = 45.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Vinyl Hat Open"
+engine_type = "granular"
+freq = 7500.0
+density = 0.85
+grain_size = 2.0
+jitter = 0.6
+attack = 1.0
+decay = 320.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Crate Tom 1"
+engine_type = "modal"
+freq = 240.0
+brightness = 0.4
+dampening = 0.35
+inharmonicity = 0.6
+attack = 1.0
+decay = 400.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Crate Tom 2"
+engine_type = "modal"
+freq = 180.0
+brightness = 0.4
+dampening = 0.35
+inharmonicity = 0.6
+attack = 1.0
+decay = 440.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Crate Tom 3"
+engine_type = "modal"
+freq = 140.0
+brightness = 0.4
+dampening = 0.35
+inharmonicity = 0.6
+attack = 1.0
+decay = 480.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Crate Tom 4"
+engine_type = "modal"
+freq = 100.0
+brightness = 0.4
+dampening = 0.35
+inharmonicity = 0.6
+attack = 1.0
+decay = 520.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Dusty Crash"
+engine_type = "hybrid"
+freq = 5500.0
+noise_color = 0.85
+metallic = 0.7
+attack = 1.0
+decay = 1100.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "SP Ride"
+engine_type = "modal"
+freq = 2200.0
+brightness = 0.7
+dampening = 0.2
+inharmonicity = 0.55
+attack = 1.0
+decay = 900.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Boom Bap Clap"
+engine_type = "fm"
+freq = 1500.0
+mod_ratio = 2.0
+mod_index = 7.0
+noise_level = 0.95
+attack = 2.0
+decay = 220.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Crate Rim"
+engine_type = "fm"
+freq = 1800.0
+mod_ratio = 3.5
+mod_index = 8.0
+noise_level = 0.4
+attack = 1.0
+decay = 60.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Crusted Cowbell"
+engine_type = "modal"
+freq = 540.0
+brightness = 0.6
+dampening = 0.4
+inharmonicity = 0.7
+attack = 1.0
+decay = 250.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Vinyl Crackle"
+engine_type = "granular"
+freq = 3500.0
+density = 0.4
+grain_size = 6.0
+jitter = 1.0
+attack = 1.0
+decay = 300.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Tape Pop"
+engine_type = "granular"
+freq = 1200.0
+density = 0.25
+grain_size = 4.0
+jitter = 0.95
+attack = 1.0
+decay = 120.0
+bits = 12.0
+rate = 2.0
+
+[[sounds]]
+name = "Crate Shaker"
+engine_type = "granular"
+freq = 6500.0
+density = 0.9
+grain_size = 3.0
+jitter = 0.7
+attack = 1.0
+decay = 180.0
+bits = 12.0
+rate = 2.0

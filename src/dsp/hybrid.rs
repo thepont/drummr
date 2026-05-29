@@ -115,6 +115,7 @@ impl HybridEngine {
         if velocity > 0.0 {
             self.velocity = velocity;
             self.mod_engine.velocity = velocity;
+            self.mod_engine.reset(); // Reset LFO phases on trigger
             let decay_sec = match self.decay_division {
                 Some(div) => div.to_seconds(bpm),
                 None => self.decay / 1000.0,
@@ -165,7 +166,13 @@ impl HybridEngine {
         // One-pole LP filter for noise color
         // Higher noise_color = higher cutoff
         let lp_out = self.last_noise + noise_color * (noise_raw - self.last_noise);
-        self.last_noise = lp_out;
+        
+        // Denormal protection
+        if lp_out.abs() < 1e-18 {
+            self.last_noise = 0.0;
+        } else {
+            self.last_noise = lp_out;
+        }
 
         // Crossfade with a 15% floor on each side so both the pitched bank
         // and the filtered noise contribute at every metallic setting.
@@ -174,16 +181,16 @@ impl HybridEngine {
         let osc_weight = 1.0 - metallic * 0.85; // metallic=1 -> 0.15 osc
         let noise_weight = 0.15 + metallic * 0.85; // metallic=0 -> 0.15 noise, =1 -> 1.0
         let mixed = (osc_out * osc_weight) + (lp_out * noise_weight);
-        (mixed * env * self.velocity).clamp(-1.0, 1.0)
+        (mixed * env * self.velocity * 0.8).clamp(-1.0, 1.0)
     }
 
     pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
-            "freq" => self.frequency.base_value = value,
+            "freq" => self.frequency.base_value = value.clamp(20.0, 12000.0),
             "noise_color" => self.noise_color.base_value = value.clamp(0.0, 1.0),
             "metallic" => self.metallic.base_value = value.clamp(0.0, 1.0),
-            "attack" => self.attack = value,
-            "decay" => self.decay = value,
+            "attack" => self.attack = value.clamp(1.0, 1000.0),
+            "decay" => self.decay = value.clamp(1.0, 2000.0),
             _ => {}
         }
     }

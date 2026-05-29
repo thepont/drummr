@@ -1,0 +1,205 @@
+name = "Magnetic Monolith"
+description = "A heavy industrial kit focused on metallic resonance, mechanical shudders, and magnetic interference. Features deep FM kicks, discordant modal bells, and bitcrushed physical modeling voices. Designed for dark techno and experimental industrial textures."
+
+# Slot 0 — Deep Magnetic Kick. Heavy FM with a low bitcrush for grit.
+[[sounds]]
+name = "Magnetic Kick"
+engine_type = "fm"
+freq = 48.0
+mod_ratio = 0.5
+mod_index = 8.0
+noise_level = 0.05
+attack = 1.0
+decay = 250.0
+bits = 10.0
+rate = 1.0
+
+# Slot 1 — Iron Snare. Hybrid engine with high metallic content and bitcrushing.
+[[sounds]]
+name = "Iron Snare"
+engine_type = "hybrid"
+freq = 180.0
+noise_color = 0.7
+metallic = 0.9
+attack = 1.0
+decay = 150.0
+bits = 8.0
+rate = 2.0
+
+# Slot 2 — Anvil Strike. Custom mode list for a non-harmonic, heavy strike.
+[[sounds]]
+name = "Anvil"
+engine_type = "modal"
+freq = 440.0
+brightness = 0.9
+dampening = 0.4
+inharmonicity = 0.8
+attack = 0.5
+decay = 400.0
+mode_list = [
+    { freq = 440.0,  q = 80.0, gain = 1.0 },
+    { freq = 730.0,  q = 70.0, gain = 0.6 },
+    { freq = 1120.0, q = 60.0, gain = 0.4 },
+    { freq = 1900.0, q = 50.0, gain = 0.3 }
+]
+
+# Slot 3 — Resonant Pipe. Physical modeling for long metallic ringing.
+[[sounds]]
+name = "Resonant Pipe"
+engine_type = "phys"
+freq = 330.0
+brightness = 0.95
+dampening = 0.1
+attack = 2.0
+decay = 800.0
+lfo1_division = "Bar"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.15 }]
+
+# Slot 4 — Mechanical Shudder. Granular engine with a quick sub-hit for "shudder".
+[[sounds]]
+name = "Shudder"
+engine_type = "granular"
+freq = 200.0
+density = 0.8
+grain_size = 15.0
+jitter = 0.4
+attack = 1.0
+decay = 120.0
+sub_hits = [
+    { offset_ms = 15.0, velocity_factor = 0.8 },
+    { offset_ms = 30.0, velocity_factor = 0.6 }
+]
+
+# Slot 5 — Steam Vent. Noise voice for atmosphere.
+[[sounds]]
+name = "Steam Vent"
+engine_type = "noise"
+freq = 400.0 # freq ignored by noise voice but used by schema
+attack = 50.0
+decay = 1200.0
+trigger_probability = 0.8
+
+# Slot 6 — Circuit Short. High-index FM burst.
+[[sounds]]
+name = "Circuit Short"
+engine_type = "fm"
+freq = 2200.0
+mod_ratio = 4.31
+mod_index = 35.0
+noise_level = 0.5
+attack = 1.0
+decay = 40.0
+bits = 4.0
+
+# Slot 7 — Heavy Pounder. Low physical modeling strike.
+[[sounds]]
+name = "Pounder"
+engine_type = "phys"
+freq = 60.0
+brightness = 0.5
+dampening = 0.8
+attack = 1.0
+decay = 200.0
+
+# Slot 8 — Mechanical Drag. A dragging sound using sub-hits and modal engine.
+[[sounds]]
+name = "Metal Drag"
+engine_type = "modal"
+freq = 120.0
+brightness = 0.4
+dampening = 0.6
+inharmonicity = 0.5
+attack = 2.0
+decay = 80.0
+sub_hits = [
+    { offset_ms = 40.0,  velocity_factor = 0.9 },
+    { offset_ms = 80.0,  velocity_factor = 0.8 },
+    { offset_ms = 120.0, velocity_factor = 0.7 }
+]
+
+# Slot 9 — Magnetic Static. Granular noise burst with LFO modulation.
+[[sounds]]
+name = "Magnetic Static"
+engine_type = "granular"
+freq = 8000.0
+density = 0.9
+grain_size = 10.0
+jitter = 0.8
+attack = 5.0
+decay = 300.0
+lfo1_division = "Eighth"
+mods = [{ param = "density", source = "Lfo1", depth = 0.3 }]
+
+# Slot 10 — Factory Alarm. Discordant discordant modal pair.
+[[sounds]]
+name = "Factory Alarm"
+engine_type = "modal"
+freq = 660.0
+brightness = 1.0
+dampening = 0.1
+inharmonicity = 0.0
+attack = 10.0
+decay = 600.0
+mode_list = [
+    { freq = 660.0, q = 120.0, gain = 1.0 },
+    { freq = 690.0, q = 120.0, gain = 1.0 }
+]
+
+# Slot 11 — Metal Scrape. High-frequency physical model.
+[[sounds]]
+name = "Metal Scrape"
+engine_type = "phys"
+freq = 4500.0
+brightness = 1.0
+dampening = 0.2
+attack = 5.0
+decay = 400.0
+bits = 12.0
+
+# Slot 12 — Sub Bass Drone.
+[[sounds]]
+name = "Sub Drone"
+engine_type = "fm"
+freq = 32.7 # C1
+mod_ratio = 1.0
+mod_index = 2.0
+noise_level = 0.0
+attack = 20.0
+decay = 1500.0
+
+# Slot 13 — Clicky Relay.
+[[sounds]]
+name = "Relay Click"
+engine_type = "modal"
+freq = 3200.0
+brightness = 1.0
+dampening = 0.9
+inharmonicity = 0.2
+attack = 0.5
+decay = 20.0
+mode_list = [
+    { freq = 3200.0, q = 10.0, gain = 1.0 },
+    { freq = 5600.0, q = 10.0, gain = 0.8 }
+]
+
+# Slot 14 — Large Plate.
+[[sounds]]
+name = "Metal Plate"
+engine_type = "modal"
+freq = 150.0
+brightness = 0.8
+dampening = 0.3
+inharmonicity = 0.6
+attack = 1.0
+decay = 600.0
+
+# Slot 15 — Emergency Sizzle.
+[[sounds]]
+name = "Sizzle"
+engine_type = "granular"
+freq = 6000.0
+density = 0.4
+grain_size = 80.0
+jitter = 0.9
+attack = 100.0
+decay = 2000.0

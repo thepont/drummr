@@ -41,6 +41,7 @@ fn make_kick_sound(sub_hits: Option<Vec<SubHit>>) -> DrumSound {
         ghost_probability: None,
         ghost_offset_ms: None,
         ghost_velocity_factor: None,
+        ..Default::default()
     }
 }
 
@@ -357,7 +358,7 @@ fn test_velocity_zero_subhit_doesnt_silence_primary() {
     let win_samples = (SR * 0.200) as usize;
     let mut peak_first = 0.0_f32;
     for _ in 0..win_samples {
-        let y = kit.tick().abs();
+        let y = kit.tick().0.abs();
         if y > peak_first {
             peak_first = y;
         }
@@ -373,7 +374,7 @@ fn test_velocity_zero_subhit_doesnt_silence_primary() {
     // the fix, the envelope is still naturally decaying and audible.
     let mut peak_second = 0.0_f32;
     for _ in 0..win_samples {
-        let y = kit.tick().abs();
+        let y = kit.tick().0.abs();
         if y > peak_second {
             peak_second = y;
         }

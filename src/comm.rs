@@ -9,13 +9,19 @@ type Sender = tokio::sync::mpsc::UnboundedSender<String>;
 
 pub struct CommEngine {
     senders: Arc<Mutex<Vec<Sender>>>,
+    client_count: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl CommEngine {
     pub fn new() -> Self {
         Self {
             senders: Arc::new(Mutex::new(Vec::new())),
+            client_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
         }
+    }
+
+    pub fn get_client_count(&self) -> usize {
+        self.client_count.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub async fn start<F, Fut>(&self, addr: &str, on_message: F) -> Result<std::net::SocketAddr>
@@ -29,42 +35,51 @@ impl CommEngine {
 
         let senders = self.senders.clone();
         let on_message = Arc::new(on_message);
+        let client_count = self.client_count.clone();
 
         tokio::spawn(async move {
-            while let Ok((stream, _)) = listener.accept().await {
+            while let Ok((stream, addr)) = listener.accept().await {
                 let senders = senders.clone();
                 let on_message = on_message.clone();
+                let client_count = client_count.clone();
 
                 tokio::spawn(async move {
-                    if let Ok(ws_stream) = accept_async(stream).await {
-                        println!("New WebSocket client connected.");
-                        let (mut write, mut read) = ws_stream.split();
+                    match accept_async(stream).await {
+                        Ok(ws_stream) => {
+                            println!("New WebSocket client connected from: {}", addr);
+                            client_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            let (mut write, mut read) = ws_stream.split();
 
-                        let (tx, mut rx) = mpsc::unbounded_channel::<String>();
-                        if let Ok(mut s_lock) = senders.lock() {
-                            s_lock.push(tx);
-                        }
+                            let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+                            if let Ok(mut s_lock) = senders.lock() {
+                                s_lock.push(tx);
+                            }
 
-                        let write_task = tokio::spawn(async move {
-                            while let Some(msg) = rx.recv().await {
-                                if let Err(e) = write
-                                    .send(tokio_tungstenite::tungstenite::Message::Text(msg.into()))
-                                    .await
-                                {
-                                    eprintln!("WS Write Error: {}", e);
-                                    break;
+                            let write_task = tokio::spawn(async move {
+                                while let Some(msg) = rx.recv().await {
+                                    if let Err(e) = write
+                                        .send(tokio_tungstenite::tungstenite::Message::Text(msg.into()))
+                                        .await
+                                    {
+                                        eprintln!("WS Write Error: {}", e);
+                                        break;
+                                    }
+                                }
+                            });
+
+                            while let Some(Ok(msg)) = read.next().await {
+                                if let Ok(text) = msg.into_text() {
+                                    on_message(text.to_string()).await;
                                 }
                             }
-                        });
 
-                        while let Some(Ok(msg)) = read.next().await {
-                            if let Ok(text) = msg.into_text() {
-                                on_message(text.to_string()).await;
-                            }
+                            write_task.abort();
+                            client_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                            println!("WebSocket client disconnected: {}", addr);
                         }
-
-                        write_task.abort();
-                        println!("WebSocket client disconnected.");
+                        Err(e) => {
+                            eprintln!("WebSocket Handshake Error from {}: {}", addr, e);
+                        }
                     }
                 });
             }
@@ -89,6 +104,21 @@ impl CommEngine {
     pub fn broadcast(&self, message: String) {
         if let Ok(mut senders) = self.senders.lock() {
             let count_before = senders.len();
+            if count_before == 0 {
+                return;
+            }
+            
+            static BROADCAST_COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+            let b_count = BROADCAST_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            
+            let is_high_freq = message.starts_with("MOD_STATES:") 
+                || message.starts_with("BPM:") 
+                || message.starts_with("PEAK:");
+            
+            if !is_high_freq || b_count % 100 == 0 {
+                 println!("[Comm] Broadcasting (client_count={}): {}", count_before, message); 
+            }
+
             senders.retain(|tx| tx.send(message.clone()).is_ok());
             let count_after = senders.len();
             if count_after < count_before {

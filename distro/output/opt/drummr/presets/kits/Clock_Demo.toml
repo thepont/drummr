@@ -1,0 +1,203 @@
+name = "Clock Demo"
+description = "Showcase kit for tempo-locked LFOs and decays. Every voice except slot 0 has at least one feature locked to the live BPM via BeatDivision. At 120 BPM the cathedral toms ring exactly one bar, the crash rings four bars, and the hat shimmer is locked to 16th notes."
+
+# Slot 0 — Standard FM kick (no clock-locked features). Reference voice; sounds
+# identical at every tempo. Lets a listener A/B the clock-locked siblings.
+[[sounds]]
+name = "Kick"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.0
+attack = 1.0
+decay = 250.0
+
+# Slot 1 — Snare that rings exactly one beat at any tempo. At 120 BPM the
+# decay is 500 ms; at 90 BPM it stretches to ~667 ms — the snare "knows" the
+# pulse.
+[[sounds]]
+name = "Snare"
+engine_type = "hybrid"
+freq = 220.0
+noise_color = 0.6
+metallic = 0.5
+attack = 1.0
+decay = 250.0
+decay_division = "Quarter"
+
+# Slot 2 — Closed hat with 16th-note brightness shimmer. The LFO frequency
+# tracks tempo, so the shimmer is always 4 cycles per beat regardless of BPM.
+[[sounds]]
+name = "Closed Hat"
+engine_type = "modal"
+freq = 1760.0
+brightness = 0.85
+dampening = 0.55
+inharmonicity = 0.12
+attack = 1.0
+decay = 80.0
+lfo1_division = "Sixteenth"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.3 }]
+
+# Slot 3 — Open hat that rings exactly half a bar.
+[[sounds]]
+name = "Open Hat"
+engine_type = "modal"
+freq = 1760.0
+brightness = 0.85
+dampening = 0.18
+inharmonicity = 0.12
+attack = 1.0
+decay = 400.0
+decay_division = "Half"
+
+# Slots 4-7 — Cathedral toms ringing a full bar each. Pitched in a minor
+# triad-plus-one so a single bar-long sequencer pass yields a sustained chord.
+[[sounds]]
+name = "Tom Low (Bar)"
+engine_type = "modal"
+freq = 110.0
+brightness = 0.7
+dampening = 0.12
+inharmonicity = 0.18
+attack = 1.0
+decay = 600.0
+decay_division = "Bar"
+
+[[sounds]]
+name = "Tom Mid (Bar)"
+engine_type = "modal"
+freq = 146.83
+brightness = 0.72
+dampening = 0.13
+inharmonicity = 0.18
+attack = 1.0
+decay = 600.0
+decay_division = "Bar"
+
+[[sounds]]
+name = "Tom High (Bar)"
+engine_type = "modal"
+freq = 196.00
+brightness = 0.75
+dampening = 0.14
+inharmonicity = 0.18
+attack = 1.0
+decay = 600.0
+decay_division = "Bar"
+
+[[sounds]]
+name = "Tom Top (Bar)"
+engine_type = "modal"
+freq = 261.63
+brightness = 0.78
+dampening = 0.15
+inharmonicity = 0.2
+attack = 1.0
+decay = 600.0
+decay_division = "Bar"
+
+# Slot 8 — Crash that rings four bars at the live BPM. At 120 BPM ≈ 8 s.
+[[sounds]]
+name = "Crash (4 Bars)"
+engine_type = "modal"
+freq = 880.0
+brightness = 0.9
+dampening = 0.08
+inharmonicity = 0.4
+attack = 2.0
+decay = 1500.0
+decay_division = "FourBars"
+
+# Slot 9 — Ride with a quarter-note metallic LFO sweep. One sweep per beat.
+[[sounds]]
+name = "Ride (Quarter LFO)"
+engine_type = "hybrid"
+freq = 580.0
+noise_color = 0.45
+metallic = 0.6
+attack = 1.0
+decay = 700.0
+lfo1_division = "Quarter"
+mods = [{ param = "metallic", source = "Lfo1", depth = 0.25 }]
+
+# Slot 10 — Dotted-eighth delay-style ghost snare. Classic tempo-synced delay
+# length expressed as a beat division. The decay matches so each ghost lasts
+# exactly one dotted-eighth.
+[[sounds]]
+name = "Ghost Snare (D8)"
+engine_type = "hybrid"
+freq = 240.0
+noise_color = 0.65
+metallic = 0.4
+attack = 1.0
+decay = 200.0
+decay_division = "EighthDotted"
+
+# Slot 11 — Eighth-triplet hat for shuffle/footwork patterns.
+[[sounds]]
+name = "Triplet Hat"
+engine_type = "modal"
+freq = 2400.0
+brightness = 0.92
+dampening = 0.4
+inharmonicity = 0.15
+attack = 1.0
+decay = 80.0
+decay_division = "EighthTriplet"
+
+# Slot 12 — Granular shaker locked to a 16th-triplet pulse via the LFO and a
+# half-bar decay. Demonstrates a long-tail granular voice with a clocked
+# texture LFO.
+[[sounds]]
+name = "Shaker (16T LFO)"
+engine_type = "granular"
+freq = 6500.0
+density = 0.7
+grain_size = 35.0
+jitter = 0.6
+attack = 1.0
+decay = 300.0
+lfo1_division = "SixteenthTriplet"
+decay_division = "Half"
+mods = [{ param = "density", source = "Lfo1", depth = 0.25 }]
+
+# Slot 13 — Karplus pluck whose decay locks to a quarter-dotted (1.5 beats).
+# Pitch and decay together yield "drag" hits that align with off-beats.
+[[sounds]]
+name = "Pluck (D4)"
+engine_type = "phys"
+freq = 196.0
+brightness = 0.65
+dampening = 0.35
+attack = 1.0
+decay = 400.0
+decay_division = "QuarterDotted"
+
+# Slot 14 — Two-bar drone-tom for ambient passes. Slow LFO on dampening at
+# Bar division so the texture sways once per bar over the two-bar tail.
+[[sounds]]
+name = "Drone Tom (2 Bars)"
+engine_type = "phys"
+freq = 75.0
+brightness = 0.4
+dampening = 0.6
+attack = 4.0
+decay = 1000.0
+lfo1_division = "Bar"
+decay_division = "TwoBars"
+mods = [{ param = "dampening", source = "Lfo1", depth = 0.2 }]
+
+# Slot 15 — Thirty-second hat tick. Fastest division — at 120 BPM = ~62 ms
+# per cycle. Shows the bottom end of the timing grid.
+[[sounds]]
+name = "Tick (1/32)"
+engine_type = "modal"
+freq = 3200.0
+brightness = 0.95
+dampening = 0.45
+inharmonicity = 0.18
+attack = 1.0
+decay = 40.0
+decay_division = "ThirtySecond"

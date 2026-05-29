@@ -34,7 +34,7 @@ describe('App WebSocket Lifecycle', () => {
 
   it('renders and attempts connection', () => {
     render(<App />);
-    expect(screen.getByText(/Connecting to drummr engine/i)).toBeDefined();
+    expect(screen.getByText(/Connecting/i)).toBeDefined();
   });
 
   it('updates connection state on open', async () => {
@@ -44,7 +44,7 @@ describe('App WebSocket Lifecycle', () => {
       if (lastWs?.onopen) lastWs.onopen();
     });
 
-    expect(screen.getByText(/ENGINE CONNECTED/i)).toBeDefined();
+    expect(screen.getAllByText(/Connected/i)[0]).toBeDefined();
   });
 
   it('reconnects when connection lost', async () => {

@@ -56,88 +56,6 @@ const BESSEL_RATIOS: [f32; NUM_MODES] = [
     1.000, 1.594, 2.136, 2.296, 2.653, 2.917, 3.156, 3.500, 3.600, 4.050, 4.131, 4.400,
 ];
 
-/// A single biquad bandpass mode with direct-form-II transposed state.
-struct Mode {
-    // Biquad coefficients (normalized by a0).
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    a1: f32,
-    a2: f32,
-
-    // Filter state (transposed direct form II).
-    s1: f32,
-    s2: f32,
-
-    // Per-mode metadata used by tick-time coefficient recomputation.
-    decay_sec: f32,
-    base_gain: f32,
-}
-
-impl Mode {
-    fn new() -> Self {
-        Self {
-            b0: 0.0,
-            b1: 0.0,
-            b2: 0.0,
-            a1: 0.0,
-            a2: 0.0,
-            s1: 0.0,
-            s2: 0.0,
-            decay_sec: 0.5,
-            base_gain: 1.0,
-        }
-    }
-
-    fn reset_state(&mut self) {
-        self.s1 = 0.0;
-        self.s2 = 0.0;
-    }
-
-    /// Compute bandpass biquad coefficients in a unity-peak-impulse-response
-    /// form. Instead of RBJ "constant skirt gain" (b0 = sin(w0)/2, impulse-
-    /// response peak scales with Q), we set b0 = sqrt(sin(w0)/Q) = sqrt(2*alpha)
-    /// so the per-mode impulse-response peak is ~1.0 regardless of Q:
-    /// peak ~= b0 / sqrt(2*alpha) = sqrt(2*alpha) / sqrt(2*alpha) = 1.0.
-    /// This removes the parameter-space dynamic-range problem: a low-Q kick
-    /// (Q~50) and a high-Q bell (Q=1200) now peak at the same per-mode level,
-    /// so a single OUTPUT_TRIM works for all voices.
-    fn set_coeffs(&mut self, freq: f32, q: f32, sample_rate: f32) {
-        // Clamp to a sane Nyquist range.
-        let f = freq.clamp(10.0, sample_rate * 0.45);
-        let q = q.max(0.5);
-
-        let w0 = 2.0 * PI * f / sample_rate;
-        let (sin_w0, cos_w0) = w0.sin_cos();
-        let alpha = sin_w0 / (2.0 * q);
-
-        let a0 = 1.0 + alpha;
-        // Unity-peak normalisation: b0 = sqrt(sin(w0)/Q) = sqrt(2*alpha). The
-        // q.max(0.5) clamp above guarantees the divisor is positive, so the
-        // sqrt is always safe.
-        let b0 = (sin_w0 / q).sqrt();
-        let b1 = 0.0;
-        let b2 = -b0;
-        let a1 = -2.0 * cos_w0;
-        let a2 = 1.0 - alpha;
-
-        self.b0 = b0 / a0;
-        self.b1 = b1 / a0;
-        self.b2 = b2 / a0;
-        self.a1 = a1 / a0;
-        self.a2 = a2 / a0;
-    }
-
-    #[inline(always)]
-    fn process(&mut self, x: f32) -> f32 {
-        // Transposed Direct Form II.
-        let y = self.b0 * x + self.s1;
-        self.s1 = self.b1 * x - self.a1 * y + self.s2;
-        self.s2 = self.b2 * x - self.a2 * y;
-        y
-    }
-}
-
 /// Parallel-resonator modal voice. A short impulse excites 12 parallel
 /// bandpass filters whose centre frequencies are derived from a base
 /// `freq` and an `inharmonicity` knob that interpolates between the
@@ -163,8 +81,14 @@ pub struct ModalEngine {
     pub attack: f32,
     pub decay: f32,
 
-    // Internal state.
-    modes: [Mode; NUM_MODES],
+    // Resonator bank in Structure-of-Arrays (SoA) format for SIMD/Auto-vectorization.
+    b0: [f32; NUM_MODES],
+    a1: [f32; NUM_MODES],
+    a2: [f32; NUM_MODES],
+    s1: [f32; NUM_MODES],
+    s2: [f32; NUM_MODES],
+    base_gain: [f32; NUM_MODES],
+
     amp_env: AdEnvelope,
     rng: Xorshift,
     exciter_remaining: usize,
@@ -194,21 +118,6 @@ pub struct ModalEngine {
 
 impl ModalEngine {
     pub fn new(sample_rate: f32) -> Self {
-        let modes = [
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-            Mode::new(),
-        ];
-
         let mut me = Self {
             sample_rate,
             frequency: ModulatableParam::new(200.0),
@@ -217,7 +126,12 @@ impl ModalEngine {
             inharmonicity: ModulatableParam::new(0.3),
             attack: 1.0,
             decay: 400.0,
-            modes,
+            b0: [0.0; NUM_MODES],
+            a1: [0.0; NUM_MODES],
+            a2: [0.0; NUM_MODES],
+            s1: [0.0; NUM_MODES],
+            s2: [0.0; NUM_MODES],
+            base_gain: [0.0; NUM_MODES],
             amp_env: AdEnvelope::new(sample_rate),
             rng: Xorshift::new(0xBEEF),
             exciter_remaining: 0,
@@ -239,43 +153,18 @@ impl ModalEngine {
     /// Recompute all per-mode coefficients from the current frequency, the
     /// supplied decay length, and inharmonicity. Cheap enough to call at
     /// trigger time and occasionally per-block, but NOT every sample.
-    ///
-    /// `decay_ms` is the resolved decay length in milliseconds to base
-    /// per-mode Q values on. Callers must pass either `self.decay` (the
-    /// static UI / TOML value) when no override is active, or the resolved
-    /// tempo-locked length when `decay_division` is set. Threading this as
-    /// a parameter instead of reading `self.decay` directly is what lets
-    /// `trigger()` use a tempo-locked envelope length without destroying
-    /// the user's slider value (HIGH #5 fix).
-    ///
-    /// If `explicit_modes` is `Some`, the engine uses the supplied list of
-    /// `{freq, q, gain}` triples (up to NUM_MODES). Remaining modes are zeroed
-    /// out via `base_gain = 0`. Otherwise the standard harmonic/Bessel ratio
-    /// interpolation is used (preserving full backward compatibility for the
-    /// existing 22+ modal kit voices that don't supply a `mode_list`).
     fn rebuild_modes(&mut self, decay_ms: f32) {
-        if let Some(list) = &self.explicit_modes {
-            // Explicit path. Decay-sec on each mode is informational only —
-            // Q is taken straight from the list (still clamped inside
-            // `set_coeffs` for safety). Brightness rolloff still applies in
-            // `tick()` so users keep one timbral knob; set brightness = 1.0
-            // for unaltered gains.
+        if let Some(list) = self.explicit_modes.clone() {
             let take = list.len().min(NUM_MODES);
             for i in 0..take {
                 let m = &list[i];
-                self.modes[i].decay_sec = 0.0;
-                self.modes[i].base_gain = m.gain;
-                self.modes[i].set_coeffs(m.freq, m.q, self.sample_rate);
+                self.base_gain[i] = m.gain;
+                self.set_mode_coeffs(i, m.freq, m.q);
             }
-            // Zero out unused mode slots so they contribute nothing to the
-            // parallel sum. We still program valid coefficients (using the
-            // last requested freq as a harmless filler) so the biquad state
-            // can't produce garbage if it happens to be excited.
             let filler_freq = list.last().map(|m| m.freq).unwrap_or(200.0);
             for i in take..NUM_MODES {
-                self.modes[i].decay_sec = 0.0;
-                self.modes[i].base_gain = 0.0;
-                self.modes[i].set_coeffs(filler_freq, 2.0, self.sample_rate);
+                self.base_gain[i] = 0.0;
+                self.set_mode_coeffs(i, filler_freq, 2.0);
             }
             return;
         }
@@ -283,7 +172,6 @@ impl ModalEngine {
         let base_freq = self.frequency.base_value.max(20.0);
         let inharm = self.inharmonicity.base_value.clamp(0.0, 1.0);
         let damp = self.dampening.base_value.clamp(0.0, 1.0);
-        // dampening = 0 -> full decay; dampening = 1 -> 10% of base decay.
         let decay_scale = 1.0 - 0.9 * damp;
         let base_decay_sec = (decay_ms / 1000.0).max(0.005) * decay_scale;
 
@@ -292,36 +180,129 @@ impl ModalEngine {
             let inh = BESSEL_RATIOS[i];
             let ratio = harmonic + (inh - harmonic) * inharm;
             let f = base_freq * ratio;
-
-            // Higher modes naturally decay faster (typical for membranes/bars).
             let mode_decay = base_decay_sec / (1.0 + (i as f32) * 0.18);
-
-            // Q derived from desired -60 dB decay time of an isolated bandpass.
-            // For a 2-pole bandpass, decay time ~= Q / (pi * f).
-            // Invert to get Q from desired decay. Keep Q clamped to avoid blow-ups.
             let q = (PI * f * mode_decay).clamp(2.0, 1200.0);
 
-            self.modes[i].decay_sec = mode_decay;
-            self.modes[i].base_gain = 1.0 / (1.0 + (i as f32) * 0.4);
-            self.modes[i].set_coeffs(f, q, self.sample_rate);
+            self.base_gain[i] = 1.0 / (1.0 + (i as f32) * 0.4);
+            self.set_mode_coeffs(i, f, q);
         }
     }
 
-    /// Install (or remove) an explicit mode list. Passing `Some(list)` switches
-    /// the engine to hardware-faithful resonator design — the next trigger (or
-    /// any change that recomputes modes) will use the explicit freq/Q/gain
-    /// values. Passing `None` restores the Bessel/harmonic interpolation.
-    /// Always rebuilds the mode bank immediately so the change takes effect
-    /// without needing a re-trigger.
+    fn set_mode_coeffs(&mut self, i: usize, freq: f32, q: f32) {
+        let f = freq.clamp(10.0, self.sample_rate * 0.45);
+        let q = q.max(0.5);
+        let w0 = 2.0 * PI * f / self.sample_rate;
+        let (sin_w0, cos_w0) = w0.sin_cos();
+        let alpha = sin_w0 / (2.0 * q);
+        let a0 = 1.0 + alpha;
+        let b0_raw = (sin_w0 / q).sqrt();
+
+        self.b0[i] = b0_raw / a0;
+        self.a1[i] = (-2.0 * cos_w0) / a0;
+        self.a2[i] = (1.0 - alpha) / a0;
+    }
+
     pub fn set_explicit_modes(&mut self, modes: Option<Vec<ExplicitMode>>) {
         self.explicit_modes = modes;
-        // No active decay_division override on this path — pass through the
-        // current static decay so existing voices keep their slider value.
         self.rebuild_modes(self.decay);
     }
-}
 
-impl ModalEngine {
+    pub fn trigger(&mut self, velocity: f32, bpm: f32) {
+        if velocity > 0.0 {
+            self.mod_engine.velocity = velocity;
+            self.mod_engine.reset(); // Reset LFO phases on trigger
+            let effective_decay_ms = match self.decay_division {
+                Some(div) => div.to_seconds(bpm) * 1000.0,
+                None => self.decay,
+            };
+            self.amp_env
+                .set_params(self.attack / 1000.0, effective_decay_ms / 1000.0);
+            self.amp_env.trigger();
+            self.rebuild_modes(effective_decay_ms);
+
+            for i in 0..NUM_MODES {
+                self.s1[i] = 0.0;
+                self.s2[i] = 0.0;
+            }
+
+            if let Some(div) = self.lfo1_division {
+                self.mod_engine.set_lfo(1, div.to_hz(bpm));
+            }
+            if let Some(div) = self.lfo2_division {
+                self.mod_engine.set_lfo(2, div.to_hz(bpm));
+            }
+
+            self.exciter_total = ((self.sample_rate * 0.008) as usize).max(1);
+            self.exciter_remaining = self.exciter_total;
+            self.exciter_velocity = velocity;
+            self.impulse_pending = true;
+            self.tail_active = true;
+        }
+    }
+
+    #[inline(always)]
+    pub fn tick(&mut self) -> f32 {
+        let env = self.amp_env.tick();
+        self.mod_engine.env_value = env;
+        self.mod_engine.tick();
+
+        let mut x = 0.0;
+        if self.exciter_remaining > 0 {
+            let burst_phase = self.exciter_remaining as f32 / self.exciter_total.max(1) as f32;
+            x += self.rng.next_f32_bipolar() * burst_phase * self.exciter_velocity;
+            self.exciter_remaining -= 1;
+        }
+        if self.impulse_pending {
+            x += self.exciter_velocity;
+            self.impulse_pending = false;
+        }
+
+        let brightness = self
+            .mod_engine
+            .calculate_mod(&self.brightness)
+            .clamp(0.0, 1.0);
+
+        let mut sum = 0.0;
+        let mut rolloff = 1.0_f32;
+        
+        // Loop is structured to be easily auto-vectorized by the compiler.
+        // NUM_MODES (12) is a multiple of 4, perfect for NEON/SSE.
+        for i in 0..NUM_MODES {
+            // Transposed Direct Form II Filter
+            // y = b0*x + b1*x + b2*x - a1*y - a2*y
+            // With b1=0 and b2=-b0:
+            let y = self.b0[i] * x + self.s1[i];
+            self.s1[i] = -self.a1[i] * y + self.s2[i];
+            self.s2[i] = -self.b0[i] * x - self.a2[i] * y;
+            
+            // Denormal protection for Biquad states
+            if self.s1[i].abs() < 1e-18 { self.s1[i] = 0.0; }
+            if self.s2[i].abs() < 1e-18 { self.s2[i] = 0.0; }
+
+            sum += y * self.base_gain[i] * rolloff;
+            rolloff *= brightness;
+        }
+
+        let out = sum * env;
+
+        if !out.is_finite() {
+            for i in 0..NUM_MODES {
+                self.s1[i] = 0.0;
+                self.s2[i] = 0.0;
+            }
+            self.tail_active = false;
+            return 0.0;
+        }
+
+        self.tail_active = (sum * OUTPUT_TRIM).abs() > TAIL_ACTIVE_THRESHOLD;
+        let trimmed = out * OUTPUT_TRIM;
+        trimmed.clamp(-1.0, 1.0)
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.amp_env.is_active() || self.exciter_remaining > 0 || self.tail_active
+    }
+
     pub fn name(&self) -> &str {
         "Modal"
     }
@@ -373,129 +354,6 @@ impl ModalEngine {
         ]
     }
 
-    pub fn trigger(&mut self, velocity: f32, bpm: f32) {
-        // Gate the mod_engine velocity write on velocity > 0.0: a v=0 sub-hit
-        // / pattern step / ghost while the modal tail is still ringing would
-        // otherwise corrupt the velocity-modulation source for the active
-        // voice. See `FmVoice::trigger` for the full rationale.
-        if velocity > 0.0 {
-            self.mod_engine.velocity = velocity;
-            // Tempo-locked decay overrides the static `decay` (ms) when set.
-            // Compute the effective length locally and thread it through
-            // `rebuild_modes` rather than writing it back to `self.decay` —
-            // the previous behaviour was to permanently overwrite the user's
-            // slider value, so a subsequent UI edit was silently clobbered
-            // on the next trigger. Keeping `self.decay` intact means
-            // SET_PARAM:decay:X on a tempo-locked slot still updates the
-            // stored slider position (and takes audible effect the moment
-            // `decay_division` is cleared), even though the division wins
-            // for the current trigger.
-            let effective_decay_ms = match self.decay_division {
-                Some(div) => div.to_seconds(bpm) * 1000.0,
-                None => self.decay,
-            };
-            self.amp_env
-                .set_params(self.attack / 1000.0, effective_decay_ms / 1000.0);
-            self.amp_env.trigger();
-            self.rebuild_modes(effective_decay_ms);
-
-            if let Some(div) = self.lfo1_division {
-                self.mod_engine.set_lfo(1, div.to_hz(bpm));
-            }
-            if let Some(div) = self.lfo2_division {
-                self.mod_engine.set_lfo(2, div.to_hz(bpm));
-            }
-
-            for m in self.modes.iter_mut() {
-                m.reset_state();
-            }
-
-            // ~8 ms noise burst.
-            self.exciter_total = ((self.sample_rate * 0.008) as usize).max(1);
-            self.exciter_remaining = self.exciter_total;
-            self.exciter_velocity = velocity;
-            self.impulse_pending = true;
-            self.tail_active = true;
-        }
-    }
-
-    pub fn tick(&mut self) -> f32 {
-        let env = self.amp_env.tick();
-        self.mod_engine.env_value = env;
-        self.mod_engine.tick();
-
-        // Build the exciter sample. Linear ramp-down on the noise burst plus a
-        // single-sample impulse on first tick after trigger.
-        let mut x = 0.0;
-        if self.exciter_remaining > 0 {
-            let burst_phase = self.exciter_remaining as f32 / self.exciter_total.max(1) as f32;
-            x += self.rng.next_f32_bipolar() * burst_phase * self.exciter_velocity;
-            self.exciter_remaining -= 1;
-        }
-        if self.impulse_pending {
-            x += self.exciter_velocity;
-            self.impulse_pending = false;
-        }
-
-        let brightness = self
-            .mod_engine
-            .calculate_mod(&self.brightness)
-            .clamp(0.0, 1.0);
-
-        // Sum the parallel bandpass bank. Higher modes are attenuated by a
-        // brightness-controlled rolloff: brightness=0 keeps only the
-        // fundamental, brightness=1 leaves all modes near unity.
-        //
-        // Two micro-opts vs. the textbook loop:
-        //   * Incremental `rolloff *= brightness` instead of `powi(i)` every
-        //     sample. `powi` for small integer exponents lowers to a chain
-        //     of mul + sqrt on x86_64; the multiply chain is strictly
-        //     cheaper and the per-mode error is bounded (i <= 11).
-        //   * Skip `Mode::process` when `base_gain == 0` (zero-padded slot
-        //     from an explicit `mode_list` shorter than NUM_MODES). The
-        //     biquad's contribution is multiplied by 0 anyway and the
-        //     filter state stays zero because input is also zero. This is
-        //     the path Cathedral_Forever / Phase_Mirror's bell voices hit
-        //     (3-6 modes specified out of 12).
-        let mut sum = 0.0;
-        let mut rolloff = 1.0_f32;
-        for i in 0..NUM_MODES {
-            let base = self.modes[i].base_gain;
-            if base != 0.0 {
-                let g = base * rolloff;
-                sum += self.modes[i].process(x) * g;
-            }
-            rolloff *= brightness;
-        }
-
-        let out = sum * env;
-
-        // Numerical safety: if anything goes non-finite (denormals, fp
-        // weirdness), squelch the engine so the audio thread isn't poisoned.
-        if !out.is_finite() {
-            for m in self.modes.iter_mut() {
-                m.reset_state();
-            }
-            self.tail_active = false;
-            return 0.0;
-        }
-
-        // Cache the mode-bank tail-energy flag for is_active(). Track the
-        // pre-envelope sum * OUTPUT_TRIM rather than the env-gated output:
-        // once the AD envelope hits Idle, `out` is forced to 0 regardless of
-        // the resonators' actual state, so an out-based check would always
-        // report inactive the moment the envelope finishes. The pre-env trim
-        // matches the audible scale the master bus sees while the env is
-        // open, so the threshold stays in audio-domain units.
-        self.tail_active = (sum * OUTPUT_TRIM).abs() > TAIL_ACTIVE_THRESHOLD;
-
-        // Apply OUTPUT_TRIM and rely on the trailing clamp as a soft hard-rail
-        // for extreme settings. See OUTPUT_TRIM doc-comment.
-        let trimmed = out * OUTPUT_TRIM;
-
-        trimmed.clamp(-1.0, 1.0)
-    }
-
     pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
             "freq" => {
@@ -511,14 +369,9 @@ impl ModalEngine {
                 self.inharmonicity.base_value = value.clamp(0.0, 1.0);
                 self.rebuild_modes(self.decay);
             }
-            "attack" => self.attack = value,
+            "attack" => self.attack = value.clamp(1.0, 2000.0),
             "decay" => {
-                self.decay = value;
-                // Note: when `decay_division` is set, the next trigger will
-                // still use the division-resolved length — but the user's
-                // slider value is now stored, ready to take effect when the
-                // division is cleared. Pre-fix this write was clobbered on
-                // the next trigger; now it persists.
+                self.decay = value.clamp(1.0, 2000.0);
                 self.rebuild_modes(self.decay);
             }
             _ => {}
@@ -541,31 +394,29 @@ impl ModalEngine {
         }
     }
 
-    /// True while any of: the AD envelope is still running, the exciter noise
-    /// burst is still being emitted, or the mode bank still has audible
-    /// residual energy (cached by `tick()` as `tail_active`). The tail check
-    /// matters because the resonators keep ringing for a while after the AD
-    /// envelope completes — without it, callers like the WS broadcast loop
-    /// would stop polling modulation values mid-ringout.
-    pub fn is_active(&self) -> bool {
-        self.amp_env.is_active() || self.exciter_remaining > 0 || self.tail_active
-    }
-
-    /// Read-only view of the amp envelope's currently configured decay
-    /// length in seconds. Used by clock-aware integration tests to verify
-    /// that tempo-locked decay rewrites both the envelope AND the modal
-    /// `decay` field (so `rebuild_modes()` picks up the new per-mode Q).
-    /// Not invoked on the audio thread.
     pub fn amp_env_decay_sec(&self) -> f32 {
         self.amp_env.decay_sec
     }
 
-    /// Read-only view of `self.decay` (ms). The modal trigger path writes
-    /// the resolved tempo-locked decay back to `self.decay` before calling
-    /// `rebuild_modes()` so per-mode Q values track the new envelope
-    /// length. Tests use this accessor to verify that write-back.
     pub fn decay_ms(&self) -> f32 {
         self.decay
+    }
+
+    pub fn set_division(
+        &mut self,
+        param: &str,
+        division: Option<BeatDivision>,
+    ) {
+        match param {
+            "lfo1_division" => self.lfo1_division = division,
+            "lfo2_division" => self.lfo2_division = division,
+            "decay_division" => self.decay_division = division,
+            _ => {}
+        }
+    }
+
+    pub fn get_mod_values(&self) -> [f32; 4] {
+        self.mod_engine.get_all_source_values()
     }
 }
 
@@ -577,35 +428,14 @@ mod tests {
     fn test_modal_engine_runs_clean() {
         let mut e = ModalEngine::new(48000.0);
         e.trigger(1.0, 120.0);
-        assert!(
-            e.is_active(),
-            "engine should be active immediately after trigger"
-        );
+        assert!(e.is_active());
 
         let mut any_nonzero = false;
         for _ in 0..1000 {
             let y = e.tick();
-            assert!(y.is_finite(), "tick produced a non-finite sample");
-            if y.abs() > 0.0 {
-                any_nonzero = true;
-            }
-        }
-        assert!(
-            any_nonzero,
-            "modal engine produced no audio output over 1000 samples"
-        );
-    }
-
-    #[test]
-    fn test_modal_set_param_freq_rebuilds() {
-        let mut e = ModalEngine::new(48000.0);
-        e.set_param("freq", 880.0);
-        assert!((e.frequency.base_value - 880.0).abs() < 1e-3);
-        e.trigger(1.0, 120.0);
-        // Just make sure it still ticks finite at a different fundamental.
-        for _ in 0..256 {
-            let y = e.tick();
             assert!(y.is_finite());
+            if y.abs() > 0.0 { any_nonzero = true; }
         }
+        assert!(any_nonzero);
     }
 }

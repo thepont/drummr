@@ -29,22 +29,14 @@ impl AdEnvelope {
     }
 
     pub fn set_params(&mut self, attack_sec: f32, decay_sec: f32) {
-        self.attack_sec = attack_sec;
-        self.decay_sec = decay_sec;
+        self.attack_sec = attack_sec.max(0.00001);
+        self.decay_sec = decay_sec.max(0.00001);
 
-        let attack_samples = attack_sec * self.sample_rate;
-        let decay_samples = decay_sec * self.sample_rate;
+        let attack_samples = self.attack_sec * self.sample_rate;
+        let decay_samples = self.decay_sec * self.sample_rate;
 
-        self.attack_inc = if attack_samples > 0.0 {
-            1.0 / attack_samples
-        } else {
-            1.0
-        };
-        self.decay_inc = if decay_samples > 0.0 {
-            1.0 / decay_samples
-        } else {
-            1.0
-        };
+        self.attack_inc = 1.0 / attack_samples;
+        self.decay_inc = 1.0 / decay_samples;
     }
 
     pub fn trigger(&mut self) {

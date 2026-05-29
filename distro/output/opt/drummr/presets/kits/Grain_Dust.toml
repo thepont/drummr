@@ -1,0 +1,166 @@
+name = "Grain Dust"
+description = "All-Granular textural. Particle clouds and dust scattered across the kit."
+
+[[sounds]]
+name = "Dust Kick"
+engine_type = "granular"
+freq = 60.0
+density = 0.5
+grain_size = 30.0
+jitter = 0.3
+attack = 1.0
+decay = 400.0
+mods = [{param="grain_size", source="Velocity", depth=-15.0}]
+
+[[sounds]]
+name = "Dust Snare"
+engine_type = "granular"
+freq = 220.0
+density = 0.45
+grain_size = 12.0
+jitter = 0.6
+attack = 1.0
+decay = 220.0
+mods = [{param="freq", source="Velocity", depth=22.0}]
+
+[[sounds]]
+name = "Dust Closed Hat"
+engine_type = "granular"
+freq = 8500.0
+density = 0.5
+grain_size = 1.5
+jitter = 0.95
+attack = 1.0
+decay = 50.0
+lfo1_freq = 0.5
+mods = [{param="grain_size", source="Lfo1", depth=0.8}]
+
+[[sounds]]
+name = "Dust Open Hat"
+engine_type = "granular"
+freq = 8500.0
+density = 0.5
+grain_size = 2.0
+jitter = 0.95
+attack = 1.0
+decay = 320.0
+
+[[sounds]]
+name = "Cloud Tom 1"
+engine_type = "granular"
+freq = 240.0
+density = 0.4
+grain_size = 22.0
+jitter = 0.4
+attack = 1.0
+decay = 420.0
+
+[[sounds]]
+name = "Cloud Tom 2"
+engine_type = "granular"
+freq = 180.0
+density = 0.4
+grain_size = 26.0
+jitter = 0.4
+attack = 1.0
+decay = 470.0
+
+[[sounds]]
+name = "Cloud Tom 3"
+engine_type = "granular"
+freq = 140.0
+density = 0.4
+grain_size = 30.0
+jitter = 0.4
+attack = 1.0
+decay = 520.0
+
+[[sounds]]
+name = "Cloud Tom 4"
+engine_type = "granular"
+freq = 100.0
+density = 0.4
+grain_size = 34.0
+jitter = 0.4
+attack = 1.0
+decay = 570.0
+
+[[sounds]]
+name = "Mist Crash"
+engine_type = "granular"
+freq = 5500.0
+density = 0.5
+grain_size = 2.5
+jitter = 1.0
+attack = 1.0
+decay = 1800.0
+
+[[sounds]]
+name = "Mist Ride"
+engine_type = "granular"
+freq = 4000.0
+density = 0.45
+grain_size = 3.0
+jitter = 0.9
+attack = 1.0
+decay = 1200.0
+
+[[sounds]]
+name = "Dust Clap"
+engine_type = "granular"
+freq = 1400.0
+density = 0.45
+grain_size = 20.0
+jitter = 0.5
+attack = 1.0
+decay = 260.0
+
+[[sounds]]
+name = "Dust Rim"
+engine_type = "granular"
+freq = 1800.0
+density = 0.35
+grain_size = 4.0
+jitter = 0.6
+attack = 1.0
+decay = 35.0
+
+[[sounds]]
+name = "Dust Cowbell"
+engine_type = "granular"
+freq = 760.0
+density = 0.3
+grain_size = 14.0
+jitter = 0.4
+attack = 1.0
+decay = 300.0
+
+[[sounds]]
+name = "Sparse Particle 1"
+engine_type = "granular"
+freq = 800.0
+density = 0.15
+grain_size = 50.0
+jitter = 1.0
+attack = 1.0
+decay = 250.0
+
+[[sounds]]
+name = "Sparse Particle 2"
+engine_type = "granular"
+freq = 1200.0
+density = 0.12
+grain_size = 60.0
+jitter = 1.0
+attack = 1.0
+decay = 280.0
+
+[[sounds]]
+name = "Sparse Particle 3"
+engine_type = "granular"
+freq = 1600.0
+density = 0.1
+grain_size = 70.0
+jitter = 1.0
+attack = 1.0
+decay = 320.0

@@ -1,0 +1,56 @@
+name = "test"
+description = "A standard drum kit."
+
+[[sounds]]
+name = "Kick"
+engine_type = "phys"
+freq = 20.0
+mod_ratio = 0.9700000286102295
+mod_index = 10.800000190734863
+noise_level = 0.07999999821186066
+brightness = 0.05000000074505806
+dampening = 0.07999999821186066
+density = 0.23000000417232513
+grain_size = 69.0
+jitter = 0.33000001311302185
+noise_color = 0.30000001192092896
+metallic = 0.03999999910593033
+attack = 86.0
+decay = 373.0
+
+[[sounds]]
+name = "Snare"
+engine_type = "hybrid"
+freq = 60.0
+mod_ratio = 1.7400000095367432
+mod_index = 8.5
+noise_level = 0.49000000953674316
+brightness = 0.5
+dampening = 0.5
+attack = 1.0
+decay = 200.0
+
+[[sounds]]
+name = "Closed Hat"
+engine_type = "hybrid"
+freq = 1200.0
+mod_ratio = 0.7799999713897705
+mod_index = 8.300000190734863
+attack = 0.5
+decay = 40.0
+
+[[mapping]]
+note = 49
+sound = "Closed Hat"
+
+[[mapping]]
+note = 34
+sound = "Kick"
+
+[[mapping]]
+note = 38
+sound = "Snare"
+
+[[mapping]]
+note = 47
+sound = "Rack Tom"

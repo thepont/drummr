@@ -80,10 +80,10 @@ impl NoiseVoice {
         match param {
             "attack" => self
                 .amp_env
-                .set_params(value / 1000.0, self.amp_env.decay_sec),
+                .set_params(value.clamp(1.0, 1000.0) / 1000.0, self.amp_env.decay_sec),
             "decay" => self
                 .amp_env
-                .set_params(self.amp_env.attack_sec, value / 1000.0),
+                .set_params(self.amp_env.attack_sec, value.clamp(1.0, 2000.0) / 1000.0),
             _ => {}
         }
     }

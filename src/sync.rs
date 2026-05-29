@@ -72,22 +72,36 @@ impl SyncEngine {
             let mut sync_active = false;
             let mut next_tick = Instant::now();
 
-            while *is_running_shared.lock().unwrap() {
-                let (bpm, stable) = {
+            loop {
+                // Check if we should still be running
+                let running = if let Ok(r) = is_running_shared.lock() {
+                    *r
+                } else {
+                    break;
+                };
+
+                if !running {
+                    break;
+                }
+
+                let (bpm, has_onsets, _stable) = {
                     if let Ok(mut bpm_lock) = bpm_engine_shared.try_lock() {
                         let b = bpm_lock.get_bpm();
-                        (if b > 0.0 { b } else { 120.0 }, bpm_lock.is_stable)
+                        (if b > 0.0 { b } else { 120.0 }, bpm_lock.has_onsets(), bpm_lock.is_stable)
                     } else {
-                        (120.0, false)
+                        (120.0, false, false)
                     }
                 };
 
                 let is_auto = *auto_sync_shared.lock().unwrap();
 
                 // Start Signal (Auto or Manual)
-                if !sync_active && ((is_auto && stable) || !is_auto) {
+                // If Auto: trigger instantly on first hit (has_onsets). 
+                // If Manual: trigger immediately.
+                if !sync_active && ((is_auto && has_onsets) || !is_auto) {
                     if let Ok(mut conn_lock) = conn_shared.lock() {
                         if let Some(conn) = conn_lock.as_mut() {
+                            println!("[SyncEngine] >>> MIDI START (Triggered by {})", if is_auto { "Hit" } else { "UI" });
                             let _ = conn.send(&[0xFA]); // MIDI Start
                         }
                     }
@@ -112,15 +126,13 @@ impl SyncEngine {
                     }
                 }
 
-                thread::sleep(Duration::from_millis(5));
+                thread::sleep(Duration::from_millis(2)); // Faster polling for stop flag
             }
 
-            if let Ok(mut conn_lock) = conn_shared.lock() {
-                if let Some(conn) = conn_lock.as_mut() {
-                    let _ = conn.send(&[0xFC]); // MIDI Stop
-                }
-            }
-            println!("[SyncEngine] STOP");
+            // Note: We no longer send MIDI STOP (0xFC) because stopping the 
+            // MIDI Clock pulses (0xF8) is enough for most DAWs to stop, and 
+            // it avoids fighting with the DAW's own transport controls.
+            println!("[SyncEngine] STOP (Clock killed)");
             comm_shared.broadcast("SYNC_STATUS:Stopped".to_string());
         });
     }

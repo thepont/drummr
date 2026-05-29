@@ -1,0 +1,177 @@
+name = "Neon Night"
+description = "Vibrant, 16-sound electronic kit using all engines for maximum variety. Kit-wide 10-bit arcade sheen. Attack times spread across 0.05ms (Sub Zap click) to 30ms (Glow Shaker swell)."
+
+[[sounds]]
+name = "Laser Kick"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.0
+attack = 1.0
+decay = 400.0
+bits = 10.0
+mods = [{param="mod_index", source="Envelope", depth=4.0}, {param="freq", source="Envelope", depth=80.0}]
+
+[[sounds]]
+name = "Plasma Snare"
+engine_type = "fm"
+freq = 220.0
+mod_ratio = 2.45
+mod_index = 15.0
+noise_level = 0.4
+attack = 1.5
+decay = 220.0
+bits = 10.0
+mods = [{param="freq", source="Velocity", depth=22.0}]
+
+[[sounds]]
+name = "Neon Hat"
+engine_type = "fm"
+freq = 1800.0
+mod_ratio = 0.23
+mod_index = 10.0
+noise_level = 0.2
+attack = 0.5
+decay = 60.0
+bits = 10.0
+
+[[sounds]]
+name = "Grid Tom 1"
+engine_type = "fm"
+freq = 150.0
+mod_ratio = 0.55
+mod_index = 4.0
+noise_level = 0.0
+attack = 2.0
+decay = 450.0
+bits = 10.0
+
+[[sounds]]
+name = "Grid Tom 2"
+engine_type = "phys"
+freq = 110.0
+brightness = 0.6
+dampening = 0.3
+attack = 3.0
+decay = 550.0
+bits = 10.0
+mods = [{param="brightness", source="Velocity", depth=0.2}]
+
+[[sounds]]
+name = "Grid Tom 3"
+engine_type = "fm"
+freq = 80.0
+mod_ratio = 0.75
+mod_index = 4.0
+noise_level = 0.0
+attack = 4.0
+decay = 650.0
+bits = 10.0
+
+[[sounds]]
+name = "Pulse Clap"
+engine_type = "granular"
+freq = 1250.0
+density = 0.4
+grain_size = 30.0
+jitter = 0.3
+attack = 0.1
+decay = 350.0
+bits = 10.0
+
+[[sounds]]
+name = "Chrome Crash"
+engine_type = "hybrid"
+freq = 3200.0
+noise_color = 0.7
+metallic = 0.85
+attack = 1.0
+decay = 1800.0
+bits = 10.0
+
+[[sounds]]
+name = "Data Ride"
+engine_type = "hybrid"
+freq = 4200.0
+noise_color = 0.95
+metallic = 0.45
+attack = 1.0
+decay = 900.0
+bits = 10.0
+
+[[sounds]]
+name = "Bit Click"
+engine_type = "granular"
+freq = 3800.0
+density = 0.15
+grain_size = 4.0
+jitter = 0.1
+attack = 0.1
+decay = 25.0
+bits = 10.0
+
+[[sounds]]
+name = "Synth Cowbell"
+engine_type = "hybrid"
+freq = 600.0
+noise_color = 0.15
+metallic = 1.0
+attack = 1.0
+decay = 450.0
+bits = 10.0
+
+[[sounds]]
+name = "Glow Shaker"
+engine_type = "granular"
+freq = 2800.0
+density = 0.4
+grain_size = 12.0
+jitter = 0.6
+attack = 30.0
+decay = 180.0
+bits = 10.0
+lfo1_freq = 6.0
+mods = [{param="density", source="Lfo1", depth=0.1}]
+
+[[sounds]]
+name = "Vector Rim"
+engine_type = "phys"
+freq = 1300.0
+brightness = 0.15
+dampening = 0.3
+attack = 0.5
+decay = 70.0
+bits = 10.0
+
+[[sounds]]
+name = "Sub Zap"
+engine_type = "fm"
+freq = 85.0
+mod_ratio = 8.0
+mod_index = 25.0
+noise_level = 0.0
+attack = 0.05
+decay = 250.0
+bits = 10.0
+mods = [{param="freq", source="Envelope", depth=400.0}]
+
+[[sounds]]
+name = "Phase Conga 1"
+engine_type = "phys"
+freq = 280.0
+brightness = 0.35
+dampening = 0.45
+attack = 8.0
+decay = 320.0
+bits = 10.0
+
+[[sounds]]
+name = "Phase Conga 2"
+engine_type = "phys"
+freq = 190.0
+brightness = 0.35
+dampening = 0.45
+attack = 8.0
+decay = 380.0
+bits = 10.0

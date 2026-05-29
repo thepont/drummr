@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cpal = "0.15"
+cpal = { version = "0.15", features = ["jack"] }
 wmidi = "4.0"
 tokio = { version = "1.0", features = ["full"] }
 tokio-tungstenite = "0.26"
@@ -19,8 +19,11 @@ futures-util = "0.3"
 serde_json = "1.0.149"
 lazy_static = "1.5.0"
 arc-swap = "1.7.1"
-arrayvec = "0.7.6"
+arrayvec = { version = "0.7.6", features = ["serde"] }
 midly = "0.5"
+thread-priority = "1.1"
+libc = "0.2"
+core_affinity = "0.8"
 
 [dev-dependencies]
 tempfile = "3"

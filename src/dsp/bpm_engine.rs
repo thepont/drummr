@@ -189,6 +189,10 @@ impl BpmEngine {
         chosen
     }
 
+    pub fn has_onsets(&self) -> bool {
+        !self.onsets.is_empty()
+    }
+
     pub fn get_bpm(&mut self) -> f32 {
         self.get_bpm_at_impl(Instant::now())
     }

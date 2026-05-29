@@ -1,0 +1,156 @@
+name = "Drift"
+description = "Ambient/cinematic. Slow attacks, long decays. Sustained mallet beds and swelling washes."
+
+[[sounds]]
+name = "Drift Kick"
+engine_type = "phys"
+freq = 55.0
+brightness = 0.3
+dampening = 0.15
+attack = 80.0
+decay = 1800.0
+
+[[sounds]]
+name = "Drift Snare"
+engine_type = "granular"
+freq = 230.0
+density = 0.15
+grain_size = 60.0
+jitter = 0.5
+attack = 100.0
+decay = 1600.0
+mods = [{param="density", source="Velocity", depth=0.2}, {param="freq", source="Velocity", depth=12.0}]
+
+[[sounds]]
+name = "Drift Closed Hat"
+engine_type = "granular"
+freq = 7500.0
+density = 0.1
+grain_size = 25.0
+jitter = 0.6
+attack = 60.0
+decay = 1500.0
+lfo1_freq = 0.3
+mods = [{param="grain_size", source="Lfo1", depth=10.0}]
+
+[[sounds]]
+name = "Drift Open Hat"
+engine_type = "granular"
+freq = 7500.0
+density = 0.1
+grain_size = 30.0
+jitter = 0.7
+attack = 80.0
+decay = 2000.0
+lfo1_freq = 0.25
+mods = [{param="grain_size", source="Lfo1", depth=12.0}, {param="density", source="Lfo1", depth=0.03}]
+
+[[sounds]]
+name = "Drift Tom 1"
+engine_type = "phys"
+freq = 260.0
+brightness = 0.7
+dampening = 0.4
+attack = 100.0
+decay = 1700.0
+
+[[sounds]]
+name = "Drift Tom 2"
+engine_type = "phys"
+freq = 200.0
+brightness = 0.7
+dampening = 0.4
+attack = 120.0
+decay = 1800.0
+
+[[sounds]]
+name = "Drift Tom 3"
+engine_type = "phys"
+freq = 150.0
+brightness = 0.7
+dampening = 0.4
+attack = 140.0
+decay = 1900.0
+
+[[sounds]]
+name = "Drift Tom 4"
+engine_type = "phys"
+freq = 110.0
+brightness = 0.7
+dampening = 0.4
+attack = 160.0
+decay = 2000.0
+
+[[sounds]]
+name = "Drift Crash"
+engine_type = "hybrid"
+freq = 4500.0
+noise_color = 0.6
+metallic = 0.85
+attack = 150.0
+decay = 2000.0
+
+[[sounds]]
+name = "Drift Ride"
+engine_type = "hybrid"
+freq = 3400.0
+noise_color = 0.55
+metallic = 0.8
+attack = 130.0
+decay = 1900.0
+
+[[sounds]]
+name = "Wash Clap"
+engine_type = "granular"
+freq = 1300.0
+density = 0.1
+grain_size = 50.0
+jitter = 0.5
+attack = 200.0
+decay = 2000.0
+
+[[sounds]]
+name = "Drift Rim"
+engine_type = "phys"
+freq = 1500.0
+brightness = 0.95
+dampening = 0.85
+attack = 50.0
+decay = 1500.0
+
+[[sounds]]
+name = "Mallet Tone"
+engine_type = "phys"
+freq = 720.0
+brightness = 0.95
+dampening = 0.85
+attack = 100.0
+decay = 2000.0
+
+[[sounds]]
+name = "Resonant Bed 1"
+engine_type = "phys"
+freq = 440.0
+brightness = 0.9
+dampening = 0.55
+attack = 120.0
+decay = 2000.0
+
+[[sounds]]
+name = "Resonant Bed 2"
+engine_type = "hybrid"
+freq = 600.0
+noise_color = 0.3
+metallic = 0.5
+attack = 180.0
+decay = 1900.0
+
+[[sounds]]
+name = "Granular Wash"
+engine_type = "granular"
+freq = 1800.0
+density = 0.1
+grain_size = 60.0
+jitter = 0.8
+attack = 200.0
+decay = 2000.0

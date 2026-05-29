@@ -329,7 +329,7 @@ pub struct SubHit {
 /// `attack` and `decay` are MILLISECONDS (the convention across the UI,
 /// TOML, and `set_param`). Engines convert to seconds internally when
 /// they hand the values to `AdEnvelope::set_params`.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct DrumSound {
     /// Display name shown in the UI. Slots are addressed by index, not name.
     pub name: String,
@@ -379,6 +379,12 @@ pub struct DrumSound {
     /// PostFx: sample-rate divisor (1..32). 1 = clean, higher = aliasing
     /// distortion. Applied per slot after voice mix.
     pub rate: Option<f32>,
+    /// PostFx: transient shaper attack adjustment ([-1.0, 1.0]).
+    /// 0.0 is clean, positive is snappier, negative is softer.
+    pub attack_shaper: Option<f32>,
+    /// PostFx: transient shaper sustain adjustment ([-1.0, 1.0]).
+    /// 0.0 is clean, positive is longer/louder decay, negative is shorter/gated.
+    pub sustain_shaper: Option<f32>,
     /// Envelope attack time in MILLISECONDS. Time from trigger to peak.
     pub attack: f32,
     /// Envelope decay time in MILLISECONDS. Time from peak to silence.
@@ -399,6 +405,15 @@ pub struct DrumSound {
     /// trigger time using the live BPM. Lets a kit declare "decay over one
     /// bar" or "ring for 4 bars" without committing to a specific tempo.
     pub decay_division: Option<BeatDivision>,
+    /// Stereo position in `[-1, 1]`. -1 is hard left, 1 is hard right,
+    /// 0 is center. Defaults to 0.0 when missing.
+    pub pan: Option<f32>,
+    /// Per-voice gain multiplier. 1.0 is unity; 0.0 is silent.
+    pub level: Option<f32>,
+    /// Per-voice saturation/overdrive. 0.0 is clean, higher is grittier.
+    pub drive: Option<f32>,
+    /// Per-voice mute state. True if silenced and triggers ignored.
+    pub mute: Option<bool>,
     pub mods: Option<Vec<ModEntry>>,
     /// Optional explicit mode list for the modal engine. When present, the
     /// modal voice uses these exact `{freq, q, gain}` triples (up to 12) in
@@ -602,6 +617,11 @@ pub struct PendingTrigger {
     /// at which the trigger should fire. Stored absolute so the queue
     /// doesn't need to mutate every entry every tick.
     pub fire_at_sample: u64,
+    /// BPM active at the time this hit was queued. Ensures that
+    /// tempo-locked features on the deferred hit (ghosts, pattern
+    /// steps) resolve against the correct tempo even if `last_bpm`
+    /// changes before fire-time.
+    pub bpm_at_queue: f32,
 }
 
 /// Audio-thread mutable kit state. Owns the 16 voice slots, their PostFx
@@ -618,9 +638,17 @@ pub struct PendingTrigger {
 /// for the encapsulation backlog (entries 71-72).
 pub struct KitEngine {
     pub voices: [Option<Voice>; 16],
+    /// Stereo position per slot in `[-1, 1]`.
+    pub pans: [f32; 16],
+    /// Per-voice gain in `[0, 2]`.
+    pub levels: [f32; 16],
+    /// Per-voice saturation in `[0, 1]`.
+    pub drives: [f32; 16],
     /// Per-slot post-FX (bitcrusher + sample-rate reducer). Always present so
     /// the audio thread can run unconditionally; defaults to a pass-through.
     pub postfx: [PostFx; 16],
+    /// Per-slot mute state. Checked at trigger and summing time.
+    pub mutes: [bool; 16],
     pub sample_rate: f32,
     pub midi_map: [Option<usize>; 128], // note -> slot index
     /// Per-slot deferred-fire metadata used by trigger-time features
@@ -669,7 +697,7 @@ pub struct KitEngine {
 impl KitEngine {
     pub fn new(sample_rate: f32) -> Self {
         const NO_VOICE: Option<Voice> = None;
-        let postfx = [
+        let mut postfx = [
             PostFx::new(),
             PostFx::new(),
             PostFx::new(),
@@ -687,6 +715,9 @@ impl KitEngine {
             PostFx::new(),
             PostFx::new(),
         ];
+        for fx in &mut postfx {
+            fx.update_coefficients(sample_rate);
+        }
         const EMPTY_SUB_HITS: Vec<SubHit> = Vec::new();
         const EMPTY_PATTERN: Vec<PatternStep> = Vec::new();
         const DEFAULT_GEN: GenerativeSettings = GenerativeSettings {
@@ -697,6 +728,10 @@ impl KitEngine {
         };
         Self {
             voices: [NO_VOICE; 16],
+            pans: [0.0; 16],
+            levels: [1.0; 16],
+            drives: [0.0; 16],
+            mutes: [false; 16],
             postfx,
             sample_rate,
             midi_map: [None; 128],
@@ -733,6 +768,7 @@ impl KitEngine {
         slot: usize,
         velocity: f32,
         samples_from_now: u64,
+        bpm: f32,
     ) -> bool {
         if self.pending.len() >= PENDING_TRIGGER_CAPACITY {
             self.pending_overflows.fetch_add(1, Ordering::Relaxed);
@@ -750,6 +786,7 @@ impl KitEngine {
             slot,
             velocity,
             fire_at_sample: self.samples_processed.wrapping_add(samples_from_now),
+            bpm_at_queue: bpm,
         });
         true
     }
@@ -757,7 +794,7 @@ impl KitEngine {
     /// Drain any pending triggers whose `fire_at_sample` has elapsed,
     /// firing each one against its slot's voice. Called once per
     /// `tick()` before the audio sum.
-    fn drain_pending(&mut self, bpm: f32) {
+    fn drain_pending(&mut self) {
         // Iterate with `swap_remove_back` so we don't pay an O(N) shift
         // on every fire. Today this is safe: `voice.trigger` runs the
         // engine-level `trigger()` (not `KitEngine::trigger`), so it
@@ -778,7 +815,7 @@ impl KitEngine {
                 if entry.slot < 16 {
                     if let Some(voice) = &mut self.voices[entry.slot] {
                         self.postfx[entry.slot].reset();
-                        voice.trigger(entry.velocity, bpm);
+                        voice.trigger(entry.velocity, entry.bpm_at_queue);
                     }
                 }
                 // Don't advance `i` — swap_remove_back put a different
@@ -798,8 +835,14 @@ impl KitEngine {
             }
             if let Some(voice) = voice_from_sound(&sound, sample_rate) {
                 engine.voices[idx] = Some(voice);
+                engine.pans[idx] = sound.pan.unwrap_or(0.0).clamp(-1.0, 1.0);
+                engine.levels[idx] = sound.level.unwrap_or(1.0).clamp(0.0, 2.0);
+                engine.drives[idx] = sound.drive.unwrap_or(0.0).clamp(0.0, 1.0);
+                engine.mutes[idx] = sound.mute.unwrap_or(false);
                 engine.postfx[idx].set_bits(sound.bits.unwrap_or(16.0));
                 engine.postfx[idx].set_rate(sound.rate.unwrap_or(1.0));
+                engine.postfx[idx].set_attack_shaper(sound.attack_shaper.unwrap_or(0.0));
+                engine.postfx[idx].set_sustain_shaper(sound.sustain_shaper.unwrap_or(0.0));
 
                 // Copy sub-hits into the engine. Cap defensively at
                 // MAX_SUB_HITS_PER_PRIMARY so the per-trigger queueing
@@ -863,7 +906,8 @@ impl KitEngine {
         // Ensure every active slot has AT LEAST a default mapping (36 + slot) if not already mapped
         for idx in 0..16 {
             if self.voices[idx].is_some() {
-                if !map.iter().any(|&s| s == Some(idx)) {
+                // Skip fallback if the user has explicitly defined a mapping for this slot (even a sentinel note >= 128)
+                if !mappings.iter().any(|m| m.slot == idx) {
                     let default_note = 36 + idx as u8;
                     if default_note < 128 && map[default_note as usize].is_none() {
                         map[default_note as usize] = Some(idx);
@@ -885,7 +929,12 @@ impl KitEngine {
     pub fn set_param(&mut self, slot: usize, param: &str, value: f32) {
         if slot < 16 {
             if let Some(voice) = &mut self.voices[slot] {
-                voice.set_param(param, value);
+                match param {
+                    "level" => self.levels[slot] = value.clamp(0.0, 2.0),
+                    "drive" => self.drives[slot] = value.clamp(0.0, 1.0),
+                    "mute" => self.mutes[slot] = value > 0.5,
+                    _ => voice.set_param(param, value),
+                }
             }
         }
     }
@@ -948,6 +997,9 @@ impl KitEngine {
         if slot >= 16 {
             return;
         }
+        if self.mutes[slot] {
+            return;
+        }
 
         // Generative gate: a single RNG roll decides BOTH whether the
         // primary fires and (if it does) whether a ghost note spawns.
@@ -995,7 +1047,7 @@ impl KitEngine {
             let samples_offset = (gen_settings.ghost_offset_ms * sr / 1000.0) as u64;
             let ghost_vel =
                 (velocity * gen_settings.ghost_velocity_factor).clamp(0.0, 1.0);
-            self.queue_pending(slot, ghost_vel, samples_offset);
+            self.queue_pending(slot, ghost_vel, samples_offset, bpm);
         }
 
         // Sub-hits: queue each entry as a pending fire at its
@@ -1011,7 +1063,7 @@ impl KitEngine {
                 let sub = self.sub_hits[slot][i].clone();
                 let samples_offset = (sub.offset_ms.max(0.0) * sr / 1000.0) as u64;
                 let sub_vel = (velocity * sub.velocity_factor).clamp(0.0, 1.0);
-                self.queue_pending(slot, sub_vel, samples_offset);
+                self.queue_pending(slot, sub_vel, samples_offset, bpm);
             }
         }
 
@@ -1030,7 +1082,7 @@ impl KitEngine {
                 let offset_sec = step.division.to_seconds(bpm) * mult;
                 let samples_offset = (offset_sec * sr).max(0.0) as u64;
                 let step_vel = (velocity * step.velocity_factor).clamp(0.0, 1.0);
-                self.queue_pending(slot, step_vel, samples_offset);
+                self.queue_pending(slot, step_vel, samples_offset, bpm);
             }
         }
     }
@@ -1044,7 +1096,7 @@ impl KitEngine {
         None
     }
 
-    pub fn tick(&mut self) -> f32 {
+    pub fn tick(&mut self) -> (f32, f32) {
         // Drain BEFORE bumping the counter so a "fire 0 samples from now"
         // entry (i.e. queued with `samples_from_now == 0`) fires on the
         // VERY first tick after `queue_pending`, contributing to the same
@@ -1060,8 +1112,7 @@ impl KitEngine {
         // tests still pass — the K-th tick is still K ticks away
         // because we still bump once per tick, just after the drain).
         if !self.pending.is_empty() {
-            let bpm = self.last_bpm;
-            self.drain_pending(bpm);
+            self.drain_pending();
         }
 
         // Bump the monotonic counter AFTER the drain. The counter now
@@ -1069,38 +1120,49 @@ impl KitEngine {
         // (1-based; the very first call to tick() emits sample 1).
         self.samples_processed = self.samples_processed.wrapping_add(1);
 
-        let mut out = 0.0;
+        let mut out_l = 0.0;
+        let mut out_r = 0.0;
         for (i, voice_opt) in self.voices.iter_mut().enumerate() {
             if let Some(voice) = voice_opt {
                 // Inactive-voice fast-path: no engine work AND no PostFx
-                // process call. The previous code still piped 0.0 through
-                // `postfx.process` for every silent slot, which was an
-                // unconditional branch + float math 16 times per sample on
-                // top of the engine cost. With ~half the voices typically
-                // idle on a busy passage that doubled the unavoidable
-                // overhead of the mix loop. PostFx state is naturally
-                // quiescent when input is zero (the decimator's hold
-                // sample is whatever it last latched, and the bitcrusher
-                // is stateless), so dropping these process calls is
-                // bit-identical at the mix bus.
+                // process call.
                 if !voice.is_active() {
                     continue;
                 }
                 let raw = voice.tick();
-                let postfx = &mut self.postfx[i];
-                // PostFx pass-through fast-path: when bits/rate are at
-                // defaults the process call is a single branch returning
-                // its input. Hoisting that branch up to the mix loop
-                // dodges the function-call overhead and one float compare
-                // for every active voice that hasn't opted in to lo-fi.
-                out += if postfx.is_passthrough() {
-                    raw
+                
+                // Per-voice drive (saturation)
+                let drive = self.drives[i];
+                let saturated = if drive > 0.0 {
+                    // Fast saturation: mix between raw and soft-clipped signal.
+                    // Scale input to soft-clip to hit the knee harder as drive increases.
+                    let driven = raw * (1.0 + drive * 3.0);
+                    let clipped = crate::dsp::utils::soft_clip(driven);
+                    raw + (clipped - raw) * drive
                 } else {
-                    postfx.process(raw)
+                    raw
                 };
+
+                // Per-voice level
+                let level = if self.mutes[i] { 0.0 } else { self.levels[i] };
+                let amplified = saturated * level;
+
+                let postfx = &mut self.postfx[i];
+                let signal = if postfx.is_passthrough() {
+                    amplified
+                } else {
+                    postfx.process(amplified)
+                };
+
+                // Constant-power panning
+                let pan = self.pans[i];
+                let p = (pan + 1.0) * 0.5; // 0.0 to 1.0
+                let angle = p * std::f32::consts::FRAC_PI_2;
+                out_l += signal * angle.cos();
+                out_r += signal * angle.sin();
             }
         }
-        out.clamp(-1.0, 1.0)
+        (out_l.clamp(-1.0, 1.0), out_r.clamp(-1.0, 1.0))
     }
 }
 
@@ -1137,7 +1199,7 @@ mod kit_engine_pending_tests {
         // of that tick `samples_processed` (= K) has reached the
         // queue's `fire_at_sample` (= K), so the drain's `<=` test is
         // first true there.
-        let queued = engine.queue_pending(0, 1.0, 100);
+        let queued = engine.queue_pending(0, 1.0, 100, 120.0);
         assert!(queued, "expected queue to accept entry");
         assert_eq!(engine.pending.len(), 1);
 
@@ -1165,10 +1227,10 @@ mod kit_engine_pending_tests {
         let mut engine = KitEngine::new(SR);
         // Fill to capacity.
         for _ in 0..PENDING_TRIGGER_CAPACITY {
-            assert!(engine.queue_pending(0, 1.0, 1000));
+            assert!(engine.queue_pending(0, 1.0, 1000, 120.0));
         }
         // One more should be rejected (no allocation, returns false).
-        assert!(!engine.queue_pending(0, 1.0, 1000));
+        assert!(!engine.queue_pending(0, 1.0, 1000, 120.0));
         assert_eq!(engine.pending.len(), PENDING_TRIGGER_CAPACITY);
     }
 
@@ -1176,7 +1238,7 @@ mod kit_engine_pending_tests {
     fn test_pending_does_not_fire_when_slot_empty() {
         let mut engine = KitEngine::new(SR);
         // No voice in slot 0; queue should still pop cleanly without panic.
-        engine.queue_pending(0, 1.0, 5);
+        engine.queue_pending(0, 1.0, 5, 120.0);
         for _ in 0..10 {
             engine.tick();
         }

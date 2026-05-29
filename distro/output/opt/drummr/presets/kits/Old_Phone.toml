@@ -1,0 +1,194 @@
+name = "Old Phone"
+description = "A nostalgic kit capturing the mechanical and electronic textures of vintage telephony. Features resonant bell rings, rotary dial friction, DTMF tones, and the heavy plastic clack of a receiver hook."
+
+[[sounds]]
+name = "Hook Pickup"
+engine_type = "modal"
+freq = 800.0
+brightness = 0.6
+dampening = 0.8
+inharmonicity = 0.5
+attack = 1.0
+decay = 40.0
+attack_shaper = 0.8
+sustain_shaper = -0.9
+
+[[sounds]]
+name = "Hook Hangup"
+engine_type = "modal"
+freq = 150.0
+brightness = 0.4
+dampening = 0.7
+inharmonicity = 0.8
+attack = 2.0
+decay = 100.0
+attack_shaper = 0.5
+sustain_shaper = -0.6
+
+[[sounds]]
+name = "Rotary Turn"
+engine_type = "granular"
+freq = 400.0
+density = 0.9
+grain_size = 8.0
+jitter = 0.3
+attack = 10.0
+decay = 150.0
+attack_shaper = -0.4
+sustain_shaper = 0.5
+
+[[sounds]]
+name = "Rotary Return"
+engine_type = "granular"
+freq = 1200.0
+density = 1.0
+grain_size = 4.0
+jitter = 0.1
+attack = 1.0
+decay = 200.0
+attack_shaper = 0.9
+sustain_shaper = -0.3
+sub_hits = [
+    { offset_ms = 15.0, velocity_factor = 0.9 },
+    { offset_ms = 30.0, velocity_factor = 0.8 },
+    { offset_ms = 45.0, velocity_factor = 0.7 },
+    { offset_ms = 60.0, velocity_factor = 0.6 }
+]
+
+[[sounds]]
+name = "Bell Strike"
+engine_type = "modal"
+freq = 1250.0
+brightness = 0.9
+dampening = 0.1
+inharmonicity = 0.05
+attack = 1.0
+decay = 1200.0
+attack_shaper = 0.7
+sustain_shaper = 0.8
+
+[[sounds]]
+name = "Bell Resonance"
+engine_type = "phys"
+freq = 1250.0
+brightness = 0.95
+dampening = 0.02
+attack = 5.0
+decay = 2000.0
+attack_shaper = -0.5
+sustain_shaper = 0.9
+
+[[sounds]]
+name = "Dialer Spring"
+engine_type = "granular"
+freq = 1800.0
+density = 0.8
+grain_size = 3.0
+jitter = 0.5
+attack = 1.0
+decay = 60.0
+attack_shaper = 0.8
+sustain_shaper = -0.4
+
+[[sounds]]
+name = "Transformer Bass"
+engine_type = "fm"
+freq = 32.7
+mod_ratio = 1.0
+mod_index = 8.0
+noise_level = 0.05
+attack = 5.0
+decay = 600.0
+bits = 8.0
+rate = 1.0
+attack_shaper = 0.4
+sustain_shaper = 0.2
+mods = [{ param = "mod_index", source = "Envelope", depth = 4.0 }]
+
+[[sounds]]
+name = "Heavy Gear Kick"
+engine_type = "hybrid"
+freq = 50.0
+noise_color = 0.2
+metallic = 0.8
+attack = 1.0
+decay = 250.0
+bits = 10.0
+attack_shaper = 0.6
+sustain_shaper = -0.4
+
+[[sounds]]
+name = "Dialer Flicker"
+engine_type = "granular"
+freq = 2400.0
+density = 1.0
+grain_size = 2.0
+jitter = 0.2
+attack = 0.5
+decay = 40.0
+attack_shaper = 1.0
+sub_hits = [
+    { offset_ms = 8.0, velocity_factor = 0.9 },
+    { offset_ms = 16.0, velocity_factor = 0.8 }
+]
+
+[[sounds]]
+name = "Line Hum Bass"
+engine_type = "fm"
+freq = 60.0
+mod_ratio = 3.0
+mod_index = 2.0
+noise_level = 0.1
+attack = 50.0
+decay = 1500.0
+attack_shaper = -0.5
+sustain_shaper = 0.6
+
+[[sounds]]
+name = "Finger Strike"
+engine_type = "phys"
+freq = 400.0
+brightness = 0.6
+dampening = 0.8
+attack = 1.0
+decay = 30.0
+attack_shaper = 0.9
+
+[[sounds]]
+name = "Plastic Friction"
+engine_type = "granular"
+freq = 2000.0
+density = 0.4
+grain_size = 15.0
+jitter = 0.9
+attack = 20.0
+decay = 120.0
+
+[[sounds]]
+name = "Line Crackle"
+engine_type = "noise"
+freq = 8000.0
+attack = 1.0
+decay = 50.0
+trigger_probability = 0.3
+
+[[sounds]]
+name = "Distant Ring"
+engine_type = "modal"
+freq = 1100.0
+brightness = 0.5
+dampening = 0.3
+attack = 5.0
+decay = 800.0
+pan = -0.5
+
+[[sounds]]
+name = "Operator Hum"
+engine_type = "fm"
+freq = 60.0
+mod_ratio = 3.0
+mod_index = 1.0
+noise_level = 0.1
+attack = 50.0
+decay = 1500.0
+pan = 0.5

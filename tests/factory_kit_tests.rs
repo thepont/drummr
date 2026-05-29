@@ -30,8 +30,8 @@ fn test_factory_kits_output() {
             let mut max_abs = 0.0f32;
             // Run for 50ms per sound
             for _ in 0..(0.05 * sample_rate) as usize {
-                let out = engine.tick();
-                max_abs = max_abs.max(out.abs());
+                let (out_l, out_r) = engine.tick();
+                max_abs = max_abs.max(out_l.abs()).max(out_r.abs());
             }
 
             println!("  Slot {}: Max Amp {}", slot, max_abs);

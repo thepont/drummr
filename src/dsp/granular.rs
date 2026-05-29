@@ -137,6 +137,7 @@ impl GranularEngine {
         if velocity > 0.0 {
             self.velocity = velocity;
             self.mod_engine.velocity = velocity;
+            self.mod_engine.reset(); // Reset LFO phases on trigger
             let decay_sec = match self.decay_division {
                 Some(div) => div.to_seconds(bpm),
                 None => self.decay / 1000.0,
@@ -210,17 +211,18 @@ impl GranularEngine {
         // full density / grain_size parameter space while preserving the
         // "thicker cloud = denser texture" character.
         let norm = (active as f32).max(1.0).sqrt();
-        (mixed / norm) * env * self.velocity * 0.5
+        let out = (mixed / norm) * env * self.velocity * 0.5;
+        out.clamp(-1.0, 1.0)
     }
 
     pub fn set_param(&mut self, param: &str, value: f32) {
         match param {
-            "freq" => self.frequency.base_value = value,
+            "freq" => self.frequency.base_value = value.clamp(20.0, 12000.0),
             "density" => self.density.base_value = value.clamp(0.0, 1.0),
-            "grain_size" => self.grain_size.base_value = value,
+            "grain_size" => self.grain_size.base_value = value.clamp(1.0, 200.0),
             "jitter" => self.jitter.base_value = value.clamp(0.0, 1.0),
-            "attack" => self.attack = value,
-            "decay" => self.decay = value,
+            "attack" => self.attack = value.clamp(1.0, 1000.0),
+            "decay" => self.decay = value.clamp(1.0, 2000.0),
             _ => {}
         }
     }

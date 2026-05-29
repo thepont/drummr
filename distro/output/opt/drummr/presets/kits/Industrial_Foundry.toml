@@ -1,0 +1,281 @@
+name = "Industrial Foundry"
+description = "Mechanical and abrasive textures. Train whistles, grinding gears, breaking glass, and molten metal. Uses deep modulation to simulate physical machinery."
+
+[[sounds]]
+name = "Steam Piston"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 8.0
+noise_level = 0.2
+attack = 1.0
+decay = 400.0
+
+[[sounds.mods]]
+param = "mod_index"
+source = "Envelope"
+depth = -6.0
+
+[[sounds.mods]]
+param = "noise_level"
+source = "Envelope"
+depth = 0.5
+
+[[sounds]]
+name = "Grinding Gear"
+engine_type = "hybrid"
+freq = 120.0
+noise_color = 0.8
+metallic = 0.9
+attack = 5.0
+decay = 600.0
+rate = 1.0
+
+[[sounds.mods]]
+param = "rate"
+source = "Envelope"
+depth = -0.6
+
+[[sounds.mods]]
+param = "metallic"
+source = "Lfo1"
+depth = 0.2
+
+[[sounds]]
+name = "Steam Whistle"
+engine_type = "modal"
+freq = 1200.0
+brightness = 0.8
+dampening = 0.1
+inharmonicity = 0.02
+attack = 20.0
+decay = 800.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Envelope"
+depth = 200.0
+
+[[sounds.mods]]
+param = "brightness"
+source = "Lfo2"
+depth = 0.3
+
+[[sounds]]
+name = "Glass Break"
+engine_type = "modal"
+freq = 3500.0
+brightness = 0.95
+dampening = 0.05
+inharmonicity = 0.4
+attack = 1.0
+decay = 1200.0
+
+[[sounds.mode_list]]
+freq = 3500.0
+q = 100.0
+gain = 1.0
+
+[[sounds.mode_list]]
+freq = 5200.0
+q = 80.0
+gain = 0.7
+
+[[sounds.mode_list]]
+freq = 8100.0
+q = 60.0
+gain = 0.5
+
+[[sounds.sub_hits]]
+offset_ms = 15.0
+velocity_factor = 0.8
+
+[[sounds.sub_hits]]
+offset_ms = 45.0
+velocity_factor = 0.6
+
+[[sounds]]
+name = "Melting Pour"
+engine_type = "granular"
+freq = 2000.0
+density = 0.9
+grain_size = 15.0
+jitter = 0.8
+attack = 10.0
+decay = 1500.0
+
+[[sounds.mods]]
+param = "density"
+source = "Envelope"
+depth = -0.5
+
+[[sounds.mods]]
+param = "jitter"
+source = "Lfo1"
+depth = 0.2
+
+[[sounds]]
+name = "Gear Shift"
+engine_type = "fm"
+freq = 150.0
+mod_ratio = 1.414
+mod_index = 2.0
+attack = 2.0
+decay = 300.0
+
+[[sounds.mods]]
+param = "mod_ratio"
+source = "Envelope"
+depth = 0.5
+
+[[sounds]]
+name = "Hydraulic Hiss"
+engine_type = "granular"
+freq = 6000.0
+density = 0.2
+grain_size = 50.0
+jitter = 0.1
+attack = 1.0
+decay = 200.0
+
+[[sounds.mods]]
+param = "density"
+source = "Envelope"
+depth = 0.8
+
+[[sounds]]
+name = "Iron Thud"
+engine_type = "modal"
+freq = 90.0
+brightness = 0.4
+dampening = 0.3
+inharmonicity = 0.6
+attack = 1.0
+decay = 600.0
+
+[[sounds.mods]]
+param = "dampening"
+source = "Velocity"
+depth = -0.2
+
+[[sounds]]
+name = "Conveyor Belt"
+engine_type = "granular"
+freq = 800.0
+density = 0.6
+grain_size = 20.0
+jitter = 0.3
+attack = 1.0
+decay = 100.0
+lfo1_freq = 4.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Lfo1"
+depth = 100.0
+
+[[sounds]]
+name = "Metal Scrape"
+engine_type = "hybrid"
+freq = 400.0
+noise_color = 0.5
+metallic = 0.95
+attack = 40.0
+decay = 1000.0
+
+[[sounds.mods]]
+param = "metallic"
+source = "Envelope"
+depth = -0.5
+
+[[sounds]]
+name = "Resonant Vent"
+engine_type = "modal"
+freq = 1500.0
+brightness = 0.2
+dampening = 0.05
+inharmonicity = 0.1
+attack = 100.0
+decay = 2000.0
+
+[[sounds.mods]]
+param = "brightness"
+source = "Envelope"
+depth = 0.7
+
+[[sounds]]
+name = "Chain Rattle"
+engine_type = "granular"
+freq = 4000.0
+density = 0.3
+grain_size = 10.0
+jitter = 0.9
+attack = 1.0
+decay = 400.0
+
+[[sounds.sub_hits]]
+offset_ms = 30.0
+velocity_factor = 0.7
+
+[[sounds.sub_hits]]
+offset_ms = 65.0
+velocity_factor = 0.5
+
+[[sounds]]
+name = "Oil Drip"
+engine_type = "fm"
+freq = 1800.0
+mod_ratio = 8.0
+mod_index = 0.5
+attack = 1.0
+decay = 40.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Velocity"
+depth = -400.0
+
+[[sounds]]
+name = "Foundry Spark"
+engine_type = "modal"
+freq = 8000.0
+brightness = 1.0
+dampening = 0.5
+inharmonicity = 0.8
+attack = 1.0
+decay = 30.0
+
+[[sounds.mods]]
+param = "inharmonicity"
+source = "Velocity"
+depth = -0.5
+
+[[sounds]]
+name = "Slag Plunge"
+engine_type = "hybrid"
+freq = 300.0
+noise_color = 0.3
+metallic = 0.2
+attack = 1.0
+decay = 800.0
+
+[[sounds.mods]]
+param = "noise_color"
+source = "Envelope"
+depth = 0.6
+
+[[sounds]]
+name = "Factory Siren"
+engine_type = "fm"
+freq = 440.0
+mod_ratio = 1.0
+mod_index = 2.0
+attack = 200.0
+decay = 1500.0
+lfo1_freq = 2.0
+
+[[sounds.mods]]
+param = "freq"
+source = "Lfo1"
+depth = 10.0
+

@@ -36,8 +36,8 @@ describe('ParamController', () => {
       />
     )
     // Assuming we show the source names
-    expect(screen.getByText('Shape')).toBeInTheDocument()
-    expect(screen.getByText('LFO 1')).toBeInTheDocument()
+    expect(screen.getAllByText('Shape').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('LFO 1').length).toBeGreaterThan(0)
   })
 
   it('calls onModChange when depth changes', () => {

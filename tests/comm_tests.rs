@@ -41,7 +41,7 @@ async fn test_multiple_clients_broadcast() {
     let message = "broadcast to all".to_string();
     engine.broadcast(message.clone());
 
-    for mut ws in clients {
+    for ws in clients {
         let (_, mut read) = ws.split();
         if let Some(Ok(msg)) = read.next().await {
             assert_eq!(msg.to_text().unwrap(), &message);

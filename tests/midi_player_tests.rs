@@ -51,34 +51,9 @@ fn make_minimal_kit() -> DrumKit {
             name: "Kick".into(),
             engine_type: Some("fm".into()),
             freq: 60.0,
-            mod_ratio: Some(1.0),
-            mod_index: Some(1.0),
-            noise_level: Some(0.0),
-            brightness: None,
-            dampening: None,
-            density: None,
-            grain_size: None,
-            jitter: None,
-            noise_color: None,
-            metallic: None,
-            inharmonicity: None,
-            bits: Some(16.0),
-            rate: Some(1.0),
             attack: 1.0,
             decay: 100.0,
-            lfo1_freq: None,
-            lfo2_freq: None,
-            lfo1_division: None,
-            lfo2_division: None,
-            decay_division: None,
-            mods: None,
-            mode_list: None,
-            sub_hits: None,
-            pattern: None,
-            trigger_probability: None,
-            ghost_probability: None,
-            ghost_offset_ms: None,
-            ghost_velocity_factor: None,
+            ..Default::default()
         }],
     }
 }
@@ -96,7 +71,7 @@ fn build_harness() -> TestHarness {
 
     let (audio_error_tx, audio_error_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
     Box::leak(Box::new(audio_error_rx));
-    let shared_state = Arc::new(SharedState::new(kit_engine, snapshot, vec![], audio_error_tx));
+    let shared_state = Arc::new(SharedState::new(snapshot, vec![], audio_error_tx));
     let comm_engine = Arc::new(CommEngine::new());
     let broadcasts = comm_engine.subscribe();
 
@@ -134,7 +109,8 @@ fn build_harness() -> TestHarness {
     }
 }
 
-async fn dispatch(h: &TestHarness, cmd: &str) {
+async fn dispatch(h: &mut TestHarness, cmd: &str) {
+    let (s_tx, _) = mpsc::unbounded_channel();
     handle_command(
         cmd.to_string(),
         h.midi_engine.clone(),
@@ -147,9 +123,11 @@ async fn dispatch(h: &TestHarness, cmd: &str) {
         h.sample_rate,
         h.bpm_engine.clone(),
         h.sync_engine.clone(),
+        s_tx,
     )
     .await;
 }
+
 
 /// Wait until a broadcast satisfying `pred` arrives, or the timeout elapses.
 /// Other broadcasts are ignored (returned in the second element on success
@@ -184,7 +162,8 @@ where
 #[tokio::test]
 async fn test_list_midi_tracks_broadcasts() {
     let mut h = build_harness();
-    dispatch(&h, "LIST_MIDI_TRACKS").await;
+    dispatch(&mut h, 
+ "LIST_MIDI_TRACKS").await;
 
     let hit = await_broadcast(&mut h.broadcasts, Duration::from_millis(200), |m| {
         m.starts_with("MIDI_TRACKS:")
@@ -206,7 +185,8 @@ async fn test_list_midi_tracks_broadcasts() {
 #[tokio::test]
 async fn test_play_unknown_track_broadcasts_error() {
     let mut h = build_harness();
-    dispatch(&h, "PLAY_MIDI_TRACK:does_not_exist").await;
+    dispatch(&mut h, 
+ "PLAY_MIDI_TRACK:does_not_exist").await;
 
     let hit = await_broadcast(&mut h.broadcasts, Duration::from_millis(200), |m| {
         m == "MIDI_TRACK_ERROR:does_not_exist"
@@ -226,7 +206,8 @@ async fn test_play_unknown_track_broadcasts_error() {
 #[tokio::test]
 async fn test_play_known_track_broadcasts_playing_then_stop() {
     let mut h = build_harness();
-    dispatch(&h, "PLAY_MIDI_TRACK:rock_100_beat").await;
+    dispatch(&mut h, 
+ "PLAY_MIDI_TRACK:rock_100_beat").await;
 
     let playing = await_broadcast(&mut h.broadcasts, Duration::from_millis(300), |m| {
         m == "MIDI_TRACK_PLAYING:rock_100_beat"
@@ -243,7 +224,8 @@ async fn test_play_known_track_broadcasts_playing_then_stop() {
         assert!(slot.is_some(), "handle should be Some while playing");
     }
 
-    dispatch(&h, "STOP_MIDI_PLAYBACK").await;
+    dispatch(&mut h, 
+ "STOP_MIDI_PLAYBACK").await;
 
     let stopped = await_broadcast(&mut h.broadcasts, Duration::from_millis(300), |m| {
         m.starts_with("MIDI_TRACK_STOPPED")
@@ -262,7 +244,8 @@ async fn test_play_known_track_broadcasts_playing_then_stop() {
 async fn test_play_replaces_existing_playback() {
     let mut h = build_harness();
 
-    dispatch(&h, "PLAY_MIDI_TRACK:rock_100_beat").await;
+    dispatch(&mut h, 
+ "PLAY_MIDI_TRACK:rock_100_beat").await;
     let first = await_broadcast(&mut h.broadcasts, Duration::from_millis(300), |m| {
         m == "MIDI_TRACK_PLAYING:rock_100_beat"
     })
@@ -276,7 +259,8 @@ async fn test_play_replaces_existing_playback() {
     };
     assert!(first_handle_id.is_some(), "first playback handle should exist");
 
-    dispatch(&h, "PLAY_MIDI_TRACK:funk_95_beat").await;
+    dispatch(&mut h, 
+ "PLAY_MIDI_TRACK:funk_95_beat").await;
     let second = await_broadcast(&mut h.broadcasts, Duration::from_millis(300), |m| {
         m == "MIDI_TRACK_PLAYING:funk_95_beat"
     })
@@ -295,13 +279,15 @@ async fn test_play_replaces_existing_playback() {
 
     // Cleanup so the test process doesn't leave a tokio task scheduling
     // sleeps for ~30s.
-    dispatch(&h, "STOP_MIDI_PLAYBACK").await;
+    dispatch(&mut h, 
+ "STOP_MIDI_PLAYBACK").await;
 }
 
 #[tokio::test]
 async fn test_playback_pushes_to_midi_producer() {
     let mut h = build_harness();
-    dispatch(&h, "PLAY_MIDI_TRACK:rock_100_beat").await;
+    dispatch(&mut h, 
+ "PLAY_MIDI_TRACK:rock_100_beat").await;
 
     // Wait for the PLAYING broadcast, then give the scheduler a moment to
     // emit the first few note-on events. The midi_player schedules with
@@ -337,7 +323,8 @@ async fn test_playback_pushes_to_midi_producer() {
         "expected at least one event with velocity > 0"
     );
 
-    dispatch(&h, "STOP_MIDI_PLAYBACK").await;
+    dispatch(&mut h, 
+ "STOP_MIDI_PLAYBACK").await;
 }
 
 #[tokio::test]
@@ -498,7 +485,8 @@ async fn test_natural_end_broadcasts_stopped() {
     // rock_140_fill is the smallest curated track (~454 bytes); at 140 BPM
     // a one-bar fill runs well under 3 seconds. We still keep a generous
     // upper bound so a slower runner doesn't false-fail.
-    dispatch(&h, "PLAY_MIDI_TRACK:rock_140_fill").await;
+    dispatch(&mut h, 
+ "PLAY_MIDI_TRACK:rock_140_fill").await;
 
     let playing = await_broadcast(&mut h.broadcasts, Duration::from_millis(300), |m| {
         m == "MIDI_TRACK_PLAYING:rock_140_fill"

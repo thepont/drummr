@@ -1,0 +1,176 @@
+name = "Bubblegum Pop"
+description = "A soft, pillowy, and playful kit designed for modern pop. Focuses on rounded transients, warm resonances, and clean textures. No harshness, just bounce."
+
+[[sounds]]
+name = "Candy Kick"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 1.0
+mod_index = 2.5
+noise_level = 0.01
+attack = 2.0
+decay = 250.0
+attack_shaper = 0.2
+sustain_shaper = -0.1
+
+[[sounds]]
+name = "Plastic Snap"
+engine_type = "modal"
+freq = 1100.0
+brightness = 0.5
+dampening = 0.7
+inharmonicity = 0.1
+attack = 2.0
+decay = 35.0
+attack_shaper = 0.3
+
+[[sounds]]
+name = "Sugar Snare"
+engine_type = "hybrid"
+freq = 210.0
+noise_color = 0.2
+metallic = 0.1
+attack = 2.0
+decay = 180.0
+attack_shaper = 0.1
+sustain_shaper = -0.4
+
+[[sounds]]
+name = "Glitter Hat"
+engine_type = "modal"
+freq = 9000.0
+brightness = 0.6
+dampening = 0.5
+inharmonicity = 0.02
+attack = 1.5
+decay = 30.0
+ghost_probability = 0.3
+ghost_offset_ms = 40.0
+
+[[sounds]]
+name = "Neon OH"
+engine_type = "modal"
+freq = 8500.0
+brightness = 0.5
+dampening = 0.3
+inharmonicity = 0.05
+attack = 10.0
+decay = 600.0
+
+[[sounds]]
+name = "Toy Block"
+engine_type = "modal"
+freq = 1400.0
+brightness = 0.35
+dampening = 0.8
+inharmonicity = 0.0
+attack = 2.0
+decay = 25.0
+attack_shaper = 0.4
+
+[[sounds]]
+name = "Bubble Pop"
+engine_type = "phys"
+freq = 700.0
+brightness = 0.8
+dampening = 0.6
+attack = 60.0
+decay = 40.0
+attack_shaper = -0.8
+sustain_shaper = 0.6
+
+[[sounds]]
+name = "Soda Can"
+engine_type = "modal"
+freq = 3200.0
+brightness = 0.4
+dampening = 0.6
+inharmonicity = 0.4
+attack = 2.0
+decay = 120.0
+mode_list = [
+    { freq = 3200.0, q = 60.0, gain = 1.0 },
+    { freq = 4500.0, q = 40.0, gain = 0.5 }
+]
+
+[[sounds]]
+name = "Lolly Tom"
+engine_type = "phys"
+freq = 180.0
+brightness = 0.4
+dampening = 0.5
+attack = 8.0
+decay = 350.0
+mods = [{ param = "freq", source = "Velocity", depth = 20.0 }]
+
+[[sounds]]
+name = "Cherry Chirp"
+engine_type = "fm"
+freq = 2200.0
+mod_ratio = 4.0
+mod_index = 2.0
+attack = 2.0
+decay = 20.0
+pattern = [
+    { division = "Sixteenth", velocity_factor = 0.6, multiplier = 1.0 }
+]
+
+[[sounds]]
+name = "Disco Cowbell"
+engine_type = "modal"
+freq = 560.0
+brightness = 0.55
+dampening = 0.4
+inharmonicity = 0.8
+attack = 2.0
+decay = 250.0
+
+[[sounds]]
+name = "Arcade Zap"
+engine_type = "fm"
+freq = 1100.0
+mod_ratio = 2.0
+mod_index = 6.0
+attack = 3.0
+decay = 80.0
+mods = [{ param = "freq", source = "Envelope", depth = -400.0 }]
+
+[[sounds]]
+name = "Pink Noise Swell"
+engine_type = "noise"
+freq = 4000.0
+attack = 300.0
+decay = 1000.0
+pan = 0.4
+
+[[sounds]]
+name = "Heart Beat Pop"
+engine_type = "fm"
+freq = 45.0
+mod_ratio = 0.5
+mod_index = 1.5
+attack = 5.0
+decay = 120.0
+sub_hits = [{ offset_ms = 180.0, velocity_factor = 0.4 }]
+
+[[sounds]]
+name = "Synth String Rip"
+engine_type = "granular"
+freq = 440.0
+density = 0.6
+grain_size = 10.0
+jitter = 0.3
+attack = 20.0
+decay = 300.0
+bits = 16.0
+
+[[sounds]]
+name = "Pluck Bass"
+engine_type = "phys"
+freq = 82.41 # E2
+brightness = 0.3
+dampening = 0.4
+attack = 3.0
+decay = 500.0
+attack_shaper = 0.4
+sustain_shaper = -0.2

@@ -1,0 +1,202 @@
+name = "Scrape and Shudder"
+description = "An eerie, industrial kit built from high-frequency resonant scrapes, long metallic swells, and backwards-sounding physical modeling textures. Focuses on the 'Resonant Pipe' and 'Metal Scrape' DNA from Magnetic Monolith."
+
+[[sounds]]
+name = "Deep Scrape Kick"
+engine_type = "fm"
+freq = 42.0
+mod_ratio = 0.5
+mod_index = 4.0
+noise_level = 0.08
+attack = 5.0
+decay = 400.0
+attack_shaper = 0.2
+sustain_shaper = -0.3
+
+[[sounds]]
+name = "Gravel Snare"
+engine_type = "hybrid"
+freq = 160.0
+noise_color = 0.3
+metallic = 0.8
+attack = 2.0
+decay = 180.0
+bits = 10.0
+attack_shaper = 0.6
+sustain_shaper = -0.5
+
+[[sounds]]
+name = "Pipe Swell"
+engine_type = "phys"
+freq = 280.0
+brightness = 0.98
+dampening = 0.05
+attack = 150.0
+decay = 1200.0
+attack_shaper = -0.9
+sustain_shaper = 0.8
+lfo1_division = "Bar"
+mods = [{ param = "brightness", source = "Lfo1", depth = 0.15 }]
+
+[[sounds]]
+name = "Reverse Scrape Hi"
+engine_type = "phys"
+freq = 5200.0
+brightness = 1.0
+dampening = 0.15
+attack = 250.0
+decay = 600.0
+attack_shaper = -1.0
+sustain_shaper = 0.9
+bits = 12.0
+
+[[sounds]]
+name = "Reverse Scrape Lo"
+engine_type = "phys"
+freq = 1200.0
+brightness = 0.9
+dampening = 0.2
+attack = 300.0
+decay = 800.0
+attack_shaper = -1.0
+sustain_shaper = 0.8
+bits = 10.0
+
+[[sounds]]
+name = "Iron Shudder"
+engine_type = "granular"
+freq = 180.0
+density = 0.7
+grain_size = 20.0
+jitter = 0.5
+attack = 10.0
+decay = 400.0
+sub_hits = [
+    { offset_ms = 20.0, velocity_factor = 0.8 },
+    { offset_ms = 45.0, velocity_factor = 0.6 },
+    { offset_ms = 70.0, velocity_factor = 0.4 }
+]
+
+[[sounds]]
+name = "Rusty Gate"
+engine_type = "modal"
+freq = 110.0
+brightness = 0.6
+dampening = 0.2
+inharmonicity = 0.7
+attack = 80.0
+decay = 1500.0
+attack_shaper = -0.7
+sustain_shaper = 0.6
+mods = [{ param = "freq", source = "Lfo1", depth = 5.0 }]
+lfo1_division = "TwoBars"
+
+[[sounds]]
+name = "Static Wash"
+engine_type = "granular"
+freq = 9000.0
+density = 0.3
+grain_size = 120.0
+jitter = 0.9
+attack = 500.0
+decay = 2500.0
+attack_shaper = -0.8
+sustain_shaper = 0.5
+
+[[sounds]]
+name = "Clang Drone"
+engine_type = "modal"
+freq = 220.0
+brightness = 0.8
+dampening = 0.05
+inharmonicity = 0.4
+attack = 400.0
+decay = 3000.0
+mode_list = [
+    { freq = 220.0, q = 200.0, gain = 1.0 },
+    { freq = 445.0, q = 150.0, gain = 0.7 },
+    { freq = 892.0, q = 100.0, gain = 0.5 }
+]
+
+[[sounds]]
+name = "Short Scrape"
+engine_type = "phys"
+freq = 3200.0
+brightness = 1.0
+dampening = 0.4
+attack = 1.0
+decay = 80.0
+attack_shaper = 0.8
+sustain_shaper = -0.8
+
+[[sounds]]
+name = "Nail Scratch"
+engine_type = "modal"
+freq = 4500.0
+brightness = 1.0
+dampening = 0.95
+inharmonicity = 0.9
+attack = 0.5
+decay = 15.0
+attack_shaper = 1.0
+
+[[sounds]]
+name = "Sub Shudder"
+engine_type = "fm"
+freq = 35.0
+mod_ratio = 1.0
+mod_index = 6.0
+noise_level = 0.0
+attack = 50.0
+decay = 1500.0
+mods = [{ param = "mod_index", source = "Lfo2", depth = 2.0 }]
+lfo2_division = "Bar"
+
+[[sounds]]
+name = "Mechanical Pulse"
+engine_type = "fm"
+freq = 55.0
+mod_ratio = 0.5
+mod_index = 12.0
+noise_level = 0.02
+attack = 2.0
+decay = 120.0
+lfo1_division = "Quarter"
+mods = [{ param = "mod_index", source = "Lfo1", depth = 4.0 }]
+
+[[sounds]]
+name = "Steam Leak"
+engine_type = "noise"
+freq = 12000.0
+attack = 50.0
+decay = 800.0
+trigger_probability = 0.7
+pan = 0.6
+
+[[sounds]]
+name = "Resonant Hatch"
+engine_type = "modal"
+freq = 180.0
+brightness = 0.7
+dampening = 0.3
+inharmonicity = 0.4
+attack = 1.0
+decay = 600.0
+mode_list = [
+    { freq = 180.0, q = 100.0, gain = 1.0 },
+    { freq = 290.0, q = 80.0, gain = 0.6 },
+    { freq = 450.0, q = 60.0, gain = 0.4 }
+]
+
+[[sounds]]
+name = "Radio Static"
+engine_type = "granular"
+freq = 11000.0
+density = 0.9
+grain_size = 5.0
+jitter = 0.8
+attack = 2.0
+decay = 150.0
+bits = 4.0
+rate = 8.0
+pan = -0.6

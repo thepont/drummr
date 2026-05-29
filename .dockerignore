@@ -1,0 +1,7 @@
+target/
+distro/qemu/
+distro/yocto/
+.git/
+node_modules/
+ui/dist/
+ui/node_modules/

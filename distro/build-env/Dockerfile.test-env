@@ -1,0 +1,28 @@
+# Virtual Pi Testing Environment
+# Mimics the final OS for testing without a real Pi
+
+FROM debian:bookworm-slim
+
+# Install runtime dependencies (same as the real Pi OS)
+RUN apt-get update && apt-get install -y \
+    alsa-utils \
+    libasound2 \
+    systemd \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create drummr directory
+WORKDIR /opt/drummr
+
+# Copy artifacts from the cross-compilation stage
+COPY distro/output/opt/drummr/ /opt/drummr/
+COPY distro/services/drummr.service /etc/systemd/system/
+
+# Mock ALSA (since we don't have real sound hardware in the container)
+RUN touch /etc/asound.conf
+
+# Set up logs
+RUN touch /var/log/drummr.log
+
+# Command to run the engine directly for testing
+CMD ["./drummr"]

@@ -11,8 +11,8 @@ describe('ModulationPanel', () => {
         onChangeLfo={() => {}} 
       />
     )
-    expect(screen.getByText(/LFO 1 Rate/)).toBeInTheDocument()
-    expect(screen.getByText(/LFO 2 Rate/)).toBeInTheDocument()
+    expect(screen.getAllByText(/LFO 1/)[0]).toBeInTheDocument()
+    expect(screen.getAllByText(/LFO 2/)[0]).toBeInTheDocument()
     expect(screen.getByText(/1.00 Hz/)).toBeInTheDocument()
     expect(screen.getByText(/5.00 Hz/)).toBeInTheDocument()
   })

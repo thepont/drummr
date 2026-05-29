@@ -32,19 +32,8 @@ fn make_sound(pattern: Option<Vec<PatternStep>>) -> DrumSound {
         rate: Some(1.0),
         attack: 1.0,
         decay: 20.0,
-        lfo1_freq: None,
-        lfo2_freq: None,
-        lfo1_division: None,
-        lfo2_division: None,
-        decay_division: None,
-        mods: None,
-        mode_list: None,
-        sub_hits: None,
         pattern,
-        trigger_probability: None,
-        ghost_probability: None,
-        ghost_offset_ms: None,
-        ghost_velocity_factor: None,
+        ..Default::default()
     }
 }
 

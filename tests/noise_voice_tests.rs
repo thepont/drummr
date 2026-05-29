@@ -22,34 +22,9 @@ fn make_noise_sound(decay_ms: f32) -> DrumSound {
         name: "noise_test".into(),
         engine_type: Some("noise".into()),
         freq: 0.0,
-        mod_ratio: None,
-        mod_index: None,
-        noise_level: None,
-        brightness: None,
-        dampening: None,
-        density: None,
-        grain_size: None,
-        jitter: None,
-        noise_color: None,
-        metallic: None,
-        inharmonicity: None,
-        bits: None,
-        rate: None,
         attack: 1.0,
         decay: decay_ms,
-        lfo1_freq: None,
-        lfo2_freq: None,
-        lfo1_division: None,
-        lfo2_division: None,
-        decay_division: None,
-        mods: None,
-        mode_list: None,
-        sub_hits: None,
-        pattern: None,
-        trigger_probability: None,
-        ghost_probability: None,
-        ghost_offset_ms: None,
-        ghost_velocity_factor: None,
+        ..Default::default()
     }
 }
 
@@ -177,7 +152,7 @@ fn test_noise_in_kit_engine_round_trip() {
         engine.trigger(36, 1.0, 120.0);
         let mut peak = 0.0f32;
         for _ in 0..(SR * 0.030) as usize {
-            peak = peak.max(engine.tick().abs());
+            peak = peak.max(engine.tick().0.abs());
         }
         assert!(peak > 0.0, "live noise voice should produce audio");
     }

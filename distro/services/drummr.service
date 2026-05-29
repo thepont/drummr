@@ -1,0 +1,23 @@
+[Unit]
+Description=drummr Audio Engine
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/drummr
+ExecStartPre=/usr/bin/bash -c "echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
+ExecStart=/opt/drummr/drummr
+Restart=always
+RestartSec=1
+StandardOutput=append:/var/log/drummr.log
+StandardError=append:/var/log/drummr.log
+
+# Real-time priority tuning
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=95
+LimitRTPRIO=infinity
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target

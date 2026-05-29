@@ -179,7 +179,7 @@ fn test_kit_engine_trigger_resets_postfx() {
     // bugs). Record the last non-zero output before the tail goes to 0.
     let mut last_nonzero: f32 = 0.0;
     for _ in 0..50_000 {
-        let y = kit.tick();
+        let (y, _) = kit.tick();
         if y.abs() > 1e-6 {
             last_nonzero = y;
         }
@@ -204,7 +204,7 @@ fn test_kit_engine_trigger_resets_postfx() {
     // window expires. Re-triggering with reset means the very first sample
     // after re-trigger must NOT equal that held tail value.
     kit.trigger(36, 1.0, 120.0);
-    let first_after = kit.tick();
+    let (first_after, _) = kit.tick();
 
     // With reset, hold_counter == 0 at trigger time, so the next process()
     // call refreshes the held sample to the current voice output (which for
@@ -253,22 +253,22 @@ fn test_kit_engine_applies_postfx_per_slot() {
 
     for (i, y) in crushed_out.iter().enumerate() {
         assert!(
-            y.is_finite(),
-            "crushed kit produced non-finite at {}: {}",
+            y.0.is_finite() && y.1.is_finite(),
+            "crushed kit produced non-finite at {}: {:?}",
             i,
             y
         );
-        assert!(y.abs() <= 1.0 + 1e-3);
+        assert!(y.0.abs() <= 1.0 + 1e-3);
     }
     for y in &clean_out {
-        assert!(y.is_finite());
+        assert!(y.0.is_finite() && y.1.is_finite());
     }
 
     // The two streams must differ somewhere — PostFx must actually act.
     let any_diff = clean_out
         .iter()
         .zip(crushed_out.iter())
-        .any(|(a, b)| (a - b).abs() > 1e-5);
+        .any(|(a, b)| (a.0 - b.0).abs() > 1e-5);
     assert!(
         any_diff,
         "kit with PostFx should differ from clean kit at least once across {} samples",

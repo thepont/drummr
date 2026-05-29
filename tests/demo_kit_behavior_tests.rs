@@ -133,7 +133,7 @@ fn test_pattern_demo_kit_loads() {
         // Run 200 ms; expect non-silent peak.
         let mut peak = 0.0_f32;
         for _ in 0..(SR * 0.2) as usize {
-            peak = peak.max(kit.tick().abs());
+            peak = peak.max(kit.tick().0.abs());
         }
         assert!(
             peak > 1e-4,
@@ -218,6 +218,7 @@ fn test_drain_during_tick_loop() {
         ghost_probability: None,
         ghost_offset_ms: None,
         ghost_velocity_factor: None,
+        ..Default::default()
     };
     let kit_cfg = DrumKit {
         name: "Tick".into(),
@@ -303,6 +304,7 @@ fn test_buffer_aligned_subhit_doesnt_miss() {
         ghost_probability: None,
         ghost_offset_ms: None,
         ghost_velocity_factor: None,
+        ..Default::default()
     };
     let mappings: Vec<DrumMapping> = vec![DrumMapping { note: 36, slot: 0 }];
     let mut kit = KitEngine::from_config(
@@ -388,6 +390,7 @@ fn test_drain_pending_per_tick_is_consistent() {
         ghost_probability: None,
         ghost_offset_ms: None,
         ghost_velocity_factor: None,
+        ..Default::default()
     };
     let mappings: Vec<DrumMapping> = vec![DrumMapping { note: 36, slot: 0 }];
     let mut kit = KitEngine::from_config(
